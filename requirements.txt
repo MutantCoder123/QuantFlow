@@ -1,0 +1,10 @@
+smartapi-python
+pyotp
+pandas
+logzero
+websocket-client
+python-dotenv
+pandas-ta
+numpy
+scipy
+

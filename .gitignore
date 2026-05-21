@@ -1,0 +1,15 @@
+# Environments
+.env
+.venv/
+env/
+venv/
+ENV/
+
+# Python cache/compilation
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Logs
+logs/
+*.log
