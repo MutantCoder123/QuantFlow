@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlgoTrade Live Diagnostic Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Outfit & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+        }
+        .font-mono-custom {
+            font-family: 'JetBrains Mono', monospace;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 min-h-screen text-slate-100 flex flex-col relative">
+    <!-- Navbar / Header -->
+    <header class="border-b border-slate-800/80 bg-slate-950/55 backdrop-blur-md sticky top-0 z-40 px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-indigo-200 via-white to-violet-200 bg-clip-text text-transparent">AlgoTrade System</h1>
+                <p class="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Phase 4.3 Visual Diagnostics</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <!-- Phase 9: Notification Bell -->
+            <div class="relative cursor-pointer" onclick="toggleAlertTray()">
+                <div class="w-10 h-10 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center hover:bg-slate-800 transition-colors shadow-lg">
+                    <svg class="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                </div>
+                <div id="alert-badge" class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-rose-500 text-[10px] font-bold flex items-center justify-center text-white border-2 border-slate-950 hidden shadow-[0_0_8px_#f43f5e]">0</div>
+                
+                <!-- Alert Tray Dropdown -->
+                <div id="alert-tray" class="absolute top-12 right-0 w-80 bg-slate-900 border border-slate-700 shadow-2xl rounded-lg hidden flex-col z-50 overflow-hidden cursor-default" onclick="event.stopPropagation()">
+                    <div class="px-4 py-3 border-b border-slate-800 bg-slate-800/40 flex justify-between items-center">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-300">System Alerts</h4>
+                        <button onclick="toggleAlertTray()" class="text-slate-500 hover:text-slate-300"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+                    </div>
+                    <div id="alert-tray-body" class="max-h-96 overflow-y-auto p-2 flex flex-col gap-2">
+                        <div class="text-center text-xs text-slate-500 p-4">No alerts right now.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Connection Status -->
+            <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/80 border border-slate-800">
+                <span id="status-dot" class="w-2.5 h-2.5 rounded-full bg-yellow-500 shadow-[0_0_8px_#eab308]"></span>
+                <span id="status-text" class="text-xs font-semibold text-slate-300">Connecting...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-[90rem] w-full mx-auto p-6 space-y-6">
+        <!-- Section: Macro Weather -->
+        <section class="space-y-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path>
+                        </svg>
+                        Macro Weather Monitor
+                    </h2>
+                    <button id="btn-screener" class="bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] uppercase font-bold py-1 px-3 rounded shadow transition-colors border border-indigo-400/30">Run Phase 0 Screener</button>
+                    <button id="btn-settings" class="bg-slate-700 hover:bg-slate-600 text-white text-[10px] uppercase font-bold py-1 px-3 rounded shadow transition-colors border border-slate-500/30">⚙️ Prompt Settings</button>
+                    <button id="btn-edit-watchlist" onclick="openWatchlistModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] uppercase font-bold py-1 px-3 rounded shadow transition-colors border border-emerald-400/30">📋 Edit Watchlist</button>
+                    <button id="btn-map-tokens" class="bg-purple-600 hover:bg-purple-500 text-white text-[10px] uppercase font-bold py-1 px-3 rounded shadow transition-colors border border-purple-400/30">🔗 Map Option Tokens</button>
+                </div>
+                <span id="macro-date" class="text-xs text-slate-500 font-mono-custom">Date: N/A</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <!-- Card 1: Put Call Ratio -->
+                <div class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 backdrop-blur-sm flex flex-col justify-between shadow-md">
+                    <div class="flex justify-between items-start">
+                        <span class="text-xs font-semibold text-slate-400">Put-Call Ratio (PCR)</span>
+                        <span id="pcr-badge" class="px-2 py-0.5 text-[10px] font-bold rounded bg-slate-800 text-slate-400 border border-slate-700">Neutral</span>
+                    </div>
+                    <div class="mt-2 flex items-baseline gap-2">
+                        <span id="pcr-val" class="text-3xl font-extrabold font-mono-custom text-white">1.0000</span>
+                        <span class="text-[10px] text-slate-500">Nifty 50</span>
+                    </div>
+                </div>
+
+                <!-- Card 2: FII Net Flow -->
+                <div class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 backdrop-blur-sm flex flex-col justify-between shadow-md">
+                    <div class="flex justify-between items-start">
+                        <span class="text-xs font-semibold text-slate-400">FII Cash Net Flow</span>
+                        <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="mt-2">
+                        <span id="fii-val" class="text-2xl font-bold font-mono-custom text-slate-300">₹0 Cr</span>
+                        <p class="text-[10px] text-slate-500 mt-0.5">NSE Cash Market Net</p>
+                    </div>
+                </div>
+
+                <!-- Card 3: DII Net Flow -->
+                <div class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 backdrop-blur-sm flex flex-col justify-between shadow-md">
+                    <div class="flex justify-between items-start">
+                        <span class="text-xs font-semibold text-slate-400">DII Cash Net Flow</span>
+                        <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="mt-2">
+                        <span id="dii-val" class="text-2xl font-bold font-mono-custom text-slate-300">₹0 Cr</span>
+                        <p class="text-[10px] text-slate-500 mt-0.5">Domestic Cash Net</p>
+                    </div>
+                </div>
+
+                <!-- Card 4: Net Market Direction -->
+                <div class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 backdrop-blur-sm flex flex-col justify-between shadow-md">
+                    <div class="flex justify-between items-start">
+                        <span class="text-xs font-semibold text-slate-400">Net Inst Flow</span>
+                        <span class="w-2 h-2 rounded-full bg-slate-600"></span>
+                    </div>
+                    <div class="mt-2">
+                        <span id="net-direction" class="text-sm font-semibold text-slate-300">Net Flow: ₹0.00 Cr (Neutral)</span>
+                        <p class="text-[10px] text-slate-500 mt-1.5">Combined FII + DII Cash</p>
+                    </div>
+                </div>
+
+                <!-- Card 5: Market Breadth -->
+                <div class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 backdrop-blur-sm flex flex-col justify-between shadow-md">
+                    <div class="flex justify-between items-start">
+                        <span class="text-xs font-semibold text-slate-400">Market Breadth</span>
+                        <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                        </svg>
+                    </div>
+                    <div class="mt-2">
+                        <span id="breadth-val" class="text-2xl font-bold font-mono-custom text-slate-300">--</span>
+                        <p class="text-[10px] text-slate-500 mt-0.5">NSE A/D Ratio</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Live Market Matrix -->
+        <section class="space-y-3">
+            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+                </svg>
+                Real-Time Market Matrix
+            </h2>
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl overflow-hidden backdrop-blur-md shadow-xl">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-slate-800/50">
+                        <thead class="bg-slate-950/80">
+                            <tr>
+                                <th scope="col" class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Ticker</th>
+                                <th scope="col" class="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">LTP</th>
+                                <th scope="col" class="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">Imbalance (OBI)</th>
+                                <th scope="col" class="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">Delta (CVD)</th>
+                                <th scope="col" class="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">POC %</th>
+                                <th scope="col" class="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">RSI (14)</th>
+                                <th scope="col" class="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">PCR</th>
+                                <th scope="col" class="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">IVR</th>
+                                <th scope="col" class="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">Max Pain</th>
+                                <th scope="col" class="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">RS</th>
+                                <th scope="col" class="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">Matrix</th>
+                                <th scope="col" class="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="matrix-body" class="divide-y divide-slate-800/40">
+                            <!-- Loading / Empty state -->
+                            <tr id="loading-row">
+                                <td colspan="12" class="px-6 py-16 text-center text-slate-500">
+                                    <svg class="mx-auto h-8 w-8 animate-spin text-indigo-500 mb-3" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Connecting to real-time streams...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-900 bg-slate-950 py-4 px-6 text-center text-xs text-slate-600">
+        AlgoTrade Multi-Tenant Quantitative System &copy; 2026. All rights reserved.
+    </footer>
+
+    <!-- LLM JSON Inspection Modal -->
+    <div id="llm-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 transition-opacity duration-200">
+        <div class="bg-slate-900 border border-slate-700 shadow-2xl rounded-xl w-full max-w-3xl flex flex-col overflow-hidden max-h-[90vh]">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between px-5 py-3 border-b border-slate-800 bg-slate-800/40">
+                <h3 id="modal-title" class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                    <span class="text-xl">🤖</span> Raw LLM Payload
+                </h3>
+                <div class="flex gap-2">
+                    <button id="modal-copy-btn" onclick="copyToClipboard()" class="px-4 py-1.5 text-xs font-semibold rounded bg-indigo-600 text-white hover:bg-indigo-500 transition-colors shadow-lg">
+                        Copy
+                    </button>
+                    <button onclick="closeJsonModal()" class="px-4 py-1.5 text-xs font-semibold rounded bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors shadow-lg">
+                        Close
+                    </button>
+                </div>
+            </div>
+            <!-- Modal Body -->
+            <div class="p-5 overflow-y-auto flex-1 bg-slate-950 flex flex-col gap-4">
+                
+                <!-- AI Reasoning Engine Control Panel -->
+                <div class="bg-slate-900 border border-slate-700 rounded-lg p-4 shadow-lg">
+                    <h4 class="text-sm font-bold text-slate-300 mb-3 uppercase tracking-wider flex items-center gap-2">
+                        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        AI Reasoning Engine
+                    </h4>
+                    
+                    <div class="flex flex-wrap items-center gap-4 mb-4">
+                        <button id="btn-instant-analyze" onclick="triggerInstantAnalysis()" class="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded shadow-lg transition-colors flex items-center gap-2">
+                            ⚡ Instant Analyze
+                        </button>
+                        
+                        <div class="flex items-center gap-2 border-l border-slate-700 pl-4">
+                            <span class="text-xs text-slate-400 font-semibold uppercase">Model:</span>
+                            <select id="reasoning-model-select" class="bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1 focus:outline-none focus:border-indigo-500">
+                                <option value="gemini-3-flash" selected>Gemini 3 Flash</option>
+                                <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                                <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                                <option value="gemini-3.1-pro">Gemini 3.1 Pro</option>
+                            </select>
+                        </div>
+                        
+                        <div class="flex items-center gap-2 border-l border-slate-700 pl-4">
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="toggle-auto-analyze" class="sr-only peer" onchange="toggleAutoAnalyze()">
+                                <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                                <span class="ml-2 text-xs font-semibold text-slate-300">Live Auto-Analyze</span>
+                            </label>
+                        </div>
+                        
+                        <div class="flex items-center gap-2 border-l border-slate-700 pl-4">
+                            <span class="text-xs text-slate-400">Freq (s):</span>
+                            <input type="number" id="auto-analyze-interval" value="90" min="10" class="w-16 bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1 text-center focus:outline-none focus:border-indigo-500">
+                        </div>
+                    </div>
+                    
+                    <div class="bg-[#0d1117] rounded-md p-4 border border-slate-800 h-64 overflow-y-auto">
+                        <pre><code id="reasoning-report-block" class="text-xs font-mono-custom text-slate-300 whitespace-pre-wrap">Awaiting trigger...</code></pre>
+                    </div>
+                </div>
+
+                <!-- Raw JSON Payload -->
+                <div class="bg-[#0d1117] border border-slate-800 rounded-lg p-4 h-48 overflow-y-auto">
+                    <h4 class="text-xs font-bold text-slate-500 mb-2 uppercase">Raw Telemetry JSON</h4>
+                    <pre><code id="modal-code-block" class="text-xs font-mono-custom text-emerald-400 whitespace-pre-wrap break-all"></code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- WebSocket Logic -->
+    <script>
+        const SERVER_IP = '192.168.29.123:8000';
+        const isLocalFile = window.location.protocol === 'file:';
+        const wsHost = isLocalFile ? SERVER_IP : window.location.host;
+        const apiHost = isLocalFile ? SERVER_IP : window.location.host;
+        
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+        const wsUri = `ws://${wsHost}/ws`;
+        const apiBase = isLocalFile ? `http://${apiHost}` : '';
+        let socket;
+
+        // Global Cache for the Modal
+        window.latestGlobalState = {};
+
+        function connect() {
+            socket = new WebSocket(wsUri);
+            const statusDot = document.getElementById('status-dot');
+            const statusText = document.getElementById('status-text');
+
+            socket.onopen = () => {
+                statusDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]';
+                statusText.innerText = 'Connected Live';
+                statusText.className = 'text-xs font-semibold text-emerald-400';
+            };
+
+            socket.onmessage = (event) => {
+                const payload = JSON.parse(event.data);
+                updateMacroWeather(payload.macro_state);
+                updateMarketMatrix(payload.global_state);
+                // 4. Update Market Breadth
+                if (payload.macro_state && payload.macro_state.ad_ratio !== undefined) {
+                    const adRatio = parseFloat(payload.macro_state.ad_ratio);
+                    const breadthElem = document.getElementById('breadth-val');
+                    breadthElem.innerText = adRatio.toFixed(2);
+                    breadthElem.className = adRatio >= 1.0 ? 'text-2xl font-bold font-mono-custom text-emerald-400' : 'text-2xl font-bold font-mono-custom text-rose-400';
+                }
+            };
+
+            socket.onclose = () => {
+                statusDot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_#f43f5e] animate-pulse';
+                statusText.innerText = 'Reconnecting...';
+                statusText.className = 'text-xs font-semibold text-rose-400';
+                setTimeout(connect, 3000);
+            };
+
+            socket.onerror = (err) => {
+                console.error('WebSocket error: ', err);
+                socket.close();
+            };
+        }
+
+        function updateMacroWeather(macro) {
+            if (!macro) return;
+            
+            // 1. Update PCR
+            const pcrVal = parseFloat(macro.pcr || 1.0);
+            document.getElementById('pcr-val').innerText = pcrVal.toFixed(4);
+            const pcrBadge = document.getElementById('pcr-badge');
+            if (pcrVal > 1.3) {
+                pcrBadge.className = 'px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+                pcrBadge.innerText = 'Bullish';
+            } else if (pcrVal < 0.7) {
+                pcrBadge.className = 'px-2 py-0.5 text-[10px] font-bold rounded bg-rose-500/20 text-rose-400 border border-rose-500/30';
+                pcrBadge.innerText = 'Bearish';
+            } else {
+                pcrBadge.className = 'px-2 py-0.5 text-[10px] font-bold rounded bg-slate-800 text-slate-400 border border-slate-700';
+                pcrBadge.innerText = 'Neutral';
+            }
+
+            // 2. Update FII/DII
+            const fiiNet = parseFloat(macro.fii_net || 0);
+            const diiNet = parseFloat(macro.dii_net || 0);
+            const netTotal = fiiNet + diiNet;
+            const dateStr = macro.date || 'N/A';
+
+            document.getElementById('fii-val').innerText = `₹${fiiNet.toLocaleString('en-IN')} Cr`;
+            document.getElementById('fii-val').className = fiiNet >= 0 ? 'text-2xl font-bold font-mono-custom text-emerald-400' : 'text-2xl font-bold font-mono-custom text-rose-400';
+
+            document.getElementById('dii-val').innerText = `₹${diiNet.toLocaleString('en-IN')} Cr`;
+            document.getElementById('dii-val').className = diiNet >= 0 ? 'text-2xl font-bold font-mono-custom text-emerald-400' : 'text-2xl font-bold font-mono-custom text-rose-400';
+
+            // 3. Update Net Total
+            const netDir = document.getElementById('net-direction');
+            if (netTotal > 0) {
+                netDir.className = 'text-sm font-semibold text-emerald-400';
+                netDir.innerText = `Net Flow: +₹${netTotal.toFixed(2)} Cr (Net Buyer)`;
+            } else if (netTotal < 0) {
+                netDir.className = 'text-sm font-semibold text-rose-400';
+                netDir.innerText = `Net Flow: -₹${Math.abs(netTotal).toFixed(2)} Cr (Net Seller)`;
+            } else {
+                netDir.className = 'text-sm font-semibold text-slate-400';
+                netDir.innerText = `Net Flow: ₹0.00 Cr (Neutral)`;
+            }
+            
+            document.getElementById('macro-date').innerText = `Date: ${dateStr}`;
+        }
+
+        function updateMarketMatrix(globalState) {
+            const tableBody = document.getElementById('matrix-body');
+            
+            if (!globalState || Object.keys(globalState).length === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="12" class="px-6 py-16 text-center text-slate-500">
+                            <svg class="mx-auto h-8 w-8 animate-spin text-emerald-500 mb-3" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Connected! Waiting for market data ticks...
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            // Cache the state globally for the modal
+            window.latestGlobalState = globalState;
+
+            // True DOM Diffing: Do NOT clear tableBody.innerHTML
+            // Target and destroy the initial loading row if it exists
+            const loadingRow = document.getElementById('loading-row');
+            if (loadingRow) loadingRow.remove();
+
+            const tokens = Object.keys(globalState).sort();
+            
+            tokens.forEach(token => {
+                const payload = globalState[token];
+                const symbol = payload.symbol || `Token ${token}`;
+                const ltp = parseFloat(payload.ltp || 0).toFixed(2);
+                
+                // --- 1. OBI Visual Gauge Logic ---
+                const rawObi = parseFloat(payload.obi || 0);
+                const obiPct = Math.min(100, Math.abs(rawObi) * 100);
+                let obiBarHTML = '';
+                if (rawObi > 0) {
+                    obiBarHTML = `
+                        <div class="relative w-full h-1.5 bg-slate-800 rounded-full overflow-hidden flex items-center justify-center mt-1">
+                            <div class="absolute w-px h-full bg-slate-600 z-10"></div>
+                            <div class="absolute left-1/2 h-full bg-emerald-500 rounded-r shadow-[0_0_5px_#10b981]" style="width: ${obiPct/2}%"></div>
+                        </div>
+                        <div class="text-[10px] text-emerald-400 text-center mt-0.5">${rawObi.toFixed(4)}</div>
+                    `;
+                } else if (rawObi < 0) {
+                    obiBarHTML = `
+                        <div class="relative w-full h-1.5 bg-slate-800 rounded-full overflow-hidden flex items-center justify-center mt-1">
+                            <div class="absolute w-px h-full bg-slate-600 z-10"></div>
+                            <div class="absolute right-1/2 h-full bg-rose-500 rounded-l shadow-[0_0_5px_#f43f5e]" style="width: ${obiPct/2}%"></div>
+                        </div>
+                        <div class="text-[10px] text-rose-400 text-center mt-0.5">${rawObi.toFixed(4)}</div>
+                    `;
+                } else {
+                    obiBarHTML = `
+                        <div class="relative w-full h-1.5 bg-slate-800 rounded-full overflow-hidden flex items-center justify-center mt-1">
+                            <div class="absolute w-px h-full bg-slate-600 z-10"></div>
+                        </div>
+                        <div class="text-[10px] text-slate-500 text-center mt-0.5">0.0000</div>
+                    `;
+                }
+
+                // --- 2. CVD Pill Badge ---
+                const cvd = parseInt(payload.cvd || 0);
+                let cvdBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700">${cvd.toLocaleString()}</span>`;
+                if (cvd > 0) {
+                    cvdBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">${cvd.toLocaleString()}</span>`;
+                } else if (cvd < -10000) {
+                    cvdBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/50 animate-pulse">${cvd.toLocaleString()}</span>`;
+                } else if (cvd < 0) {
+                    cvdBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/30">${cvd.toLocaleString()}</span>`;
+                }
+
+                // --- 3. POC Pill Badge ---
+                const rawPocDist = parseFloat(payload.poc_distance_pct || 0);
+                let pocBadge = `<span class="text-slate-300 text-xs">${rawPocDist.toFixed(3)}%</span>`;
+                if (Math.abs(rawPocDist) < 0.1) {
+                    pocBadge = `<span class="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-[0_0_8px_rgba(6,182,212,0.2)]">${rawPocDist.toFixed(3)}%</span>`;
+                }
+
+                // --- 4. RSI Progress Bar ---
+                const rawRsi = parseFloat(payload.rsi || 50);
+                const rsiPct = Math.max(0, Math.min(100, rawRsi));
+                let rsiColor = 'bg-slate-500';
+                let rsiTextColor = 'text-slate-300';
+                if (rawRsi > 70) {
+                    rsiColor = 'bg-emerald-500 shadow-[0_0_8px_#10b981]';
+                    rsiTextColor = 'text-emerald-400 font-bold';
+                } else if (rawRsi < 30) {
+                    rsiColor = 'bg-rose-500 shadow-[0_0_8px_#f43f5e]';
+                    rsiTextColor = 'text-rose-400 font-bold';
+                }
+                const rsiBarHTML = `
+                    <div class="flex flex-col gap-1.5 items-end w-full px-2">
+                        <span class="text-[11px] font-mono-custom ${rsiTextColor}">${rawRsi.toFixed(2)}</span>
+                        <div class="w-full h-1.5 bg-slate-800/80 rounded-full overflow-hidden">
+                            <div class="h-full rounded-full ${rsiColor} transition-all duration-300" style="width: ${rsiPct}%"></div>
+                        </div>
+                    </div>
+                `;
+
+                // --- 5. Candlestick Matrix Logic ---
+                const cdls = payload.candlesticks || {};
+                let activeCdl = "None";
+                const validCdls = Object.keys(cdls).filter(k => k !== "active_patterns" && cdls[k] !== null);
+                if (validCdls.length > 0) {
+                    activeCdl = validCdls[validCdls.length - 1].replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                }
+                
+                let cdlBadge = '<span class="text-slate-500 text-[11px] font-medium">None</span>';
+                if (activeCdl !== "None") {
+                    const cdlLower = activeCdl.toLowerCase();
+                    const isBullish = cdlLower.includes('bullish') || (cdlLower.includes('hammer') || cdlLower.includes('morning')) && !cdlLower.includes('evening') && !cdlLower.includes('shooting');
+                    const isBearish = cdlLower.includes('bearish') || cdlLower.includes('shooting') || cdlLower.includes('evening');
+                    
+                    if (isBullish) {
+                        cdlBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] uppercase font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-[0_0_8px_rgba(16,185,129,0.05)]">${activeCdl}</span>`;
+                    } else if (isBearish) {
+                        cdlBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] uppercase font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 shadow-[0_0_8px_rgba(244,63,94,0.05)]">${activeCdl}</span>`;
+                    } else {
+                        cdlBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] uppercase font-bold bg-slate-800 text-slate-300 border border-slate-700">${activeCdl}</span>`;
+                    }
+                }
+
+                // --- Action Button ---
+                const actionBtn = `
+                    <div class="flex flex-col gap-1.5">
+                        <button onclick="openPositionModal('${token}')" class="px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded bg-emerald-600/20 text-emerald-300 hover:bg-emerald-500/40 hover:text-white transition-colors border border-emerald-500/30 shadow">📝 Pos</button>
+                        <button onclick="openJsonModal('${token}')" class="px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded bg-indigo-600/20 text-indigo-300 hover:bg-indigo-500/40 hover:text-white transition-colors border border-indigo-500/30 shadow">🤖 JSON</button>
+                    </div>
+                `;
+
+                // --- Phase 5.2: Derivatives ---
+                const stockPcr = parseFloat(payload.stock_pcr || 1.0);
+                const maxPain = payload.max_pain_price ? parseFloat(payload.max_pain_price).toFixed(2) : "N/A";
+                
+                let pcrClass = 'text-slate-300';
+                if (stockPcr > 1.2) pcrClass = 'text-emerald-400 font-bold';
+                else if (stockPcr < 0.8) pcrClass = 'text-rose-400 font-bold';
+                
+                const pcrBadge = `<span class="${pcrClass}">${stockPcr.toFixed(2)}</span>`;
+                const maxPainBadge = `<span class="text-cyan-400 font-bold font-mono-custom bg-cyan-950/30 px-2 py-0.5 rounded border border-cyan-500/20">${maxPain}</span>`;
+
+                // --- Phase 6: Statistical Alpha ---
+                const ivr = parseFloat(payload.ivr || 0.0).toFixed(2);
+                let ivrClass = 'text-slate-300';
+                if (ivr < 20) ivrClass = 'text-emerald-400 font-bold'; // Low IV
+                else if (ivr > 80) ivrClass = 'text-rose-400 font-bold'; // High IV
+                const ivrBadge = `<span class="${ivrClass}">${ivr}</span>`;
+
+                const compRS = parseFloat(payload.comparative_rs || 0.0).toFixed(2);
+                let rsClass = 'text-slate-300';
+                if (compRS > 0) rsClass = 'text-emerald-400 font-bold';
+                else if (compRS < 0) rsClass = 'text-rose-400 font-bold';
+                const rsBadge = `<span class="${rsClass}">${compRS}</span>`;
+
+                // Render Row using True DOM Diffing
+                let existingRow = document.getElementById(`row-${token}`);
+                if (existingRow) {
+                    existingRow.cells[0].innerHTML = `
+                        <span>${symbol}</span>
+                        <span class="text-[10px] text-slate-500 font-normal">Token #${token}</span>
+                    `;
+                    existingRow.cells[1].innerText = ltp;
+                    existingRow.cells[2].innerHTML = `<div class="px-2">${obiBarHTML}</div>`;
+                    existingRow.cells[3].innerHTML = cvdBadge;
+                    existingRow.cells[4].innerHTML = pocBadge;
+                    existingRow.cells[5].innerHTML = rsiBarHTML;
+                    existingRow.cells[6].innerHTML = pcrBadge;
+                    existingRow.cells[7].innerHTML = ivrBadge;
+                    existingRow.cells[8].innerHTML = maxPainBadge;
+                    existingRow.cells[9].innerHTML = rsBadge;
+                    existingRow.cells[10].innerHTML = cdlBadge;
+                    existingRow.cells[11].innerHTML = actionBtn;
+                } else {
+                    const tr = document.createElement('tr');
+                    tr.id = `row-${token}`;
+                    tr.className = 'border-b border-slate-800/40 hover:bg-slate-800/25 transition-colors duration-150';
+                    tr.innerHTML = `
+                        <td class="px-5 py-4 whitespace-nowrap text-sm font-semibold text-indigo-400 flex flex-col">
+                            <span>${symbol}</span>
+                            <span class="text-[10px] text-slate-500 font-normal">Token #${token}</span>
+                        </td>
+                        <td class="px-5 py-4 whitespace-nowrap text-sm font-mono-custom text-white text-right font-medium">${ltp}</td>
+                        <td class="px-5 py-4 whitespace-nowrap align-middle w-32">
+                            <div class="px-2">${obiBarHTML}</div>
+                        </td>
+                        <td class="px-5 py-4 whitespace-nowrap text-right align-middle font-mono-custom">${cvdBadge}</td>
+                        <td class="px-5 py-4 whitespace-nowrap text-right align-middle font-mono-custom">${pocBadge}</td>
+                        <td class="px-5 py-4 whitespace-nowrap align-middle w-32">${rsiBarHTML}</td>
+                        <td class="px-5 py-4 whitespace-nowrap text-center align-middle font-mono-custom">${pcrBadge}</td>
+                        <td class="px-5 py-4 whitespace-nowrap text-center align-middle font-mono-custom">${ivrBadge}</td>
+                        <td class="px-5 py-4 whitespace-nowrap text-center align-middle">${maxPainBadge}</td>
+                        <td class="px-5 py-4 whitespace-nowrap text-center align-middle font-mono-custom">${rsBadge}</td>
+                        <td class="px-5 py-4 whitespace-nowrap text-center align-middle">${cdlBadge}</td>
+                        <td class="px-5 py-4 whitespace-nowrap text-center align-middle">${actionBtn}</td>
+                    `;
+                    tableBody.appendChild(tr);
+                }
+            });
+        }
+
+        // Modal Logic Functions
+        function openJsonModal(token) {
+            if (!window.latestGlobalState || !window.latestGlobalState[token]) return;
+            const payload = window.latestGlobalState[token];
+            const symbol = payload.symbol || `Token ${token}`;
+            
+            // Store globally for the clipboard function
+            window.currentViewingToken = token;
+            
+            // Deep copy payload so we don't pollute the live streaming object
+            const payloadCopy = JSON.parse(JSON.stringify(payload));
+            
+            // Append User Position if it exists in memory
+            try {
+                const allPos = JSON.parse(localStorage.getItem('user_positions')) || {};
+                if (allPos[token]) {
+                    payloadCopy.user_position = allPos[token];
+                }
+            } catch (e) {
+                console.error("Failed to append user position:", e);
+            }
+            
+            document.getElementById('modal-title').innerHTML = `<span class="text-xl">🤖</span> AI Reasoning: ${symbol}`;
+            document.getElementById('modal-code-block').innerText = JSON.stringify(payloadCopy, null, 2);
+            document.getElementById('llm-modal').classList.remove('hidden');
+
+            // Phase 8 Reset UI state & fetch existing report
+            document.getElementById('reasoning-report-block').innerText = "Awaiting trigger...";
+            document.getElementById('toggle-auto-analyze').checked = false;
+            if (window.autoAnalyzeIntervalId) { 
+                clearInterval(window.autoAnalyzeIntervalId); 
+                window.autoAnalyzeIntervalId = null; 
+            }
+            
+            fetch(`${apiBase}/api/reasoning/report/${symbol}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.report) document.getElementById('reasoning-report-block').innerText = data.report;
+                    document.getElementById('toggle-auto-analyze').checked = data.is_active;
+                    if (data.is_active) {
+                        window.autoAnalyzeIntervalId = setInterval(async () => {
+                            const res = await fetch(`${apiBase}/api/reasoning/report/${symbol}`);
+                            const d = await res.json();
+                            if (d.report) document.getElementById('reasoning-report-block').innerText = d.report;
+                            document.getElementById('toggle-auto-analyze').checked = d.is_active;
+                            if(!d.is_active) { clearInterval(window.autoAnalyzeIntervalId); window.autoAnalyzeIntervalId=null; }
+                        }, 5000);
+                    }
+                }).catch(e => console.error("Fetch report error", e));
+        }
+
+        function closeJsonModal() {
+            document.getElementById('llm-modal').classList.add('hidden');
+        }
+
+
+        function copyToClipboard() {
+            const codeBlock = document.getElementById('modal-code-block').innerText;
+            const currentPrompt = localStorage.getItem('llm_system_prompt') || DEFAULT_SYSTEM_PROMPT;
+            
+            let statusText = '';
+            if (window.currentViewingToken) {
+                try {
+                    const allPos = JSON.parse(localStorage.getItem('user_positions')) || {};
+                    const myPos = allPos[window.currentViewingToken];
+                    if (myPos) {
+                        const action = myPos.direction === 'Long' ? 'Holding' : 'Short';
+                        statusText = `My Status: ${action} ${myPos.mode}, ${myPos.quantity} qty entered at ${myPos.entry_price}.\n\n`;
+                    }
+                } catch (e) {
+                    console.error("Failed to parse position for clipboard:", e);
+                }
+            }
+
+            const finalClipboardText = `${statusText}${currentPrompt}\n\n--- RAW TELEMETRY DATA ---\n\n${codeBlock}`;
+
+            // Helper to update UI
+            const updateUI = () => {
+                const btn = document.getElementById('modal-copy-btn');
+                const originalText = btn.innerText;
+                btn.innerText = 'Copied!';
+                btn.classList.replace('bg-indigo-600', 'bg-emerald-600');
+                btn.classList.replace('hover:bg-indigo-500', 'hover:bg-emerald-500');
+                
+                setTimeout(() => {
+                    btn.innerText = originalText;
+                    btn.classList.replace('bg-emerald-600', 'bg-indigo-600');
+                    btn.classList.replace('hover:bg-emerald-500', 'hover:bg-indigo-500');
+                }, 2000);
+            };
+
+            // Modern secure clipboard API (HTTPS or Localhost only)
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(finalClipboardText).then(updateUI).catch(err => {
+                    console.error('Failed to copy text: ', err);
+                });
+            } else {
+                // Fallback for HTTP over LAN (e.g. 192.168.x.x)
+                let textArea = document.createElement("textarea");
+                textArea.value = finalClipboardText;
+                textArea.style.position = "fixed";
+                textArea.style.left = "-999999px";
+                textArea.style.top = "-999999px";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    updateUI();
+                } catch (err) {
+                    console.error('Fallback copy failed: ', err);
+                    alert("Copy failed. Your browser requires HTTPS to copy to clipboard.");
+                }
+                textArea.remove();
+            }
+        }
+
+        // --- Phase 8: Reasoning Engine Control ---
+        window.autoAnalyzeIntervalId = null;
+
+        async function triggerInstantAnalysis() {
+            const token = window.currentViewingToken;
+            if (!token) return;
+            
+            const payload = window.latestGlobalState[token];
+            const symbol = payload.symbol || `Token ${token}`;
+            const model = document.getElementById('reasoning-model-select').value;
+            const prompt = localStorage.getItem('llm_system_prompt') || DEFAULT_SYSTEM_PROMPT;
+            
+            const allPos = JSON.parse(localStorage.getItem('user_positions')) || {};
+            const userPosition = allPos[token] || null;
+            
+            const btn = document.getElementById('btn-instant-analyze');
+            const reportBlock = document.getElementById('reasoning-report-block');
+            
+            btn.disabled = true;
+            btn.innerHTML = `<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Analyzing...`;
+            reportBlock.innerText = "Querying Neuro-Symbolic LLM...";
+            reportBlock.classList.add('animate-pulse');
+
+            try {
+                const res = await fetch(`${apiBase}/api/reasoning/instant/${symbol}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model: model, prompt: prompt, user_position: userPosition })
+                });
+                const data = await res.json();
+                reportBlock.classList.remove('animate-pulse');
+                reportBlock.innerText = data.report || "No report generated.";
+            } catch (err) {
+                console.error(err);
+                reportBlock.classList.remove('animate-pulse');
+                reportBlock.innerText = "Error reaching AI API.";
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `⚡ Instant Analyze`;
+            }
+        }
+
+        async function toggleAutoAnalyze() {
+            const token = window.currentViewingToken;
+            if (!token) return;
+            const payload = window.latestGlobalState[token];
+            const symbol = payload.symbol || `Token ${token}`;
+            
+            const isChecked = document.getElementById('toggle-auto-analyze').checked;
+            const intervalSecs = parseInt(document.getElementById('auto-analyze-interval').value) || 90;
+            const model = document.getElementById('reasoning-model-select').value;
+            const prompt = localStorage.getItem('llm_system_prompt') || DEFAULT_SYSTEM_PROMPT;
+            
+            const allPos = JSON.parse(localStorage.getItem('user_positions')) || {};
+            const userPosition = allPos[token] || null;
+            
+            if (isChecked) {
+                fetch(`${apiBase}/api/reasoning/loop/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symbol: symbol, interval: intervalSecs, model: model, prompt: prompt, user_position: userPosition })
+                });
+                
+                if (window.autoAnalyzeIntervalId) clearInterval(window.autoAnalyzeIntervalId);
+                window.autoAnalyzeIntervalId = setInterval(async () => {
+                    if (!window.currentViewingToken) return;
+                    try {
+                        const res = await fetch(`${apiBase}/api/reasoning/report/${symbol}`);
+                        const data = await res.json();
+                        if (data.status === 'success') {
+                            document.getElementById('reasoning-report-block').innerText = data.report;
+                            document.getElementById('toggle-auto-analyze').checked = data.is_active;
+                        }
+                    } catch (e) { console.error("Poll error", e); }
+                }, 5000);
+            } else {
+                fetch(`${apiBase}/api/reasoning/loop/stop`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symbol: symbol })
+                });
+                
+                if (window.autoAnalyzeIntervalId) {
+                    clearInterval(window.autoAnalyzeIntervalId);
+                    window.autoAnalyzeIntervalId = null;
+                }
+            }
+        }
+
+        // --- Phase 9: Asynchronous Alerting Matrix ---
+        function toggleAlertTray() {
+            const tray = document.getElementById('alert-tray');
+            tray.classList.toggle('hidden');
+            if (!tray.classList.contains('hidden')) {
+                fetchAlertHistory();
+            }
+        }
+
+        async function fetchUnreadCount() {
+            try {
+                const res = await fetch(`${apiBase}/api/alerts/unread`);
+                const data = await res.json();
+                const badge = document.getElementById('alert-badge');
+                if (data.count > 0) {
+                    badge.innerText = data.count > 99 ? '99+' : data.count;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            } catch (e) { console.error("Poll unread alerts error", e); }
+        }
+
+        async function fetchAlertHistory() {
+            try {
+                const res = await fetch(`${apiBase}/api/alerts/history`);
+                const data = await res.json();
+                const trayBody = document.getElementById('alert-tray-body');
+                trayBody.innerHTML = '';
+                
+                if (!data.alerts || data.alerts.length === 0) {
+                    trayBody.innerHTML = `<div class="text-center text-xs text-slate-500 p-4">No alerts right now.</div>`;
+                    return;
+                }
+                
+                data.alerts.forEach(alert => {
+                    const isUnread = !alert.read;
+                    const dot = isUnread ? `<div class="w-2 h-2 rounded-full bg-rose-500 mt-1"></div>` : '';
+                    const timeStr = new Date(alert.timestamp * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+                    
+                    const el = document.createElement('div');
+                    el.className = `p-3 rounded-md cursor-pointer transition-colors border ${isUnread ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : 'bg-slate-900/50 border-transparent hover:bg-slate-800'}`;
+                    el.onclick = () => openAlertModal(alert.id, alert.symbol);
+                    el.innerHTML = `
+                        <div class="flex justify-between items-start">
+                            <div class="flex gap-2">
+                                ${dot}
+                                <div>
+                                    <h5 class="text-xs font-bold ${alert.verdict.includes('Buy') ? 'text-emerald-400' : 'text-rose-400'}">${alert.symbol}</h5>
+                                    <p class="text-[10px] text-slate-300 mt-1">${alert.verdict} <span class="text-slate-500">(Score: ${alert.score})</span></p>
+                                </div>
+                            </div>
+                            <span class="text-[9px] text-slate-500 whitespace-nowrap">${timeStr}</span>
+                        </div>
+                    `;
+                    trayBody.appendChild(el);
+                });
+            } catch (e) { console.error("Fetch alert history error", e); }
+        }
+
+        async function openAlertModal(alertId, symbol) {
+            document.getElementById('alert-tray').classList.add('hidden');
+            try {
+                // Mark as read
+                await fetch(`${apiBase}/api/alerts/mark-read/${alertId}`, { method: 'POST' });
+                fetchUnreadCount(); // update badge
+                
+                // Lookup token from global state if we can
+                let token = null;
+                for (const t in window.latestGlobalState) {
+                    const p = window.latestGlobalState[t];
+                    if (p.symbol === symbol || (p.symbol && p.symbol.split('-')[0] === symbol)) {
+                        token = t; break;
+                    }
+                }
+                
+                if (token) {
+                    openJsonModal(token); // This will fetch the latest report too!
+                } else {
+                    alert("Could not locate active stream for symbol: " + symbol);
+                }
+            } catch (e) { console.error("Open alert error", e); }
+        }
+
+        // Start Alert Poller
+        setInterval(fetchUnreadCount, 10000);
+        setTimeout(fetchUnreadCount, 1000);
+
+        // --- Phase 0: Screener Logic ---
+        document.getElementById('btn-screener').addEventListener('click', async () => {
+            const loadingModal = document.getElementById('loading-modal');
+            const resultsModal = document.getElementById('results-modal');
+            const tbody = document.getElementById('results-tbody');
+            
+            loadingModal.classList.remove('hidden');
+            
+            try {
+                const response = await fetch(`${apiBase}/api/run-screener`, { method: 'POST' });
+                const result = await response.json();
+                
+                tbody.innerHTML = '';
+                if (result.status === 'success' && result.data) {
+                    result.data.forEach(item => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td class="px-4 py-3 text-indigo-400 font-semibold">${item.symbol}</td>
+                            <td class="px-4 py-3 text-right text-emerald-400 font-mono-custom">${parseFloat(item.rs).toFixed(2)}%</td>
+                            <td class="px-4 py-3 text-right text-white font-mono-custom">${parseFloat(item.ivr).toFixed(2)}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+                
+                loadingModal.classList.add('hidden');
+                resultsModal.classList.remove('hidden');
+                
+            } catch (error) {
+                console.error("Screener failed:", error);
+                loadingModal.classList.add('hidden');
+                alert("Screener failed to execute. Check terminal logs.");
+            }
+        });
+
+        function closeResultsModal() {
+            document.getElementById('results-modal').classList.add('hidden');
+        }
+
+        // Initialize WebSocket connection
+        connect();
+    </script>
+
+    <!-- Loading Modal -->
+    <div id="loading-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div class="bg-slate-900 border border-indigo-500/30 p-8 rounded-xl shadow-2xl flex flex-col items-center">
+            <svg class="animate-spin h-12 w-12 text-indigo-500 mb-4" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <h2 class="text-xl font-bold text-white mb-2">Scanning Master F&O Universe...</h2>
+            <p class="text-slate-400 text-sm">Please wait (approx. 45 seconds). Do not close this window.</p>
+        </div>
+    </div>
+
+    <!-- Results Modal -->
+    <div id="results-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div class="bg-slate-900 border border-emerald-500/30 p-8 rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-emerald-400">Phase 0: Screener Results</h2>
+                <button onclick="closeResultsModal()" class="text-slate-400 hover:text-white transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <p class="text-sm text-slate-300 mb-4">Watchlist updated successfully! Please restart the Live Engine terminal to begin streaming the new assets.</p>
+            <div class="overflow-y-auto flex-1 border border-slate-800 rounded-lg">
+                <table class="min-w-full divide-y divide-slate-800 text-sm">
+                    <thead class="bg-slate-950/50 sticky top-0">
+                        <tr>
+                            <th class="px-4 py-3 text-left font-semibold text-slate-400">Ticker</th>
+                            <th class="px-4 py-3 text-right font-semibold text-slate-400">RS %</th>
+                            <th class="px-4 py-3 text-right font-semibold text-slate-400">IVR</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-tbody" class="divide-y divide-slate-800 bg-slate-900/50">
+                        <!-- Populated via JS -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-6 text-right">
+                <button onclick="closeResultsModal()" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded transition-colors border border-slate-600">Close</button>
+            </div>
+        </div>
+    </div>
+    <!-- Position Editor Modal -->
+    <div id="position-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div class="bg-slate-900 border border-emerald-500/30 p-6 rounded-xl shadow-2xl w-full max-w-sm flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h2 id="pos-modal-title" class="text-lg font-bold text-white flex items-center gap-2">📝 Edit Position</h2>
+                <button id="btn-close-pos" class="text-slate-400 hover:text-white transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <input type="hidden" id="pos-token">
+            
+            <div class="space-y-4 mt-2">
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Trade Mode</label>
+                    <select id="pos-mode" class="w-full bg-slate-950 border border-slate-700 text-slate-200 text-sm rounded p-2 focus:border-emerald-500 outline-none shadow-inner cursor-pointer">
+                        <option value="Delivery">Delivery / Swing</option>
+                        <option value="Intraday">Intraday (MIS)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Direction</label>
+                    <select id="pos-direction" class="w-full bg-slate-950 border border-slate-700 text-slate-200 text-sm rounded p-2 focus:border-emerald-500 outline-none shadow-inner cursor-pointer">
+                        <option value="Long">Long (Bullish)</option>
+                        <option value="Short">Short (Bearish)</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Quantity</label>
+                        <input type="number" id="pos-qty" placeholder="e.g. 100" class="w-full bg-slate-950 border border-slate-700 text-emerald-400 font-mono-custom font-bold text-sm rounded p-2 focus:border-emerald-500 outline-none shadow-inner">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Entry Price (₹)</label>
+                        <input type="number" step="0.05" id="pos-price" placeholder="0.00" class="w-full bg-slate-950 border border-slate-700 text-emerald-400 font-mono-custom font-bold text-sm rounded p-2 focus:border-emerald-500 outline-none shadow-inner">
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-between gap-3">
+                <button id="btn-clear-pos" class="w-1/3 bg-slate-800 hover:bg-rose-900/50 text-slate-400 hover:text-rose-400 border border-slate-700 hover:border-rose-500/50 text-sm font-bold py-2 rounded transition-colors shadow-sm">Clear</button>
+                <button id="btn-save-pos" class="w-2/3 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold py-2 rounded shadow-lg transition-colors shadow-emerald-500/20 border border-emerald-500/30">Save Position</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div class="bg-slate-900 border border-slate-600 p-6 rounded-xl shadow-2xl w-full max-w-3xl flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-white flex items-center gap-2">⚙️ LLM Prompt Configuration</h2>
+                <button id="btn-close-settings" class="text-slate-400 hover:text-white transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <p class="text-sm text-slate-400 mb-4">Configure the Master System Prompt that will be injected when copying telemetry JSON data.</p>
+            <textarea id="prompt-editor" class="w-full h-64 bg-slate-950 border border-slate-700 text-emerald-400 p-4 font-mono-custom text-sm rounded focus:outline-none focus:border-indigo-500 shadow-inner" spellcheck="false"></textarea>
+            
+            <div class="mt-6 flex justify-between">
+                <button id="btn-reset-settings" class="bg-rose-900/50 hover:bg-rose-600 text-rose-300 hover:text-white font-bold py-2 px-6 rounded transition-colors border border-rose-700/50">Reset to Default</button>
+                <button id="btn-save-settings" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-6 rounded shadow-lg transition-colors shadow-emerald-500/20">Save Configuration</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- State Management Logic -->
+    <script>
+        const DEFAULT_SYSTEM_PROMPT = "You are an elite quantitative analyst AI. Analyze the following realtime market telemetry data and provide actionable trading insights based on the candlestick patterns, RSI, Option Chain IVR, and Order Book Imbalance (OBI). Give me absolute clarity on the probability of a reversal or continuation.";
+        
+        // Initialization
+        if (!localStorage.getItem('llm_system_prompt')) {
+            localStorage.setItem('llm_system_prompt', DEFAULT_SYSTEM_PROMPT);
+        }
+
+        const btnSettings = document.getElementById('btn-settings');
+        const settingsModal = document.getElementById('settings-modal');
+        const btnCloseSettings = document.getElementById('btn-close-settings');
+        const promptEditor = document.getElementById('prompt-editor');
+        const btnSaveSettings = document.getElementById('btn-save-settings');
+        const btnResetSettings = document.getElementById('btn-reset-settings');
+
+        // Open Modal
+        btnSettings.addEventListener('click', () => {
+            promptEditor.value = localStorage.getItem('llm_system_prompt') || DEFAULT_SYSTEM_PROMPT;
+            settingsModal.classList.remove('hidden');
+        });
+
+        // Close Modal
+        btnCloseSettings.addEventListener('click', () => {
+            settingsModal.classList.add('hidden');
+        });
+
+        // Save Configuration
+        btnSaveSettings.addEventListener('click', () => {
+            const newValue = promptEditor.value.trim();
+            if (newValue) {
+                localStorage.setItem('llm_system_prompt', newValue);
+                alert("Prompt Configuration Saved Successfully!");
+                settingsModal.classList.add('hidden');
+            } else {
+                alert("Prompt cannot be empty!");
+            }
+        });
+
+        // Reset Configuration
+        btnResetSettings.addEventListener('click', () => {
+            if(confirm("Are you sure you want to reset the prompt to its factory default?")) {
+                promptEditor.value = DEFAULT_SYSTEM_PROMPT;
+                localStorage.setItem('llm_system_prompt', DEFAULT_SYSTEM_PROMPT);
+                alert("Prompt Reset to Default!");
+            }
+        });
+
+        // --- Position Manager Logic ---
+        if (!localStorage.getItem('user_positions')) {
+            localStorage.setItem('user_positions', JSON.stringify({}));
+        }
+
+        const posModal = document.getElementById('position-modal');
+        const btnClosePos = document.getElementById('btn-close-pos');
+        const posTitle = document.getElementById('pos-modal-title');
+        
+        function openPositionModal(token) {
+            const state = window.latestGlobalState && window.latestGlobalState[token] ? window.latestGlobalState[token] : null;
+            const symbol = state ? state.symbol : `Token ${token}`;
+            
+            posTitle.innerHTML = `📝 Edit Position: ${symbol}`;
+            document.getElementById('pos-token').value = token;
+            
+            // Load existing data if available
+            const allPos = JSON.parse(localStorage.getItem('user_positions'));
+            const myPos = allPos[token];
+            
+            if (myPos) {
+                document.getElementById('pos-mode').value = myPos.mode || 'Delivery';
+                document.getElementById('pos-direction').value = myPos.direction || 'Long';
+                document.getElementById('pos-qty').value = myPos.quantity || '';
+                document.getElementById('pos-price').value = myPos.entry_price || '';
+            } else {
+                document.getElementById('pos-mode').value = 'Delivery';
+                document.getElementById('pos-direction').value = 'Long';
+                document.getElementById('pos-qty').value = '';
+                document.getElementById('pos-price').value = '';
+            }
+            
+            posModal.classList.remove('hidden');
+        }
+        
+        btnClosePos.addEventListener('click', () => {
+            posModal.classList.add('hidden');
+        });
+        
+        document.getElementById('btn-save-pos').addEventListener('click', () => {
+            const token = document.getElementById('pos-token').value;
+            const qty = parseFloat(document.getElementById('pos-qty').value);
+            const price = parseFloat(document.getElementById('pos-price').value);
+            
+            if (isNaN(qty) || isNaN(price) || qty <= 0 || price <= 0) {
+                alert("Please enter valid positive numbers for Quantity and Price.");
+                return;
+            }
+            
+            const posData = {
+                mode: document.getElementById('pos-mode').value,
+                direction: document.getElementById('pos-direction').value,
+                quantity: qty,
+                entry_price: price
+            };
+            
+            const allPos = JSON.parse(localStorage.getItem('user_positions'));
+            allPos[token] = posData;
+            localStorage.setItem('user_positions', JSON.stringify(allPos));
+            
+            posModal.classList.add('hidden');
+            // Flash success notification (simple console log or silent for UX speed)
+            console.log(`Position for Token ${token} saved.`);
+        });
+        
+        document.getElementById('btn-clear-pos').addEventListener('click', () => {
+            const token = document.getElementById('pos-token').value;
+            const allPos = JSON.parse(localStorage.getItem('user_positions'));
+            if (allPos[token]) {
+                delete allPos[token];
+                localStorage.setItem('user_positions', JSON.stringify(allPos));
+            }
+            posModal.classList.add('hidden');
+        });
+
+        // Phase 5.5: Map Option Tokens Logic
+        const btnMapTokens = document.getElementById('btn-map-tokens');
+        if (btnMapTokens) {
+            btnMapTokens.addEventListener('click', () => {
+                const originalText = btnMapTokens.innerText;
+                btnMapTokens.innerText = "Mapping Tokens (Please Wait...)";
+                btnMapTokens.disabled = true;
+                btnMapTokens.classList.add('opacity-50', 'cursor-not-allowed');
+
+                fetch(`${apiBase}/api/map-option-tokens`, { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            // Flash brief success notification
+                            const alertBox = document.createElement('div');
+                            alertBox.className = 'fixed top-4 right-4 bg-purple-600 text-white px-4 py-2 rounded shadow-lg z-50 font-bold text-sm transition-opacity duration-500';
+                            alertBox.innerText = "Live Option Tokens Injected into Data Stream.";
+                            document.body.appendChild(alertBox);
+                            setTimeout(() => {
+                                alertBox.style.opacity = '0';
+                                setTimeout(() => alertBox.remove(), 500);
+                            }, 3000);
+                        } else {
+                            alert("Mapping failed: " + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error mapping tokens:', error);
+                        alert('An error occurred while mapping option tokens.');
+                    })
+                    .finally(() => {
+                        btnMapTokens.innerText = originalText;
+                        btnMapTokens.disabled = false;
+                        btnMapTokens.classList.remove('opacity-50', 'cursor-not-allowed');
+                    });
+            });
+        }
+        
+        // --- Phase 10: Watchlist Manager Logic ---
+        const watchlistModal = document.getElementById('watchlist-modal');
+        let currentWatchlist = [];
+
+        async function openWatchlistModal() {
+            watchlistModal.classList.remove('hidden');
+            try {
+                const res = await fetch(`${apiBase}/api/watchlist`);
+                const data = await res.json();
+                currentWatchlist = data.data || [];
+                renderWatchlist();
+            } catch (e) {
+                console.error("Failed to fetch watchlist", e);
+            }
+        }
+
+        function closeWatchlistModal() {
+            watchlistModal.classList.add('hidden');
+        }
+
+        function renderWatchlist() {
+            const list = document.getElementById('watchlist-items');
+            list.innerHTML = '';
+            currentWatchlist.forEach((item, idx) => {
+                const li = document.createElement('li');
+                li.className = "flex justify-between items-center bg-slate-800 p-2 rounded text-sm mb-1 border border-slate-700";
+                li.innerHTML = `<span><span class="font-bold text-slate-200">${item.symbol}</span> <span class="text-xs text-slate-500 ml-1">(${item.exchange}:${item.token})</span></span>
+                                <button onclick="removeWatchlistItem(${idx})" class="text-rose-400 hover:text-rose-300">🗑️</button>`;
+                list.appendChild(li);
+            });
+        }
+
+        function removeWatchlistItem(idx) {
+            currentWatchlist.splice(idx, 1);
+            renderWatchlist();
+        }
+
+        async function saveWatchlist() {
+            const btn = document.getElementById('btn-save-watchlist');
+            btn.innerText = "Saving...";
+            try {
+                const res = await fetch(`${apiBase}/api/watchlist`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ items: currentWatchlist })
+                });
+                if(res.ok) {
+                    alert("Watchlist updated successfully! Data stream reinitialized.");
+                    closeWatchlistModal();
+                } else {
+                    alert("Failed to save watchlist.");
+                }
+            } catch (e) {
+                alert("Error saving watchlist.");
+            } finally {
+                btn.innerText = "Save Changes";
+            }
+        }
+
+        let searchTimeout;
+        async function onWatchlistSearch() {
+            const query = document.getElementById('watchlist-search').value;
+            const resDiv = document.getElementById('watchlist-search-results');
+            if (query.length < 2) { resDiv.innerHTML = ''; return; }
+            
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(async () => {
+                try {
+                    const res = await fetch(`${apiBase}/api/search-token?q=${query}`);
+                    const data = await res.json();
+                    resDiv.innerHTML = '';
+                    (data.data || []).forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = "p-2 hover:bg-slate-700 cursor-pointer text-sm flex justify-between border-b border-slate-700";
+                        div.innerHTML = `<span><span class="font-bold text-slate-200">${item.symbol}</span></span> <span class="text-xs text-slate-400">${item.exchange}:${item.token}</span>`;
+                        div.onclick = () => {
+                            if(!currentWatchlist.find(x => x.token === item.token)) {
+                                currentWatchlist.push(item);
+                                renderWatchlist();
+                            }
+                            resDiv.innerHTML = '';
+                            document.getElementById('watchlist-search').value = '';
+                        };
+                        resDiv.appendChild(div);
+                    });
+                } catch(e) {
+                    console.error("Search failed", e);
+                }
+            }, 300);
+        }
+    </script>
+
+    <!-- Watchlist Manager Modal -->
+    <div id="watchlist-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div class="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[80vh]">
+            <div class="px-6 py-4 border-b border-slate-800 bg-slate-800/50 flex justify-between items-center">
+                <h2 class="text-lg font-bold text-white flex items-center gap-2">📋 Watchlist Manager</h2>
+                <button onclick="closeWatchlistModal()" class="text-slate-400 hover:text-white transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto flex-1">
+                <!-- Search Bar -->
+                <div class="mb-4 relative">
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Search to Add</label>
+                    <input type="text" id="watchlist-search" onkeyup="onWatchlistSearch()" placeholder="e.g. SAIL, TCS" class="w-full bg-slate-950 text-white text-sm border border-slate-700 rounded px-3 py-2 focus:outline-none focus:border-indigo-500">
+                    <div id="watchlist-search-results" class="absolute left-0 right-0 top-full mt-1 bg-slate-800 border border-slate-600 rounded shadow-lg max-h-48 overflow-y-auto z-10"></div>
+                </div>
+
+                <!-- Current Items -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Active Symbols</label>
+                    <ul id="watchlist-items" class="space-y-1"></ul>
+                </div>
+            </div>
+            
+            <div class="px-6 py-4 bg-slate-800/30 border-t border-slate-800 flex justify-end gap-3">
+                <button onclick="closeWatchlistModal()" class="px-4 py-2 text-sm font-bold text-slate-300 hover:text-white transition-colors">Cancel</button>
+                <button id="btn-save-watchlist" onclick="saveWatchlist()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded shadow-lg transition-colors">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,6 +1,7 @@
 import pandas as pd
 import pandas_ta as ta
 import numpy as np
+import talib
 from scipy.signal import argrelextrema
 
 class MathEngine:
@@ -27,10 +28,10 @@ class MathEngine:
             
         # Calculate Bollinger Bands
         bb = ta.bbands(df['close'], length=20, std=2)
-        if bb is not None:
-            df['bb_lower'] = bb['BBL_20_2.0']
-            df['bb_mid'] = bb['BBM_20_2.0']
-            df['bb_upper'] = bb['BBU_20_2.0']
+        if bb is not None and not bb.empty:
+            df['bb_lower'] = bb.iloc[:, 0]
+            df['bb_mid'] = bb.iloc[:, 1]
+            df['bb_upper'] = bb.iloc[:, 2]
             
         # Calculate Average True Range (ATR)
         # ATR requires high, low, close
@@ -51,10 +52,21 @@ class MathEngine:
         # 1. VWAP: Temporarily set datetime index if timestamp exists for anchoring
         if 'timestamp' in df.columns:
             temp_df = df.set_index('timestamp')
-            vwap = ta.vwap(temp_df['high'], temp_df['low'], temp_df['close'], temp_df['volume'])
-            df['vwap'] = vwap.values if vwap is not None else np.nan
+            vwap = ta.vwap(temp_df['high'], temp_df['low'], temp_df['close'], temp_df['volume'], bands=[2])
+            if vwap is not None and not vwap.empty:
+                df['vwap'] = vwap.iloc[:, 0].values
+                df['vwap_lower'] = vwap.iloc[:, 1].values
+                df['vwap_upper'] = vwap.iloc[:, 2].values
+            else:
+                df['vwap'], df['vwap_lower'], df['vwap_upper'] = np.nan, np.nan, np.nan
         else:
-            df['vwap'] = ta.vwap(df['high'], df['low'], df['close'], df['volume'])
+            vwap = ta.vwap(df['high'], df['low'], df['close'], df['volume'], bands=[2])
+            if vwap is not None and not vwap.empty:
+                df['vwap'] = vwap.iloc[:, 0]
+                df['vwap_lower'] = vwap.iloc[:, 1]
+                df['vwap_upper'] = vwap.iloc[:, 2]
+            else:
+                df['vwap'], df['vwap_lower'], df['vwap_upper'] = np.nan, np.nan, np.nan
             
         # 2. Volume Z-Score
         vol_mean = df['volume'].rolling(window=20).mean()
@@ -123,7 +135,111 @@ class MathEngine:
         return geometry_payload
 
     @staticmethod
-    def generate_signal_payload(df: pd.DataFrame, token: str) -> dict:
+    def calc_micro_candlesticks(df: pd.DataFrame) -> dict:
+        """
+        Calculates Phase 2.4 Micro-Candlestick Matrix.
+        Returns a dictionary of active patterns for the latest candle.
+        """
+        if df is None or df.empty or len(df) < 2:
+            return {"active_patterns": "None"}
+            
+        op = df['open'].values
+        hi = df['high'].values
+        lo = df['low'].values
+        cl = df['close'].values
+        
+        # Calculate patterns using fast C-optimized TA-lib
+        patterns = {
+            "engulfing": talib.CDLENGULFING(op, hi, lo, cl)[-1],
+            "hammer": talib.CDLHAMMER(op, hi, lo, cl)[-1],
+            "shooting_star": talib.CDLSHOOTINGSTAR(op, hi, lo, cl)[-1],
+            "morning_star": talib.CDLMORNINGSTAR(op, hi, lo, cl)[-1],
+            "evening_star": talib.CDLEVENINGSTAR(op, hi, lo, cl)[-1],
+            "doji": talib.CDLDOJI(op, hi, lo, cl)[-1]
+        }
+        
+        def map_signal(val):
+            if val == 100: return "Bullish"
+            if val == -100: return "Bearish"
+            return None
+            
+        # Map values to human readable strings and filter inactive ones
+        active = {k: map_signal(v) for k, v in patterns.items() if map_signal(v) is not None}
+        
+        if not active:
+            return {"active_patterns": "None"}
+            
+        return active
+
+    @staticmethod
+    def calc_camarilla_pivots(htf_df: pd.DataFrame) -> dict:
+        """
+        Calculates Camarilla Pivot Points based on Yesterday's Daily Candle.
+        """
+        pivots = {"H4": 0.0, "H3": 0.0, "L3": 0.0, "L4": 0.0}
+        if htf_df is None or len(htf_df) < 2:
+            return pivots
+            
+        try:
+            # Extract Yesterday's candle (second to last)
+            yest = htf_df.iloc[-2]
+            hi, lo, cl = float(yest['high']), float(yest['low']), float(yest['close'])
+            r = hi - lo
+            
+            pivots["H4"] = round(cl + (r * 1.1 / 2), 2)
+            pivots["H3"] = round(cl + (r * 1.1 / 4), 2)
+            pivots["L3"] = round(cl - (r * 1.1 / 4), 2)
+            pivots["L4"] = round(cl - (r * 1.1 / 2), 2)
+        except Exception:
+            pass
+            
+        return pivots
+
+    @staticmethod
+    def calc_htf_trend(htf_df: pd.DataFrame) -> str:
+        """
+        Determines Higher Timeframe trend via Daily 9-EMA.
+        """
+        if htf_df is None or htf_df.empty:
+            return "Neutral"
+            
+        try:
+            df = htf_df.copy()
+            df['ema_9'] = ta.ema(df['close'], length=9)
+            df.bfill(inplace=True)
+            df.dropna(inplace=True)
+            if df.empty:
+                return "Neutral"
+            
+            last_row = df.iloc[-1]
+            if last_row['close'] > last_row['ema_9']:
+                return "Bullish"
+            else:
+                return "Bearish"
+        except Exception:
+            return "Neutral"
+
+    @staticmethod
+    def calc_relative_strength(stock_df: pd.DataFrame, index_df: pd.DataFrame) -> float:
+        """
+        Calculates 50-period Comparative Relative Strength vs Nifty 50.
+        """
+        if stock_df is None or index_df is None or stock_df.empty or index_df.empty:
+            return 0.0
+            
+        try:
+            if len(stock_df) < 50 or len(index_df) < 50:
+                return 0.0
+                
+            stock_pct = (stock_df['close'].iloc[-1] - stock_df['close'].iloc[-50]) / stock_df['close'].iloc[-50]
+            index_pct = (index_df['close'].iloc[-1] - index_df['close'].iloc[-50]) / index_df['close'].iloc[-50]
+            
+            return round((stock_pct - index_pct) * 100, 2)
+        except Exception:
+            return 0.0
+
+    @staticmethod
+    def generate_signal_payload(df: pd.DataFrame, htf_df: pd.DataFrame, token: str, index_df: pd.DataFrame = None) -> dict:
         """
         Executes math engine on a copy of the dataframe, extracts the latest row,
         and returns a clean dictionary payload.
@@ -131,33 +247,53 @@ class MathEngine:
         # Work on a copy to ensure pure function behavior
         df_copy = df.copy()
         
+        # Guard against completely empty source
+        if df_copy.empty:
+            return {"token": token, "error": "Not enough data"}
+            
         # Calculate indicators
         processed_df = MathEngine.calc_trend_and_momentum(df_copy)
-        processed_df = MathEngine.calc_institutional_volume(processed_df)
-        geometry = MathEngine.calc_macro_geometry(processed_df)
-        
         if processed_df.empty:
             return {"token": token, "error": "Not enough data"}
             
+        processed_df = MathEngine.calc_institutional_volume(processed_df)
+        if processed_df.empty:
+            return {"token": token, "error": "Not enough data"}
+            
+        geometry = MathEngine.calc_macro_geometry(processed_df)
+        candlesticks = MathEngine.calc_micro_candlesticks(processed_df)
+        camarilla = MathEngine.calc_camarilla_pivots(htf_df)
+        htf_trend = MathEngine.calc_htf_trend(htf_df)
+        comparative_rs = MathEngine.calc_relative_strength(htf_df, index_df)
+        
         # Extract the very last row (the active live candle)
         last_row = processed_df.iloc[-1]
         
+        def safe_float(val):
+            return 0.0 if pd.isna(val) else round(float(val), 2)
+            
         # Format the clean Python dictionary
         payload = {
             "token": token,
-            "rsi": round(last_row.get('rsi_14', 0), 2),
-            "ema_9": round(last_row.get('ema_9', 0), 2),
-            "ema_21": round(last_row.get('ema_21', 0), 2),
-            "macd": round(last_row.get('macd', 0), 2),
-            "macd_hist": round(last_row.get('macd_hist', 0), 2),
-            "macd_signal": round(last_row.get('macd_signal', 0), 2),
-            "bb_lower": round(last_row.get('bb_lower', 0), 2),
-            "bb_upper": round(last_row.get('bb_upper', 0), 2),
-            "atr": round(last_row.get('atr_14', 0), 2),
-            "vwap": round(last_row.get('vwap', 0), 2),
-            "vol_z_score": round(last_row.get('vol_z_score', 0), 2),
-            "cmf": round(last_row.get('cmf', 0), 2),
-            "geometry": geometry
+            "rsi": safe_float(last_row.get('rsi_14', 0)),
+            "ema_9": safe_float(last_row.get('ema_9', 0)),
+            "ema_21": safe_float(last_row.get('ema_21', 0)),
+            "macd": safe_float(last_row.get('macd', 0)),
+            "macd_hist": safe_float(last_row.get('macd_hist', 0)),
+            "macd_signal": safe_float(last_row.get('macd_signal', 0)),
+            "bb_lower": safe_float(last_row.get('bb_lower', 0)),
+            "bb_upper": safe_float(last_row.get('bb_upper', 0)),
+            "atr": safe_float(last_row.get('atr_14', 0)),
+            "vwap": safe_float(last_row.get('vwap', 0)),
+            "vwap_lower": safe_float(last_row.get('vwap_lower', 0)),
+            "vwap_upper": safe_float(last_row.get('vwap_upper', 0)),
+            "vol_z_score": safe_float(last_row.get('vol_z_score', 0)),
+            "cmf": safe_float(last_row.get('cmf', 0)),
+            "geometry": geometry,
+            "candlesticks": candlesticks,
+            "camarilla": camarilla,
+            "htf_trend": htf_trend,
+            "comparative_rs": comparative_rs
         }
         
         return payload

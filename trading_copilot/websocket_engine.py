@@ -53,12 +53,29 @@ class LiveStreamManager:
                 ts = tick.get("exchange_timestamp")
                 
                 if token and ltp_raw is not None and ts is not None:
+                    bids = tick.get("best_5_buy_data") or []
+                    asks = tick.get("best_5_sell_data") or []
+                    
+                    # Extract OI
+                    oi = tick.get("open_interest") or 0
+                    
+                    # Angel One prices in L2 arrays are scaled by 100
+                    for b in bids:
+                        if 'price' in b:
+                            b['price'] = float(b['price']) / 100.0
+                    for a in asks:
+                        if 'price' in a:
+                            a['price'] = float(a['price']) / 100.0
+                            
                     # Instantly push multi-tenant packet to queue with asset isolation identifier
                     tick_data = {
                         "token": token,
                         "price": float(ltp_raw) / 100.0,
                         "volume": float(vol),
-                        "timestamp": ts
+                        "timestamp": ts,
+                        "bids": bids,
+                        "asks": asks,
+                        "oi": float(oi)
                     }
                     self.queue.put_nowait(tick_data)
         except Exception as e:

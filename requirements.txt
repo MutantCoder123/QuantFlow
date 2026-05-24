@@ -7,4 +7,9 @@ python-dotenv
 pandas-ta
 numpy
 scipy
-
+TA-Lib
+rich
+aiohttp
+fastapi
+uvicorn
+websockets
