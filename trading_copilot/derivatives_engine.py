@@ -19,7 +19,12 @@ def implied_volatility(target_value, S, K, T, r, option_type, max_iterations=100
     option_type: 'c' for Call, 'p' for Put
     """
     if T <= 0.0 or target_value <= 0.0 or S <= 0.0 or K <= 0.0:
-        return 0.0
+        return np.nan
+        
+    # Intrinsic value check
+    intrinsic = max(0.0, S - K) if option_type == 'c' else max(0.0, K - S)
+    if target_value <= intrinsic:
+        return np.nan
         
     sigma = 0.5 # Initial guess
     for i in range(0, max_iterations):
@@ -36,10 +41,10 @@ def implied_volatility(target_value, S, K, T, r, option_type, max_iterations=100
         diff = target_value - price
         
         if abs(diff) < precision:
-            return sigma
+            return float(sigma) * 100.0 # Return as percentage!
             
-        if vega == 0.0:
-            return 0.0 # Prevent division by zero
+        if abs(vega) < 1e-8:
+            return np.nan # Prevent division by near-zero vega
             
         sigma = sigma + diff / vega # f(x) / f'(x)
         
@@ -47,9 +52,9 @@ def implied_volatility(target_value, S, K, T, r, option_type, max_iterations=100
         if sigma <= 0.0:
             sigma = 0.001
         elif sigma > 5.0:
-            return 5.0
+            return np.nan
             
-    return sigma
+    return np.nan
 
 logger = logging.getLogger(__name__)
 
@@ -211,7 +216,7 @@ class OptionsAnalyzer:
             nfo_tokens = [str(t['token']) for t in chain_tokens]
             
             # Fetch OI via SmartAPI getMarketData
-            response = await asyncio.to_thread(smart_connect.getMarketData, "FULL", {"NFO": nfo_tokens})
+            response = await asyncio.to_thread(smart_connect.getMarketData, mode="FULL", exchangeTokens={"NFO": nfo_tokens})
             
             if response and response.get('status'):
                 data = response.get('data', {})
@@ -262,22 +267,18 @@ class OptionsAnalyzer:
         
         while True:
             try:
-                tasks = []
-                # Add Index task (Macro State)
-                tasks.append(self._fetch_and_process_token(smart_connect_instance, "NIFTY", index_token, is_index=True))
+                # Run Index task (Macro State)
+                await self._fetch_and_process_token(smart_connect_instance, "NIFTY", index_token, is_index=True)
+                await asyncio.sleep(2.0)
                 
-                # Add individual stock tasks (Micro State)
-                for token, meta in watchlist.items():
+                # Run individual stock tasks (Micro State) sequentially with delay to respect rate limits
+                for token, meta in list(watchlist.items()):
                     if meta.get('is_option'):
                         continue # Skip the NFO tokens injected into the watchlist
                         
                     raw_symbol = meta.get('symbol', '')
                     clean_symbol = raw_symbol.split('-')[0].upper()
-                    tasks.append(self._fetch_and_process_token(smart_connect_instance, clean_symbol, token, is_index=False))
-                
-                # Run API fetches sequentially with delay to respect rate limits
-                for task in tasks:
-                    await task
+                    await self._fetch_and_process_token(smart_connect_instance, clean_symbol, token, is_index=False)
                     await asyncio.sleep(2.0)
                     
             except Exception as e:

@@ -22,18 +22,26 @@
 <body class="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 min-h-screen text-slate-100 flex flex-col relative">
     <!-- Navbar / Header -->
     <header class="border-b border-slate-800/80 bg-slate-950/55 backdrop-blur-md sticky top-0 z-40 px-6 py-4 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
-                </svg>
+        <div class="flex items-center gap-8">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-indigo-200 via-white to-violet-200 bg-clip-text text-transparent">AlgoTrade System</h1>
+                    <p class="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Phase 4.3 Visual Diagnostics</p>
+                </div>
             </div>
-            <div>
-                <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-indigo-200 via-white to-violet-200 bg-clip-text text-transparent">AlgoTrade System</h1>
-                <p class="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Phase 4.3 Visual Diagnostics</p>
-            </div>
+            
+            <!-- Navigation Tabs -->
+            <nav class="hidden md:flex items-center gap-1 bg-slate-900/80 p-1 rounded-lg border border-slate-700/50 shadow-inner">
+                <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="px-4 py-1.5 text-xs font-bold rounded-md bg-slate-800 text-white shadow transition-all border border-slate-700/50">Live Dashboard</button>
+                <button onclick="switchTab('screener')" id="tab-btn-screener" class="px-4 py-1.5 text-xs font-bold rounded-md text-slate-400 hover:text-slate-200 transition-all border border-transparent">Market Discovery</button>
+                <button onclick="switchTab('live-action')" id="tab-btn-live-action" class="px-4 py-1.5 text-xs font-bold rounded-md text-slate-400 hover:text-slate-200 transition-all border border-transparent">Live Action</button>
+            </nav>
         </div>
-
         <div class="flex items-center gap-4">
             <!-- Phase 9: Notification Bell -->
             <div class="relative cursor-pointer" onclick="toggleAlertTray()">
@@ -53,7 +61,6 @@
                     </div>
                 </div>
             </div>
-
             <!-- Connection Status -->
             <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/80 border border-slate-800">
                 <span id="status-dot" class="w-2.5 h-2.5 rounded-full bg-yellow-500 shadow-[0_0_8px_#eab308]"></span>
@@ -61,20 +68,21 @@
             </div>
         </div>
     </header>
-
     <!-- Main Container -->
     <main class="flex-1 max-w-[90rem] w-full mx-auto p-6 space-y-6">
-        <!-- Section: Macro Weather -->
-        <section class="space-y-3">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-4">
-                    <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path>
-                        </svg>
-                        Macro Weather Monitor
-                    </h2>
-                    <button id="btn-screener" class="bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] uppercase font-bold py-1 px-3 rounded shadow transition-colors border border-indigo-400/30">Run Phase 0 Screener</button>
+        
+        <!-- DASHBOARD TAB -->
+        <div id="tab-dashboard" class="block space-y-6">
+            <!-- Section: Macro Weather -->
+            <section class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path>
+                            </svg>
+                            Macro Weather Monitor
+                        </h2>
                     <button id="btn-settings" class="bg-slate-700 hover:bg-slate-600 text-white text-[10px] uppercase font-bold py-1 px-3 rounded shadow transition-colors border border-slate-500/30">⚙️ Prompt Settings</button>
                     <button id="btn-edit-watchlist" onclick="openWatchlistModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] uppercase font-bold py-1 px-3 rounded shadow transition-colors border border-emerald-400/30">📋 Edit Watchlist</button>
                     <button id="btn-map-tokens" class="bg-purple-600 hover:bg-purple-500 text-white text-[10px] uppercase font-bold py-1 px-3 rounded shadow transition-colors border border-purple-400/30">🔗 Map Option Tokens</button>
@@ -93,7 +101,6 @@
                         <span class="text-[10px] text-slate-500">Nifty 50</span>
                     </div>
                 </div>
-
                 <!-- Card 2: FII Net Flow -->
                 <div class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 backdrop-blur-sm flex flex-col justify-between shadow-md">
                     <div class="flex justify-between items-start">
@@ -107,7 +114,6 @@
                         <p class="text-[10px] text-slate-500 mt-0.5">NSE Cash Market Net</p>
                     </div>
                 </div>
-
                 <!-- Card 3: DII Net Flow -->
                 <div class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 backdrop-blur-sm flex flex-col justify-between shadow-md">
                     <div class="flex justify-between items-start">
@@ -121,7 +127,6 @@
                         <p class="text-[10px] text-slate-500 mt-0.5">Domestic Cash Net</p>
                     </div>
                 </div>
-
                 <!-- Card 4: Net Market Direction -->
                 <div class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 backdrop-blur-sm flex flex-col justify-between shadow-md">
                     <div class="flex justify-between items-start">
@@ -133,7 +138,6 @@
                         <p class="text-[10px] text-slate-500 mt-1.5">Combined FII + DII Cash</p>
                     </div>
                 </div>
-
                 <!-- Card 5: Market Breadth -->
                 <div class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 backdrop-blur-sm flex flex-col justify-between shadow-md">
                     <div class="flex justify-between items-start">
@@ -149,7 +153,55 @@
                 </div>
             </div>
         </section>
-
+        <!-- Global Market Context Full Width Card -->
+        <div class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 backdrop-blur-sm shadow-md mb-6">
+            <div class="flex items-center gap-3 mb-2">
+                <span class="text-xs font-semibold text-slate-400">Global Market Context (AI Summarized)</span>
+                <span id="macro-sentiment-badge" class="px-2 py-0.5 text-[10px] font-bold rounded bg-slate-800 text-slate-400 border border-slate-700">Waiting for data...</span>
+                <span id="macro-time" class="text-[10px] text-slate-500"></span>
+            </div>
+            <p id="macro-summary" class="text-sm text-slate-300 leading-relaxed italic">
+                The macro engine is currently fetching and compiling the latest global market conditions...
+            </p>
+        </div>
+        <!-- Section: News Engine Control Panel -->
+        <section class="bg-slate-900 border border-slate-700 rounded-lg p-4 shadow-lg mb-6">
+            <h4 class="text-sm font-bold text-slate-300 mb-3 uppercase tracking-wider flex items-center gap-2">
+                <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9.5a2.5 2.5 0 00-2.5-2.5H15"></path></svg>
+                Live News Engine
+            </h4>
+            
+            <div class="flex flex-wrap items-center gap-4">
+                <button id="btn-news-instant" onclick="triggerNewsInstant()" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded shadow-lg transition-colors flex items-center gap-2">
+                    ⚡ Instant Fetch
+                </button>
+                
+                <div class="flex items-center gap-2 border-l border-slate-700 pl-4">
+                    <span class="text-xs text-slate-400 font-semibold uppercase">Model:</span>
+                    <select id="news-model-select" class="bg-slate-800 text-white text-xs border border-slate-600 rounded px-2 py-1 focus:outline-none focus:border-emerald-500">
+                        <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash</option>
+                        <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                    </select>
+                </div>
+                
+                <div class="flex items-center gap-2 border-l border-slate-700 pl-4">
+                    <label class="text-xs text-slate-400 font-semibold uppercase flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="toggle-news-auto" class="form-checkbox h-4 w-4 text-emerald-500 bg-slate-800 border-slate-600 rounded focus:ring-emerald-500 focus:ring-offset-slate-900" onchange="toggleNewsAuto()">
+                        Auto Fetch
+                    </label>
+                </div>
+                
+                <div class="flex items-center gap-2 border-l border-slate-700 pl-4">
+                    <span class="text-xs text-slate-400 font-semibold uppercase">Interval (s):</span>
+                    <input type="number" id="news-interval" value="120" min="30" step="30" class="w-16 bg-slate-800 text-white text-xs border border-slate-600 rounded px-2 py-1 text-center focus:outline-none focus:border-emerald-500" onchange="toggleNewsAuto()">
+                </div>
+                
+                <div class="ml-auto flex items-center gap-2">
+                    <span class="text-xs text-slate-400 font-semibold uppercase">Status:</span>
+                    <span id="news-status-text" class="text-xs font-bold text-slate-500">Checking...</span>
+                </div>
+            </div>
+        </section>
         <!-- Section: Live Market Matrix -->
         <section class="space-y-3">
             <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
@@ -193,16 +245,79 @@
                 </div>
             </div>
         </section>
+    
+        </div> <!-- End of tab-dashboard -->
+        <!-- LIVE ACTION TAB -->
+        <div id="tab-live-action" class="hidden space-y-6">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                        <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        Live Action
+                    </h2>
+                    <p class="text-sm text-slate-400 mt-1">Dynamic algorithmic trade setups ordered by AI Priority Score.</p>
+                </div>
+                <div class="flex items-center gap-4 bg-slate-900 border border-slate-700/80 p-2 rounded-lg">
+                    <div class="flex items-center gap-3">
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="global-auto-analyze" class="sr-only peer" onchange="toggleGlobalAutoAnalyze()">
+                            <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                            <span class="ml-2 text-xs font-semibold text-slate-300">Global Auto-Analyze</span>
+                        </label>
+                        <div class="h-4 w-px bg-slate-700"></div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-slate-400">Freq (s):</span>
+                            <input type="number" id="global-analyze-interval" value="90" min="10" class="w-16 bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1 text-center focus:outline-none focus:border-indigo-500">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="live-action-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <!-- Action Cards go here -->
+            </div>
+        </div>
+        <!-- DISCOVERY TAB -->
+        <div id="tab-screener" class="hidden space-y-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                        <svg class="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        Predicted Top Performing Stocks
+                    </h2>
+                    <p class="text-sm text-slate-400 mt-1">AI-driven technical and fundamentals breakout scanner</p>
+                </div>
+                <button id="btn-run-discovery" onclick="generateIntradayPlaybook()" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow-lg shadow-indigo-500/20 transition-all flex items-center gap-2 border border-indigo-500/50">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Run Discovery Engine
+                </button>
+            </div>
+            
+            <!-- Discovery Status -->
+            <div id="screener-status" class="hidden text-center p-8 bg-slate-900/50 rounded-xl border border-slate-800">
+                <svg class="animate-spin h-8 w-8 text-indigo-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="text-sm text-slate-300 font-semibold animate-pulse" id="screener-status-text">Scanning F&O Universe...</p>
+            </div>
+            <!-- Discovery Results Grid -->
+            <div id="screener-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <!-- Cards injected here -->
+            </div>
+            
+            <div id="screener-empty" class="text-center p-12 bg-slate-900/40 rounded-xl border border-slate-800/80">
+                <p class="text-slate-500 font-mono-custom text-sm">No discovery playbook generated yet.</p>
+                <p class="text-slate-600 text-xs mt-2">Click 'Run Discovery Engine' to analyze the broader market.</p>
+            </div>
+        </div>
     </main>
-
     <!-- Footer -->
     <footer class="border-t border-slate-900 bg-slate-950 py-4 px-6 text-center text-xs text-slate-600">
         AlgoTrade Multi-Tenant Quantitative System &copy; 2026. All rights reserved.
     </footer>
-
     <!-- LLM JSON Inspection Modal -->
     <div id="llm-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 transition-opacity duration-200">
-        <div class="bg-slate-900 border border-slate-700 shadow-2xl rounded-xl w-full max-w-3xl flex flex-col overflow-hidden max-h-[90vh]">
+        <div class="bg-slate-900 border border-slate-700 shadow-2xl rounded-xl w-full max-w-5xl flex flex-col overflow-hidden h-[90vh]">
             <!-- Modal Header -->
             <div class="flex items-center justify-between px-5 py-3 border-b border-slate-800 bg-slate-800/40">
                 <h3 id="modal-title" class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
@@ -218,16 +333,24 @@
                 </div>
             </div>
             <!-- Modal Body -->
-            <div class="p-5 overflow-y-auto flex-1 bg-slate-950 flex flex-col gap-4">
+            <div class="p-5 overflow-hidden flex-1 bg-slate-950 flex flex-col gap-4">
                 
+                <!-- Tab Navigation -->
+                <div class="flex items-center gap-2 border-b border-slate-800 pb-2">
+                    <button id="tab-btn-reasoning" onclick="switchModalTab('reasoning')" class="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-t-lg bg-slate-800 text-indigo-400 border-t border-l border-r border-slate-700 transition-colors">AI Reasoning</button>
+                    <button id="tab-btn-catalyst" onclick="switchModalTab('catalyst')" class="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-t-lg bg-transparent text-slate-500 hover:text-slate-300 transition-colors">News Catalyst</button>
+                    <button id="tab-btn-telemetry" onclick="switchModalTab('telemetry')" class="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-t-lg bg-transparent text-slate-500 hover:text-slate-300 transition-colors">Raw Telemetry</button>
+                </div>
+                <!-- Tab Content: Reasoning -->
+                <div id="tab-content-reasoning" class="flex flex-col gap-4 flex-1 overflow-hidden pr-2">
                 <!-- AI Reasoning Engine Control Panel -->
-                <div class="bg-slate-900 border border-slate-700 rounded-lg p-4 shadow-lg">
-                    <h4 class="text-sm font-bold text-slate-300 mb-3 uppercase tracking-wider flex items-center gap-2">
+                <div class="bg-slate-900 border border-slate-700 rounded-lg p-4 shadow-lg flex flex-col flex-1 overflow-hidden min-h-0">
+                    <h4 class="text-sm font-bold text-slate-300 mb-3 uppercase tracking-wider flex items-center gap-2 shrink-0">
                         <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                         AI Reasoning Engine
                     </h4>
                     
-                    <div class="flex flex-wrap items-center gap-4 mb-4">
+                    <div class="flex flex-wrap items-center gap-4 mb-4 shrink-0">
                         <button id="btn-instant-analyze" onclick="triggerInstantAnalysis()" class="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded shadow-lg transition-colors flex items-center gap-2">
                             ⚡ Instant Analyze
                         </button>
@@ -235,8 +358,8 @@
                         <div class="flex items-center gap-2 border-l border-slate-700 pl-4">
                             <span class="text-xs text-slate-400 font-semibold uppercase">Model:</span>
                             <select id="reasoning-model-select" class="bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1 focus:outline-none focus:border-indigo-500">
-                                <option value="gemini-3-flash" selected>Gemini 3 Flash</option>
-                                <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                                <option value="gemini-3-flash">Gemini 3 Flash</option>
+                                <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash</option>
                                 <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
                                 <option value="gemini-3.1-pro">Gemini 3.1 Pro</option>
                             </select>
@@ -256,20 +379,72 @@
                         </div>
                     </div>
                     
-                    <div class="bg-[#0d1117] rounded-md p-4 border border-slate-800 h-64 overflow-y-auto">
-                        <pre><code id="reasoning-report-block" class="text-xs font-mono-custom text-slate-300 whitespace-pre-wrap">Awaiting trigger...</code></pre>
+                    <div class="flex gap-4 flex-1 overflow-hidden min-h-0">
+                        <div class="bg-[#0d1117] rounded-md p-4 border border-slate-800 flex-1 overflow-y-auto">
+                            <div id="reasoning-report-block" class="text-sm font-mono-custom text-slate-300 whitespace-pre-wrap">Awaiting trigger...</div>
+                        </div>
+                        <div id="reasoning-action-block" class="w-72 shrink-0 hidden flex-col gap-3"></div>
                     </div>
                 </div>
-
-                <!-- Raw JSON Payload -->
-                <div class="bg-[#0d1117] border border-slate-800 rounded-lg p-4 h-48 overflow-y-auto">
-                    <h4 class="text-xs font-bold text-slate-500 mb-2 uppercase">Raw Telemetry JSON</h4>
-                    <pre><code id="modal-code-block" class="text-xs font-mono-custom text-emerald-400 whitespace-pre-wrap break-all"></code></pre>
+                    <!-- Intent Inputs -->
+                    <div class="flex flex-wrap items-center gap-4 pt-3 border-t border-slate-700/50">
+                        <span class="text-xs font-bold text-slate-400 uppercase">Optional: Proposed Trade</span>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-slate-400">Action:</span>
+                            <select id="intent-action" class="bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1 focus:outline-none focus:border-indigo-500">
+                                <option value="None" selected>None</option>
+                                <option value="Buy Market">Buy Market</option>
+                                <option value="Buy Limit">Buy Limit</option>
+                                <option value="Sell Market">Sell Market</option>
+                                <option value="Sell Limit">Sell Limit</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-slate-400">Type:</span>
+                            <select id="intent-type" class="bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1 focus:outline-none focus:border-indigo-500">
+                                <option value="Intraday" selected>Intraday</option>
+                                <option value="Delivery">Delivery</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-slate-400">Qty:</span>
+                            <input type="number" id="intent-qty" placeholder="e.g. 100" class="w-16 bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1 focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-slate-400">Price:</span>
+                            <input type="number" id="intent-price" placeholder="e.g. 150.5" class="w-16 bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1 focus:outline-none focus:border-indigo-500">
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-4 pb-2">
+                        <div class="flex items-center gap-2 flex-1">
+                            <span class="text-xs text-slate-400">Advice:</span>
+                            <input type="text" id="intent-advice" placeholder="e.g. Scaling in slowly on dips..." class="flex-1 bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1 focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <button id="btn-inject-intent" onclick="copyToClipboard()" class="px-4 py-1 text-xs font-semibold rounded bg-purple-600 text-white hover:bg-purple-500 transition-colors shadow-lg">Inject & Copy</button>
+                    </div>
+                </div>
+                <!-- Tab Content: Catalyst -->
+                <div id="tab-content-catalyst" class="hidden flex-col gap-4 flex-1 overflow-y-auto pr-2">
+                    <div class="bg-[#0d1117] rounded-lg p-4 border border-slate-700 h-[400px] overflow-y-auto shadow-inner relative">
+                        <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-2 sticky top-0 bg-[#0d1117] z-10 pt-1">
+                            <h4 class="text-xs font-bold text-slate-500 uppercase">Live News Catalyst</h4>
+                            <button id="btn-force-news" onclick="forceFetchNews()" class="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white text-[10px] uppercase font-bold rounded shadow transition-colors flex items-center gap-2">
+                                📰 Force Fetch News
+                            </button>
+                        </div>
+                        <pre><code id="catalyst-report-block" class="text-xs font-mono-custom text-slate-300 whitespace-pre-wrap">Loading catalyst data...</code></pre>
+                    </div>
+                </div>
+                <!-- Tab Content: Telemetry -->
+                <div id="tab-content-telemetry" class="hidden flex-col gap-4 flex-1 overflow-y-auto pr-2">
+                    <div class="bg-[#0d1117] border border-slate-800 rounded-lg p-4 h-[400px] overflow-y-auto">
+                        <h4 class="text-xs font-bold text-slate-500 mb-2 uppercase sticky top-0 bg-[#0d1117] z-10 pt-1 pb-2">Raw Telemetry JSON</h4>
+                        <pre><code id="modal-code-block" class="text-xs font-mono-custom text-emerald-400 whitespace-pre-wrap break-all"></code></pre>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-
     <!-- WebSocket Logic -->
     <script>
         const SERVER_IP = '192.168.29.123:8000';
@@ -281,21 +456,17 @@
         const wsUri = `ws://${wsHost}/ws`;
         const apiBase = isLocalFile ? `http://${apiHost}` : '';
         let socket;
-
         // Global Cache for the Modal
         window.latestGlobalState = {};
-
         function connect() {
             socket = new WebSocket(wsUri);
             const statusDot = document.getElementById('status-dot');
             const statusText = document.getElementById('status-text');
-
             socket.onopen = () => {
                 statusDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]';
                 statusText.innerText = 'Connected Live';
                 statusText.className = 'text-xs font-semibold text-emerald-400';
             };
-
             socket.onmessage = (event) => {
                 const payload = JSON.parse(event.data);
                 updateMacroWeather(payload.macro_state);
@@ -307,21 +478,77 @@
                     breadthElem.innerText = adRatio.toFixed(2);
                     breadthElem.className = adRatio >= 1.0 ? 'text-2xl font-bold font-mono-custom text-emerald-400' : 'text-2xl font-bold font-mono-custom text-rose-400';
                 }
+                
+                // MOCK DATA FALLBACK FOR GLOBAL MARKET CONTEXT
+                  if (!payload.global_market_context) {
+                      payload.global_market_context = {
+                          summary: "Global markets are showing strong resilience with cooling inflation data out of the US and steady domestic inflows in Indian markets. FII selling pressure seems to have absorbed. Key focus remains on upcoming Fed commentary and RBI policy alignment.",
+                          sentiment: "BULLISH",
+                          timestamp: Math.floor(Date.now() / 1000)
+                      };
+                  }
+                  
+                  // 5. Update Global Market Context
+                if (payload.global_market_context) {
+                    const ctx = payload.global_market_context;
+                    const badge = document.getElementById('macro-sentiment-badge');
+                    const summary = document.getElementById('macro-summary');
+                    const timeElem = document.getElementById('macro-time');
+                    
+                    if (summary) summary.innerText = ctx.summary || "No summary available.";
+                    if (badge) badge.innerText = ctx.sentiment || "NEUTRAL";
+                    
+                    if (ctx.timestamp && timeElem) {
+                        timeElem.innerText = "Updated: " + new Date(ctx.timestamp * 1000).toLocaleTimeString();
+                    }
+                    
+                    let bgClass = 'bg-slate-800', textClass = 'text-slate-400', borderClass = 'border-slate-700';
+                    if (ctx.sentiment === 'BULLISH') {
+                        bgClass = 'bg-emerald-500/20'; textClass = 'text-emerald-400'; borderClass = 'border-emerald-500/30';
+                    } else if (ctx.sentiment === 'BEARISH') {
+                        bgClass = 'bg-rose-500/20'; textClass = 'text-rose-400'; borderClass = 'border-rose-500/30';
+                    } else if (ctx.sentiment === 'MIXED') {
+                        bgClass = 'bg-purple-500/20'; textClass = 'text-purple-400'; borderClass = 'border-purple-500/30';
+                    }
+                    if (badge) badge.className = `px-2 py-0.5 text-[10px] font-bold rounded border ${bgClass} ${textClass} ${borderClass}`;
+                }
+                
+                // 6. Update AI Intraday Playbook
+                if (payload.dashboard_intraday_plays) {
+                    const plays = payload.dashboard_intraday_plays;
+                    const items = Array.isArray(plays) ? plays : plays.watchlist;
+                    if (items && items.length > 0) {
+                        // Hide spinner and re-enable button
+                        const status = document.getElementById('screener-status');
+                        if (status) { status.classList.add('hidden'); status.classList.remove('block'); }
+                        const btn = document.getElementById('btn-run-discovery');
+                        if (btn) { btn.disabled = false; btn.classList.remove('opacity-50'); }
+                        
+                        // Forward playbook data to the Discovery UI render function
+                        renderDiscoveryCards(items);
+                        // Hide empty state if needed
+                        const empty = document.getElementById('screener-empty');
+                        if (empty) empty.classList.add('hidden');
+                    } else {
+                        const empty = document.getElementById('screener-empty');
+                        if (empty) {
+                            empty.classList.remove('hidden');
+                            empty.innerHTML = `<p class="text-slate-500 font-mono-custom text-sm">Received playbook but no items found (Length: ${items ? items.length : 0}). Data: ${JSON.stringify(plays).substring(0, 50)}...</p><p class="text-slate-600 text-xs mt-2">Click 'Run Discovery Engine' to analyze the broader market.</p>`;
+                        }
+                    }
+                }
             };
-
             socket.onclose = () => {
                 statusDot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_#f43f5e] animate-pulse';
                 statusText.innerText = 'Reconnecting...';
                 statusText.className = 'text-xs font-semibold text-rose-400';
                 setTimeout(connect, 3000);
             };
-
             socket.onerror = (err) => {
                 console.error('WebSocket error: ', err);
                 socket.close();
             };
         }
-
         function updateMacroWeather(macro) {
             if (!macro) return;
             
@@ -339,19 +566,15 @@
                 pcrBadge.className = 'px-2 py-0.5 text-[10px] font-bold rounded bg-slate-800 text-slate-400 border border-slate-700';
                 pcrBadge.innerText = 'Neutral';
             }
-
             // 2. Update FII/DII
             const fiiNet = parseFloat(macro.fii_net || 0);
             const diiNet = parseFloat(macro.dii_net || 0);
             const netTotal = fiiNet + diiNet;
             const dateStr = macro.date || 'N/A';
-
             document.getElementById('fii-val').innerText = `₹${fiiNet.toLocaleString('en-IN')} Cr`;
             document.getElementById('fii-val').className = fiiNet >= 0 ? 'text-2xl font-bold font-mono-custom text-emerald-400' : 'text-2xl font-bold font-mono-custom text-rose-400';
-
             document.getElementById('dii-val').innerText = `₹${diiNet.toLocaleString('en-IN')} Cr`;
             document.getElementById('dii-val').className = diiNet >= 0 ? 'text-2xl font-bold font-mono-custom text-emerald-400' : 'text-2xl font-bold font-mono-custom text-rose-400';
-
             // 3. Update Net Total
             const netDir = document.getElementById('net-direction');
             if (netTotal > 0) {
@@ -367,7 +590,6 @@
             
             document.getElementById('macro-date').innerText = `Date: ${dateStr}`;
         }
-
         function updateMarketMatrix(globalState) {
             const tableBody = document.getElementById('matrix-body');
             
@@ -388,17 +610,15 @@
             
             // Cache the state globally for the modal
             window.latestGlobalState = globalState;
-
             // True DOM Diffing: Do NOT clear tableBody.innerHTML
             // Target and destroy the initial loading row if it exists
             const loadingRow = document.getElementById('loading-row');
             if (loadingRow) loadingRow.remove();
-
             const tokens = Object.keys(globalState).sort();
             
             tokens.forEach(token => {
                 const payload = globalState[token];
-                const symbol = payload.symbol || `Token ${token}`;
+                const symbol = payload.symbol || token.split('|').pop();
                 const ltp = parseFloat(payload.ltp || 0).toFixed(2);
                 
                 // --- 1. OBI Visual Gauge Logic ---
@@ -429,7 +649,6 @@
                         <div class="text-[10px] text-slate-500 text-center mt-0.5">0.0000</div>
                     `;
                 }
-
                 // --- 2. CVD Pill Badge ---
                 const cvd = parseInt(payload.cvd || 0);
                 let cvdBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700">${cvd.toLocaleString()}</span>`;
@@ -440,16 +659,14 @@
                 } else if (cvd < 0) {
                     cvdBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/30">${cvd.toLocaleString()}</span>`;
                 }
-
                 // --- 3. POC Pill Badge ---
                 const rawPocDist = parseFloat(payload.poc_distance_pct || 0);
                 let pocBadge = `<span class="text-slate-300 text-xs">${rawPocDist.toFixed(3)}%</span>`;
                 if (Math.abs(rawPocDist) < 0.1) {
                     pocBadge = `<span class="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-[0_0_8px_rgba(6,182,212,0.2)]">${rawPocDist.toFixed(3)}%</span>`;
                 }
-
                 // --- 4. RSI Progress Bar ---
-                const rawRsi = parseFloat(payload.rsi || 50);
+                const rawRsi = parseFloat(payload.rsi_5m || 50);
                 const rsiPct = Math.max(0, Math.min(100, rawRsi));
                 let rsiColor = 'bg-slate-500';
                 let rsiTextColor = 'text-slate-300';
@@ -468,7 +685,6 @@
                         </div>
                     </div>
                 `;
-
                 // --- 5. Candlestick Matrix Logic ---
                 const cdls = payload.candlesticks || {};
                 let activeCdl = "None";
@@ -491,15 +707,13 @@
                         cdlBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] uppercase font-bold bg-slate-800 text-slate-300 border border-slate-700">${activeCdl}</span>`;
                     }
                 }
-
                 // --- Action Button ---
                 const actionBtn = `
                     <div class="flex flex-col gap-1.5">
                         <button onclick="openPositionModal('${token}')" class="px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded bg-emerald-600/20 text-emerald-300 hover:bg-emerald-500/40 hover:text-white transition-colors border border-emerald-500/30 shadow">📝 Pos</button>
-                        <button onclick="openJsonModal('${token}')" class="px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded bg-indigo-600/20 text-indigo-300 hover:bg-indigo-500/40 hover:text-white transition-colors border border-indigo-500/30 shadow">🤖 JSON</button>
+                        <button onclick="openJsonModal('${token}')" class="px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded bg-indigo-600/20 text-indigo-300 hover:bg-indigo-500/40 hover:text-white transition-colors border border-indigo-500/30 shadow">🤖 Analyze</button>
                     </div>
                 `;
-
                 // --- Phase 5.2: Derivatives ---
                 const stockPcr = parseFloat(payload.stock_pcr || 1.0);
                 const maxPain = payload.max_pain_price ? parseFloat(payload.max_pain_price).toFixed(2) : "N/A";
@@ -510,20 +724,17 @@
                 
                 const pcrBadge = `<span class="${pcrClass}">${stockPcr.toFixed(2)}</span>`;
                 const maxPainBadge = `<span class="text-cyan-400 font-bold font-mono-custom bg-cyan-950/30 px-2 py-0.5 rounded border border-cyan-500/20">${maxPain}</span>`;
-
                 // --- Phase 6: Statistical Alpha ---
                 const ivr = parseFloat(payload.ivr || 0.0).toFixed(2);
                 let ivrClass = 'text-slate-300';
                 if (ivr < 20) ivrClass = 'text-emerald-400 font-bold'; // Low IV
                 else if (ivr > 80) ivrClass = 'text-rose-400 font-bold'; // High IV
                 const ivrBadge = `<span class="${ivrClass}">${ivr}</span>`;
-
                 const compRS = parseFloat(payload.comparative_rs || 0.0).toFixed(2);
                 let rsClass = 'text-slate-300';
                 if (compRS > 0) rsClass = 'text-emerald-400 font-bold';
                 else if (compRS < 0) rsClass = 'text-rose-400 font-bold';
                 const rsBadge = `<span class="${rsClass}">${compRS}</span>`;
-
                 // Render Row using True DOM Diffing
                 let existingRow = document.getElementById(`row-${token}`);
                 if (existingRow) {
@@ -569,24 +780,44 @@
                 }
             });
         }
-
         // Modal Logic Functions
-        function openJsonModal(token) {
-            if (!window.latestGlobalState || !window.latestGlobalState[token]) return;
+        function openJsonModal(tokenOrSymbol) {
+            if (!window.latestGlobalState) return;
+            let token = tokenOrSymbol;
+            if (!window.latestGlobalState[token]) {
+                const searchStr = tokenOrSymbol.split('|').pop();
+                const foundKey = Object.keys(window.latestGlobalState).find(k => 
+                    (window.latestGlobalState[k].symbol || "").split('|').pop() === searchStr
+                );
+                if (foundKey) {
+                    token = foundKey;
+                } else {
+                    return;
+                }
+            }
             const payload = window.latestGlobalState[token];
-            const symbol = payload.symbol || `Token ${token}`;
+            const symbol = payload.symbol || token.split('|').pop();
             
             // Store globally for the clipboard function
             window.currentViewingToken = token;
             
-            // Deep copy payload so we don't pollute the live streaming object
-            const payloadCopy = JSON.parse(JSON.stringify(payload));
+            // Deep copy the structured payload if it exists, else fallback to raw
+            let payloadCopy = {};
+            if (payload.structured_payload) {
+                payloadCopy = JSON.parse(JSON.stringify(payload.structured_payload));
+            } else {
+                payloadCopy = JSON.parse(JSON.stringify(payload));
+            }
             
             // Append User Position if it exists in memory
             try {
                 const allPos = JSON.parse(localStorage.getItem('user_positions')) || {};
                 if (allPos[token]) {
-                    payloadCopy.user_position = allPos[token];
+                    if (payloadCopy.user_context) {
+                        payloadCopy.user_context.position = allPos[token];
+                    } else {
+                        payloadCopy.user_position = allPos[token];
+                    }
                 }
             } catch (e) {
                 console.error("Failed to append user position:", e);
@@ -594,10 +825,20 @@
             
             document.getElementById('modal-title').innerHTML = `<span class="text-xl">🤖</span> AI Reasoning: ${symbol}`;
             document.getElementById('modal-code-block').innerText = JSON.stringify(payloadCopy, null, 2);
+                        switchModalTab('reasoning');
+            const catalystBlock = document.getElementById('catalyst-report-block');
+            if (payloadCopy.latest_catalyst && payloadCopy.latest_catalyst.raw_news && payloadCopy.latest_catalyst.raw_news.length > 0) {
+                let catText = `Current Cached Raw Catalyst:\n`;
+                payloadCopy.latest_catalyst.raw_news.forEach(n => {
+                    catText += `\n[${n.Article}] ${n.headline}\n${n.summary}\n`;
+                });
+                catalystBlock.innerText = catText;
+            } else {
+                catalystBlock.innerText = "No cached news catalyst available for this asset. Click 'Force Fetch News' to query live API.";
+            }
             document.getElementById('llm-modal').classList.remove('hidden');
-
             // Phase 8 Reset UI state & fetch existing report
-            document.getElementById('reasoning-report-block').innerText = "Awaiting trigger...";
+            renderReasoningReport("Awaiting trigger...");
             document.getElementById('toggle-auto-analyze').checked = false;
             if (window.autoAnalyzeIntervalId) { 
                 clearInterval(window.autoAnalyzeIntervalId); 
@@ -607,25 +848,102 @@
             fetch(`${apiBase}/api/reasoning/report/${symbol}`)
                 .then(r => r.json())
                 .then(data => {
-                    if (data.report) document.getElementById('reasoning-report-block').innerText = data.report;
+                    if (data.report) renderReasoningReport(data.report);
                     document.getElementById('toggle-auto-analyze').checked = data.is_active;
                     if (data.is_active) {
                         window.autoAnalyzeIntervalId = setInterval(async () => {
                             const res = await fetch(`${apiBase}/api/reasoning/report/${symbol}`);
                             const d = await res.json();
-                            if (d.report) document.getElementById('reasoning-report-block').innerText = d.report;
+                            if (d.report) renderReasoningReport(d.report);
                             document.getElementById('toggle-auto-analyze').checked = d.is_active;
                             if(!d.is_active) { clearInterval(window.autoAnalyzeIntervalId); window.autoAnalyzeIntervalId=null; }
                         }, 5000);
                     }
                 }).catch(e => console.error("Fetch report error", e));
         }
-
+        // --- Modal Tabs Logic ---
+        function switchModalTab(tabName) {
+            ['reasoning', 'catalyst', 'telemetry'].forEach(t => {
+                document.getElementById(`tab-content-${t}`).classList.add('hidden');
+                document.getElementById(`tab-content-${t}`).classList.remove('flex');
+                
+                const btn = document.getElementById(`tab-btn-${t}`);
+                btn.className = "px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-t-lg bg-transparent text-slate-500 hover:text-slate-300 transition-colors";
+            });
+            
+            document.getElementById(`tab-content-${tabName}`).classList.remove('hidden');
+            document.getElementById(`tab-content-${tabName}`).classList.add('flex');
+            
+            const activeBtn = document.getElementById(`tab-btn-${tabName}`);
+            activeBtn.className = "px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-t-lg bg-slate-800 text-indigo-400 border-t border-l border-r border-slate-700 transition-colors";
+        }
+        // --- Force News Fetch ---
+        async function forceFetchNews() {
+            if (!window.currentViewingToken) return;
+            const token = window.currentViewingToken;
+            const btn = document.getElementById('btn-force-news');
+            const block = document.getElementById('catalyst-report-block');
+            const modelSelect = document.getElementById('reasoning-model-select');
+            const model = modelSelect ? modelSelect.value : 'gemini-2.5-flash';
+            
+            btn.innerText = "⏳ Fetching...";
+            btn.disabled = true;
+            block.innerText = "Querying live API for news...";
+            
+            try {
+                // Get symbol from latestGlobalState
+                const symbol = window.latestGlobalState[token]?.symbol || token;
+                
+                const res = await fetch(`${apiBase}/api/news/fetch/${symbol}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({model: model})
+                });
+                const data = await res.json();
+                
+                if (data.status === 'success' && data.data) {
+                    const newsData = data.data;
+                    // CACHE IT LOCALLY SO IT DOESN'T VANISH ON REOPEN
+                    if (window.latestGlobalState && window.latestGlobalState[token]) {
+                        if (!window.latestGlobalState[token].structured_payload) {
+                            window.latestGlobalState[token].structured_payload = {};
+                        }
+                        window.latestGlobalState[token].latest_catalyst = newsData;
+                        window.latestGlobalState[token].structured_payload.latest_catalyst = newsData;
+                    }
+                    
+                    // Prettify output
+                    let out = `--- LATEST RAW CATALYST ---\n`;
+                    if (newsData.raw_news && newsData.raw_news.length > 0) {
+                        newsData.raw_news.forEach(n => {
+                            out += `\n[${n.Article}] ${n.headline}\n${n.summary}\n`;
+                        });
+                    } else {
+                        out += `\nNo recent news articles found for ${symbol}.\n`;
+                    }
+                    block.innerText = out;
+                } else {
+                    block.innerText = `Error: ${data.message || 'Unknown error'}`;
+                }
+            } catch (e) {
+                block.innerText = `Failed to fetch news: ${e.message}`;
+            } finally {
+                btn.innerHTML = "📰 Force Fetch News";
+                btn.disabled = false;
+            }
+        }
         function closeJsonModal() {
             document.getElementById('llm-modal').classList.add('hidden');
         }
-
-
+                function getUserIntent() {
+            const action = document.getElementById('intent-action').value;
+            if (action === "None") return null;
+            const type = document.getElementById('intent-type').value;
+            const advice = document.getElementById('intent-advice').value;
+            const qty = parseFloat(document.getElementById('intent-qty').value) || 0;
+            const price = parseFloat(document.getElementById('intent-price').value) || 0;
+            return { action: action, type: type, quantity: qty, price: price, advice: advice };
+        }
         function copyToClipboard() {
             const codeBlock = document.getElementById('modal-code-block').innerText;
             const currentPrompt = localStorage.getItem('llm_system_prompt') || DEFAULT_SYSTEM_PROMPT;
@@ -636,16 +954,20 @@
                     const allPos = JSON.parse(localStorage.getItem('user_positions')) || {};
                     const myPos = allPos[window.currentViewingToken];
                     if (myPos) {
-                        const action = myPos.direction === 'Long' ? 'Holding' : 'Short';
+                    const action = myPos.direction === 'Long' ? 'Holding' : 'Short';
                         statusText = `My Status: ${action} ${myPos.mode}, ${myPos.quantity} qty entered at ${myPos.entry_price}.\n\n`;
                     }
                 } catch (e) {
                     console.error("Failed to parse position for clipboard:", e);
                 }
             }
-
-            const finalClipboardText = `${statusText}${currentPrompt}\n\n--- RAW TELEMETRY DATA ---\n\n${codeBlock}`;
-
+            
+            let intentText = '';
+            const intent = getUserIntent();
+            if (intent) {
+                intentText = `Proposed Trade Intent: ${intent.action} (${intent.type}) | Qty: ${intent.quantity} | Price: ${intent.price}\nAdvice/Note: ${intent.advice || 'None'}\n\n`;
+            }
+            const finalClipboardText = `${statusText}${intentText}SYSTEM INSTRUCTION:\n${currentPrompt}\n\nDATA PAYLOAD:\n${codeBlock}`;
             // Helper to update UI
             const updateUI = () => {
                 const btn = document.getElementById('modal-copy-btn');
@@ -660,7 +982,6 @@
                     btn.classList.replace('hover:bg-emerald-500', 'hover:bg-indigo-500');
                 }, 2000);
             };
-
             // Modern secure clipboard API (HTTPS or Localhost only)
             if (navigator.clipboard && window.isSecureContext) {
                 navigator.clipboard.writeText(finalClipboardText).then(updateUI).catch(err => {
@@ -686,16 +1007,14 @@
                 textArea.remove();
             }
         }
-
         // --- Phase 8: Reasoning Engine Control ---
         window.autoAnalyzeIntervalId = null;
-
         async function triggerInstantAnalysis() {
             const token = window.currentViewingToken;
             if (!token) return;
             
             const payload = window.latestGlobalState[token];
-            const symbol = payload.symbol || `Token ${token}`;
+            const symbol = payload.symbol || token.split('|').pop();
             const model = document.getElementById('reasoning-model-select').value;
             const prompt = localStorage.getItem('llm_system_prompt') || DEFAULT_SYSTEM_PROMPT;
             
@@ -709,7 +1028,6 @@
             btn.innerHTML = `<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Analyzing...`;
             reportBlock.innerText = "Querying Neuro-Symbolic LLM...";
             reportBlock.classList.add('animate-pulse');
-
             try {
                 const res = await fetch(`${apiBase}/api/reasoning/instant/${symbol}`, {
                     method: 'POST',
@@ -718,7 +1036,11 @@
                 });
                 const data = await res.json();
                 reportBlock.classList.remove('animate-pulse');
-                reportBlock.innerText = data.report || "No report generated.";
+                if (data.report) {
+                    renderReasoningReport(data.report);
+                } else {
+                    reportBlock.innerText = "Error: Unexpected response -> " + JSON.stringify(data);
+                }
             } catch (err) {
                 console.error(err);
                 reportBlock.classList.remove('animate-pulse');
@@ -728,12 +1050,11 @@
                 btn.innerHTML = `⚡ Instant Analyze`;
             }
         }
-
         async function toggleAutoAnalyze() {
             const token = window.currentViewingToken;
             if (!token) return;
             const payload = window.latestGlobalState[token];
-            const symbol = payload.symbol || `Token ${token}`;
+            const symbol = payload.symbol || token.split('|').pop();
             
             const isChecked = document.getElementById('toggle-auto-analyze').checked;
             const intervalSecs = parseInt(document.getElementById('auto-analyze-interval').value) || 90;
@@ -757,7 +1078,7 @@
                         const res = await fetch(`${apiBase}/api/reasoning/report/${symbol}`);
                         const data = await res.json();
                         if (data.status === 'success') {
-                            document.getElementById('reasoning-report-block').innerText = data.report;
+                            renderReasoningReport(data.report);
                             document.getElementById('toggle-auto-analyze').checked = data.is_active;
                         }
                     } catch (e) { console.error("Poll error", e); }
@@ -775,7 +1096,6 @@
                 }
             }
         }
-
         // --- Phase 9: Asynchronous Alerting Matrix ---
         function toggleAlertTray() {
             const tray = document.getElementById('alert-tray');
@@ -784,7 +1104,6 @@
                 fetchAlertHistory();
             }
         }
-
         async function fetchUnreadCount() {
             try {
                 const res = await fetch(`${apiBase}/api/alerts/unread`);
@@ -798,7 +1117,6 @@
                 }
             } catch (e) { console.error("Poll unread alerts error", e); }
         }
-
         async function fetchAlertHistory() {
             try {
                 const res = await fetch(`${apiBase}/api/alerts/history`);
@@ -835,7 +1153,6 @@
                 });
             } catch (e) { console.error("Fetch alert history error", e); }
         }
-
         async function openAlertModal(alertId, symbol) {
             document.getElementById('alert-tray').classList.add('hidden');
             try {
@@ -859,13 +1176,13 @@
                 }
             } catch (e) { console.error("Open alert error", e); }
         }
-
         // Start Alert Poller
         setInterval(fetchUnreadCount, 10000);
         setTimeout(fetchUnreadCount, 1000);
-
         // --- Phase 0: Screener Logic ---
-        document.getElementById('btn-screener').addEventListener('click', async () => {
+        const btnScreener = document.getElementById('btn-screener');
+        if (btnScreener) {
+            btnScreener.addEventListener('click', async () => {
             const loadingModal = document.getElementById('loading-modal');
             const resultsModal = document.getElementById('results-modal');
             const tbody = document.getElementById('results-tbody');
@@ -898,15 +1215,13 @@
                 alert("Screener failed to execute. Check terminal logs.");
             }
         });
-
+        }
         function closeResultsModal() {
             document.getElementById('results-modal').classList.add('hidden');
         }
-
         // Initialize WebSocket connection
         connect();
     </script>
-
     <!-- Loading Modal -->
     <div id="loading-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
         <div class="bg-slate-900 border border-indigo-500/30 p-8 rounded-xl shadow-2xl flex flex-col items-center">
@@ -918,7 +1233,6 @@
             <p class="text-slate-400 text-sm">Please wait (approx. 45 seconds). Do not close this window.</p>
         </div>
     </div>
-
     <!-- Results Modal -->
     <div id="results-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
         <div class="bg-slate-900 border border-emerald-500/30 p-8 rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
@@ -948,6 +1262,36 @@
             </div>
         </div>
     </div>
+    <!-- Ledger Execution Modal -->
+    <div id="ledger-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div class="bg-slate-900 border border-indigo-700 rounded-xl shadow-[0_0_20px_rgba(79,70,229,0.2)] p-6 max-w-sm w-full mx-4">
+            <h2 id="ledger-modal-title" class="text-lg font-bold text-white mb-4">Confirm Execution</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Execution Price</label>
+                    <input type="number" id="ledger-modal-price" class="w-full bg-slate-950 text-white border border-slate-700 rounded px-3 py-2 font-mono-custom" step="0.05">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Quantity</label>
+                    <input type="number" id="ledger-modal-qty" class="w-full bg-slate-950 text-white border border-slate-700 rounded px-3 py-2 font-mono-custom" value="100">
+                </div>
+                <div id="ledger-modal-charges-container" class="hidden">
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Charges</label>
+                    <input type="number" id="ledger-modal-charges" class="w-full bg-slate-950 text-white border border-slate-700 rounded px-3 py-2 font-mono-custom" step="0.01" value="0.00">
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end gap-3">
+                <button onclick="closeLedgerModal()" class="px-4 py-2 text-sm font-bold text-slate-400 hover:text-white transition-colors">Cancel</button>
+                <button id="ledger-modal-confirm" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded font-bold shadow transition-colors">Confirm</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        function closeLedgerModal() {
+            document.getElementById('ledger-modal').classList.add('hidden');
+        }
+    </script>
+
     <!-- Position Editor Modal -->
     <div id="position-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
         <div class="bg-slate-900 border border-emerald-500/30 p-6 rounded-xl shadow-2xl w-full max-w-sm flex flex-col">
@@ -984,17 +1328,23 @@
                         <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Entry Price (₹)</label>
                         <input type="number" step="0.05" id="pos-price" placeholder="0.00" class="w-full bg-slate-950 border border-slate-700 text-emerald-400 font-mono-custom font-bold text-sm rounded p-2 focus:border-emerald-500 outline-none shadow-inner">
                     </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Target Price (₹)</label>
+                        <input type="number" step="0.05" id="pos-target" placeholder="Optional" class="w-full bg-slate-950 border border-slate-700 text-emerald-400 font-mono-custom font-bold text-sm rounded p-2 focus:border-emerald-500 outline-none shadow-inner">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Stop Loss (₹)</label>
+                        <input type="number" step="0.05" id="pos-stoploss" placeholder="Optional" class="w-full bg-slate-950 border border-slate-700 text-emerald-400 font-mono-custom font-bold text-sm rounded p-2 focus:border-emerald-500 outline-none shadow-inner">
+                    </div>
                 </div>
             </div>
-
             <div class="mt-6 flex justify-between gap-3">
                 <button id="btn-clear-pos" class="w-1/3 bg-slate-800 hover:bg-rose-900/50 text-slate-400 hover:text-rose-400 border border-slate-700 hover:border-rose-500/50 text-sm font-bold py-2 rounded transition-colors shadow-sm">Clear</button>
                 <button id="btn-save-pos" class="w-2/3 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold py-2 rounded shadow-lg transition-colors shadow-emerald-500/20 border border-emerald-500/30">Save Position</button>
             </div>
         </div>
     </div>
-
-    <!-- Settings Modal -->
+    <!-- Modals -->
     <div id="settings-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
         <div class="bg-slate-900 border border-slate-600 p-6 rounded-xl shadow-2xl w-full max-w-3xl flex flex-col">
             <div class="flex justify-between items-center mb-4">
@@ -1012,34 +1362,76 @@
             </div>
         </div>
     </div>
-
     <!-- State Management Logic -->
     <script>
-        const DEFAULT_SYSTEM_PROMPT = "You are an elite quantitative analyst AI. Analyze the following realtime market telemetry data and provide actionable trading insights based on the candlestick patterns, RSI, Option Chain IVR, and Order Book Imbalance (OBI). Give me absolute clarity on the probability of a reversal or continuation.";
+        const DEFAULT_SYSTEM_PROMPT = `ROLE & OPERATIONAL FRAMEWORK:
+You are the Lead Quantitative Execution Strategist. You are an API endpoint that ingests a Phase 6 Hierarchical JSON Telemetry Payload and outputs raw, deterministic execution logic. Your goal is to synthesize 4 data blocks to isolate true institutional positioning from retail traps, optimizing for a 2-6 hour intraday predictive horizon.
+
+CRITICAL CONSTRAINTS & NULL SAFETY:
+1. ABSOLUTE DATA ADHERENCE: Never assume or extrapolate targets. If metrics are null, 0, or state 'MARKET_CLOSED_SUPPRESSED', default to a neutral risk mitigation posture.
+2. MARKET STATE SHIELD: If root level \`market_state\` is 'CLOSED' or 'AUCTION', immediately output Action: 'Wait' or 'Hold' with a Priority_Score of 0. Do not calculate new trade targets on post-market ghost books.
+
+STEP 1: THE 4-BLOCK MULTI-VARIABLE SYNTHESIS MATRIX
+You must cross-examine the payload fields using the following strict institutional logic:
+
+1. BLOCK 1: LIVE MICROSTRUCTURE & INTENT ANALYSIS
+   - Evaluate \`price_to_vwap_pct\` against \`kinetic_divergence.divergence_state\`. If state is 'HIDDEN_BULLISH_ABSORPTION', price drops are artificial liquidity sweeps; you must heavily favor LONG or HOLD positions. If 'HIDDEN_BEARISH_DISTRIBUTION', favor SHORT or CLOSE.
+   - Evaluate \`mtf_technicals.elasticity_risk\`. If it reads 'OVERSTRETCHED', you face an imminent mean-reversion snapback. You MUST penalize breakout continuation trades. Only authorize mean-reversion setups or 'Wait'.
+   - Read \`mtf_technicals.key_geometry\`. If LTP is within 0.2% of a reversal neckline (e.g., \`double_top\`) on high volume (\`vol_z_score_5m\` > 2), anticipate a structural breakout or immediate rejection.
+
+2. BLOCK 2: DERIVATIVES MATRIX (THE PRICING REALITY)
+   - Analyze \`volatility_edge.ivr_live\` and \`iv_percentile_52w\`. High levels (>70) indicate massive premium expansion. Require an overwhelming structural edge to buy into expansion.
+   - Synthesize \`options_positioning.max_pain_divergence_pct\`. If divergence is > 5% and expiration is approaching, apply a structural gravity factor dragging LTP toward \`max_pain_price\`.
+
+3. BLOCK 3: MACRO STATISTICAL EDGE (THE CONCRETE WALLS)
+   - Measure LTP against \`structural_liquidity.volume_poc_price\`. This is an absolute multi-year liquidity wall. Never short directly on top of a 5-year POC floor, and never long directly under a major Value Area High rejection.
+   - Cross-check \`regime_confluence.alpha_vs_nifty_5y\`. If alpha is highly negative, the stock has persistent secular weakness. Short setups require less volume conviction than long setups.
+
+4. BLOCK 4: CATALYST ENGINE
+   - Parse the \`raw_news\` array. Map news sentiment directly against Block 1 order flow. If headlines are highly bullish but \`whale_cvd_ema_1h\` is flat/negative, classify the asset as an active Institutional Distribution Trap and avoid long entries.
+
+STEP 2: DIRECTIONAL CONTEXT & TRADE ACTIONS
+- If \`user_context.position\` is completely empty: You are hunting entries. Output Action as 'Long', 'Short', or 'Wait'.
+- If \`user_context.position\` exists: You are managing risk. You are restricted to outputting 'Hold', 'Close', or 'Wait'. Evaluate position PnL using entry price vs LTP and match against local structural stops.
+
+OUTPUT FORMAT:
+Output NOTHING except a raw, valid JSON object that can be directly passed to \`json.loads()\`. Do not wrap the output in markdown blocks, backticks, or prepend text. Every numeric field must be a float or null, strings must be exact matches.
+
+{
+  "Action": "Short/Long/Hold/Close/Wait",
+  "Entry_Target_Price": <float or null>,
+  "Stoploss": <float or null>,
+  "Exit_Target_Price": <float or null>,
+  "Confidence_Score": <int from 1 to 10>,
+  "Risk_Percentage": <float>,
+  "Priority_Score": <int from 1 to 10>, // Set > 6 ONLY if a high-conviction asymmetric edge or critical position exit exists right now
+  "Reason": "<string>" // CRITICAL: Exactly 1-2 dense sentences detailing the precise multi-block convergence (e.g., Whale Absorption vs. Macro Walls) that dictates this action.
+}`;
         
+        // Force update if the old prompt is still present or if it doesn't contain the new strictly JSON string check
+        const currentStoredPrompt = localStorage.getItem('llm_system_prompt');
+        if (currentStoredPrompt && currentStoredPrompt.includes('===ADVICE_SPLIT===')) {
+            localStorage.setItem('llm_system_prompt', DEFAULT_SYSTEM_PROMPT);
+        }
         // Initialization
         if (!localStorage.getItem('llm_system_prompt')) {
             localStorage.setItem('llm_system_prompt', DEFAULT_SYSTEM_PROMPT);
         }
-
         const btnSettings = document.getElementById('btn-settings');
         const settingsModal = document.getElementById('settings-modal');
         const btnCloseSettings = document.getElementById('btn-close-settings');
         const promptEditor = document.getElementById('prompt-editor');
         const btnSaveSettings = document.getElementById('btn-save-settings');
         const btnResetSettings = document.getElementById('btn-reset-settings');
-
         // Open Modal
         btnSettings.addEventListener('click', () => {
             promptEditor.value = localStorage.getItem('llm_system_prompt') || DEFAULT_SYSTEM_PROMPT;
             settingsModal.classList.remove('hidden');
         });
-
         // Close Modal
         btnCloseSettings.addEventListener('click', () => {
             settingsModal.classList.add('hidden');
         });
-
         // Save Configuration
         btnSaveSettings.addEventListener('click', () => {
             const newValue = promptEditor.value.trim();
@@ -1051,7 +1443,6 @@
                 alert("Prompt cannot be empty!");
             }
         });
-
         // Reset Configuration
         btnResetSettings.addEventListener('click', () => {
             if(confirm("Are you sure you want to reset the prompt to its factory default?")) {
@@ -1060,37 +1451,69 @@
                 alert("Prompt Reset to Default!");
             }
         });
-
         // --- Position Manager Logic ---
         if (!localStorage.getItem('user_positions')) {
             localStorage.setItem('user_positions', JSON.stringify({}));
         }
-
         const posModal = document.getElementById('position-modal');
         const btnClosePos = document.getElementById('btn-close-pos');
         const posTitle = document.getElementById('pos-modal-title');
         
-        function openPositionModal(token) {
+        function openPositionModal(tokenOrSymbol) {
+            let token = tokenOrSymbol;
+            if (window.latestGlobalState && !window.latestGlobalState[token]) {
+                const searchStr = tokenOrSymbol.split('|').pop();
+                const foundKey = Object.keys(window.latestGlobalState).find(k => 
+                    (window.latestGlobalState[k].symbol || "").split('|').pop() === searchStr
+                );
+                if (foundKey) token = foundKey;
+            }
             const state = window.latestGlobalState && window.latestGlobalState[token] ? window.latestGlobalState[token] : null;
             const symbol = state ? state.symbol : `Token ${token}`;
             
             posTitle.innerHTML = `📝 Edit Position: ${symbol}`;
             document.getElementById('pos-token').value = token;
             
+            // Extract AI recommended data if available
+            let defaultDirection = 'Long';
+            let defaultPrice = '';
+            
+            const liveReport = window.latestLiveReports ? window.latestLiveReports[symbol] : null;
+            const reportToParse = liveReport || (state ? state.latest_report : null);
+            
+            if (reportToParse) {
+                const jsonMatch = reportToParse.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+                if (jsonMatch) {
+                    try {
+                        const actionData = JSON.parse(jsonMatch[1]);
+                        if (actionData.Entry_Target_Price) defaultPrice = actionData.Entry_Target_Price;
+                        if (actionData.Action) {
+                            const act = actionData.Action.toLowerCase();
+                            if (act.includes('short') || act.includes('sell')) defaultDirection = 'Short';
+                            else if (act.includes('long') || act.includes('buy')) defaultDirection = 'Long';
+                        }
+                    } catch(e) {}
+                }
+            }
             // Load existing data if available
-            const allPos = JSON.parse(localStorage.getItem('user_positions'));
+            const allPosStr = localStorage.getItem('user_positions');
+            const allPos = allPosStr ? JSON.parse(allPosStr) : {};
             const myPos = allPos[token];
             
             if (myPos) {
-                document.getElementById('pos-mode').value = myPos.mode || 'Delivery';
-                document.getElementById('pos-direction').value = myPos.direction || 'Long';
+                document.getElementById('pos-mode').value = myPos.mode || 'Intraday';
+                document.getElementById('pos-direction').value = myPos.direction || defaultDirection;
                 document.getElementById('pos-qty').value = myPos.quantity || '';
-                document.getElementById('pos-price').value = myPos.entry_price || '';
+                document.getElementById('pos-price').value = myPos.entry_price || defaultPrice;
+                document.getElementById('pos-target').value = myPos.target || '';
+                document.getElementById('pos-stoploss').value = myPos.stoploss || '';
             } else {
-                document.getElementById('pos-mode').value = 'Delivery';
-                document.getElementById('pos-direction').value = 'Long';
+                document.getElementById('pos-mode').value = 'Intraday';
+                document.getElementById('pos-direction').value = defaultDirection;
                 document.getElementById('pos-qty').value = '';
-                document.getElementById('pos-price').value = '';
+                document.getElementById('pos-price').value = defaultPrice;
+                document.getElementById('pos-target').value = '';
+                document.getElementById('pos-stoploss').value = '';
             }
             
             posModal.classList.remove('hidden');
@@ -1104,38 +1527,70 @@
             const token = document.getElementById('pos-token').value;
             const qty = parseFloat(document.getElementById('pos-qty').value);
             const price = parseFloat(document.getElementById('pos-price').value);
-            
+            const targetVal = parseFloat(document.getElementById('pos-target').value);
+            const stoplossVal = parseFloat(document.getElementById('pos-stoploss').value);
             if (isNaN(qty) || isNaN(price) || qty <= 0 || price <= 0) {
                 alert("Please enter valid positive numbers for Quantity and Price.");
                 return;
             }
             
+            const allPosStr = localStorage.getItem('user_positions');
+            const allPos = allPosStr ? JSON.parse(allPosStr) : {};
+            const existingPos = allPos[token];
             const posData = {
                 mode: document.getElementById('pos-mode').value,
                 direction: document.getElementById('pos-direction').value,
                 quantity: qty,
-                entry_price: price
+                entry_price: price,
+                target: isNaN(targetVal) ? null : targetVal,
+                stoploss: isNaN(stoplossVal) ? null : stoplossVal,
+                entry_timestamp: existingPos && existingPos.entry_timestamp ? existingPos.entry_timestamp : Math.floor(Date.now() / 1000)
             };
-            
-            const allPos = JSON.parse(localStorage.getItem('user_positions'));
             allPos[token] = posData;
             localStorage.setItem('user_positions', JSON.stringify(allPos));
-            
             posModal.classList.add('hidden');
-            // Flash success notification (simple console log or silent for UX speed)
             console.log(`Position for Token ${token} saved.`);
+            // Sync with backend positions registry
+            fetch(`${apiBase}/api/reasoning/position/save`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ symbol: token, user_position: posData })
+            });
+            // Hot-reload the backend loop if global auto-analyze is running
+            if (document.getElementById('global-auto-analyze').checked) {
+                const freq = document.getElementById('global-analyze-interval').value;
+                fetch(`${apiBase}/api/reasoning/loop/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symbol: token, interval: parseInt(freq), user_position: posData })
+                });
+            }
         });
-        
         document.getElementById('btn-clear-pos').addEventListener('click', () => {
             const token = document.getElementById('pos-token').value;
-            const allPos = JSON.parse(localStorage.getItem('user_positions'));
+            const allPos = JSON.parse(localStorage.getItem('user_positions')) || {};
             if (allPos[token]) {
                 delete allPos[token];
                 localStorage.setItem('user_positions', JSON.stringify(allPos));
             }
             posModal.classList.add('hidden');
+            console.log(`Position for Token ${token} cleared.`);
+            // Sync with backend positions registry (clear)
+            fetch(`${apiBase}/api/reasoning/position/save`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ symbol: token, user_position: null })
+            });
+            // Hot-reload the backend loop if global auto-analyze is running
+            if (document.getElementById('global-auto-analyze').checked) {
+                const freq = document.getElementById('global-analyze-interval').value;
+                fetch(`${apiBase}/api/reasoning/loop/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symbol: token, interval: parseInt(freq), user_position: null })
+                });
+            }
         });
-
         // Phase 5.5: Map Option Tokens Logic
         const btnMapTokens = document.getElementById('btn-map-tokens');
         if (btnMapTokens) {
@@ -1144,7 +1599,6 @@
                 btnMapTokens.innerText = "Mapping Tokens (Please Wait...)";
                 btnMapTokens.disabled = true;
                 btnMapTokens.classList.add('opacity-50', 'cursor-not-allowed');
-
                 fetch(`${apiBase}/api/map-option-tokens`, { method: 'POST' })
                     .then(response => response.json())
                     .then(data => {
@@ -1177,9 +1631,8 @@
         // --- Phase 10: Watchlist Manager Logic ---
         const watchlistModal = document.getElementById('watchlist-modal');
         let currentWatchlist = [];
-
         async function openWatchlistModal() {
-            watchlistModal.classList.remove('hidden');
+            document.getElementById('watchlist-modal').classList.remove('hidden');
             try {
                 const res = await fetch(`${apiBase}/api/watchlist`);
                 const data = await res.json();
@@ -1189,11 +1642,9 @@
                 console.error("Failed to fetch watchlist", e);
             }
         }
-
         function closeWatchlistModal() {
-            watchlistModal.classList.add('hidden');
+            document.getElementById('watchlist-modal').classList.add('hidden');
         }
-
         function renderWatchlist() {
             const list = document.getElementById('watchlist-items');
             list.innerHTML = '';
@@ -1205,12 +1656,158 @@
                 list.appendChild(li);
             });
         }
-
         function removeWatchlistItem(idx) {
             currentWatchlist.splice(idx, 1);
             renderWatchlist();
         }
-
+        let activeWatchlistStream = null;
+        function switchTab(tabId) {
+            try {
+                const tabDashboard = document.getElementById('tab-dashboard');
+                const tabDiscovery = document.getElementById('tab-screener');
+                const tabLiveAction = document.getElementById('tab-live-action');
+                const btnDashboard = document.getElementById('tab-btn-dashboard');
+                const btnDiscovery = document.getElementById('tab-btn-screener');
+                const btnLiveAction = document.getElementById('tab-btn-live-action');
+                if (tabDashboard) {
+                    tabDashboard.classList.add('hidden');
+                    tabDashboard.classList.remove('block');
+                }
+                if (tabDiscovery) {
+                    tabDiscovery.classList.add('hidden');
+                    tabDiscovery.classList.remove('block');
+                }
+                if (tabLiveAction) {
+                    tabLiveAction.classList.add('hidden');
+                    tabLiveAction.classList.remove('block');
+                }
+                if (btnDashboard) {
+                    btnDashboard.className = "px-4 py-1.5 text-xs font-bold rounded-md text-slate-400 hover:text-slate-200 transition-all border border-transparent";
+                }
+                if (btnDiscovery) {
+                    btnDiscovery.className = "px-4 py-1.5 text-xs font-bold rounded-md text-slate-400 hover:text-slate-200 transition-all border border-transparent";
+                }
+                if (btnLiveAction) {
+                    btnLiveAction.className = "px-4 py-1.5 text-xs font-bold rounded-md text-slate-400 hover:text-slate-200 transition-all border border-transparent";
+                }
+                
+                const targetTab = document.getElementById(`tab-${tabId}`);
+                if (targetTab) {
+                    targetTab.classList.remove('hidden');
+                    targetTab.classList.add('block');
+                }
+                
+                const targetBtn = document.getElementById(`tab-btn-${tabId}`);
+                if (targetBtn) {
+                    targetBtn.className = "px-4 py-1.5 text-xs font-bold rounded-md bg-slate-800 text-white shadow transition-all border border-slate-700/50";
+                }
+                // Polling control
+                if (tabId === 'live-action') {
+                    if (typeof startLiveActionPolling === 'function') startLiveActionPolling();
+                } else {
+                    if (typeof stopLiveActionPolling === 'function') stopLiveActionPolling();
+                }
+            } catch (err) {
+                console.error("Error in switchTab: ", err);
+            }
+        }
+        let lastPlaybookStr = '';
+        function renderDiscoveryCards(watchlist) {
+              try {
+                  const grid = document.getElementById('screener-cards');
+                  if (!grid) return;
+                  grid.innerHTML = '';
+                  
+                  if (!watchlist || !Array.isArray(watchlist)) {
+                      grid.innerHTML = `<div class="col-span-full p-4 bg-amber-900/50 text-amber-300 rounded border border-amber-700">Invalid watchlist data</div>`;
+                      return;
+                  }
+                  
+                  if (watchlist.length === 0) {
+                     grid.innerHTML = `<div class="col-span-full p-4 bg-amber-900/50 text-amber-300 rounded border border-amber-700">Watchlist is an empty array []</div>`;
+                     return;
+                }
+                
+                watchlist.forEach((item, idx) => {
+                    try {
+                        const card = document.createElement('div');
+                        // ADDED display:flex and explicit min-height to FORCE it to show up even if Tailwind is broken
+                        card.style.minHeight = "200px";
+                        card.style.display = "flex";
+                        card.className = "bg-slate-900 border border-slate-700/80 rounded-xl p-5 shadow-lg flex-col justify-between hover:border-indigo-500/50 transition-colors group relative overflow-hidden";
+                        
+                        card.innerHTML = `
+                            <div class="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                            <div class="relative z-10">
+                                <div class="flex justify-between items-start mb-3">
+                                    <h3 class="text-xl font-bold text-white tracking-tight">${item.symbol || 'N/A'}</h3>
+                                    <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-indigo-900/40 text-indigo-300 border border-indigo-700/50 uppercase">Top Pick</span>
+                                </div>
+                                <p class="text-xs text-slate-300 mb-3 leading-relaxed"><strong>Rationale:</strong> ${item.rationale || 'N/A'}</p>
+                                <p class="text-xs text-emerald-400 mb-3 bg-emerald-950/30 p-2 rounded border border-emerald-900/50"><strong>Strategy:</strong> ${item.strategy || 'N/A'}</p>
+                                
+                                <div class="grid grid-cols-3 gap-2 mb-4 mt-2">
+                                    <div class="bg-slate-800/50 p-2 rounded border border-slate-700/50 text-center">
+                                        <div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Entry</div>
+                                        <div class="text-xs font-bold text-indigo-400">${item.entry || 'N/A'}</div>
+                                    </div>
+                                    <div class="bg-slate-800/50 p-2 rounded border border-slate-700/50 text-center">
+                                        <div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Target</div>
+                                        <div class="text-xs font-bold text-emerald-400">${item.target || 'N/A'}</div>
+                                    </div>
+                                    <div class="bg-slate-800/50 p-2 rounded border border-slate-700/50 text-center">
+                                        <div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Stop</div>
+                                        <div class="text-xs font-bold text-rose-400">${item.stoploss || 'N/A'}</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex justify-between items-center mb-4 px-1">
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-[10px] text-slate-500 uppercase tracking-wider">Confidence:</span>
+                                        <span class="text-xs font-bold ${item.confidence && item.confidence.toLowerCase() === 'high' ? 'text-emerald-400' : 'text-amber-400'}">${item.confidence || 'N/A'}</span>
+                                    </div>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-[10px] text-slate-500 uppercase tracking-wider">Risk:</span>
+                                        <span class="text-xs font-bold ${item.risk && item.risk.toLowerCase() === 'high' ? 'text-rose-400' : 'text-amber-400'}">${item.risk || 'N/A'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button onclick="addToWatchlistDynamic('${item.token || ''}', '${item.symbol || ''}', '${item.exchange || ''}')" class="mt-auto w-full bg-slate-800 hover:bg-indigo-600 text-white text-xs font-bold py-2 rounded transition-colors border border-slate-700 hover:border-indigo-500 flex justify-center items-center gap-2 z-10 relative">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                Add to Live Watchlist
+                            </button>
+                        `;
+                        grid.appendChild(card);
+                    } catch (err) {
+                        const errDiv = document.createElement('div');
+                        errDiv.className = "text-rose-400 text-xs";
+                        errDiv.innerText = "Error rendering " + (item.symbol || 'card') + ": " + err.message;
+                        grid.appendChild(errDiv);
+                    }
+                });
+            } catch (err) {
+                const grid = document.getElementById('screener-cards');
+                if (grid) grid.innerHTML = `<div class="col-span-full text-rose-500 font-bold">FATAL ERROR in renderDiscoveryCards: ${err.message}</div>`;
+            }
+        }
+        async function addToWatchlistDynamic(token, symbol, exchange) {
+            try {
+                const res = await fetch(`${apiBase}/api/watchlist/add`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ token, symbol, exchange })
+                });
+                const data = await res.json();
+                if(res.ok) {
+                    alert(`Successfully added ${symbol} to Live Watchlist! The websocket stream will hot-load it.`);
+                } else {
+                    alert("Error: " + data.message);
+                }
+            } catch(e) {
+                console.error(e);
+                alert("Failed to add to watchlist.");
+            }
+        }
         async function saveWatchlist() {
             const btn = document.getElementById('btn-save-watchlist');
             btn.innerText = "Saving...";
@@ -1232,7 +1829,6 @@
                 btn.innerText = "Save Changes";
             }
         }
-
         let searchTimeout;
         async function onWatchlistSearch() {
             const query = document.getElementById('watchlist-search').value;
@@ -1264,8 +1860,250 @@
                 }
             }, 300);
         }
-    </script>
+        // --- News Engine Controls ---
+        let newsStateInterval = null;
+        let newsRequestInFlight = false;
+        function fetchNewsState() {
+            if (newsRequestInFlight) return;
+            fetch(`${apiBase}/api/news/state`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        document.getElementById('toggle-news-auto').checked = data.is_active;
+                        if (document.activeElement !== document.getElementById('news-interval')) {
+                            document.getElementById('news-interval').value = data.interval;
+                        }
+                        if (document.activeElement !== document.getElementById('news-model-select')) {
+                            document.getElementById('news-model-select').value = data.model;
+                        }
+                        
+                        const statusElem = document.getElementById('news-status-text');
+                        if (data.is_active) {
+                            const lastFetch = data.last_fetch_time > 0 ? new Date(data.last_fetch_time * 1000).toLocaleTimeString() : 'Never';
+                            statusElem.innerHTML = `<span class="text-emerald-400">Running (Last: ${lastFetch})</span>`;
+                        } else {
+                            statusElem.innerHTML = `<span class="text-slate-500">Stopped</span>`;
+                        }
+                    }
+                })
+                .catch(err => console.error("Error fetching news state:", err));
+        }
+        function triggerNewsInstant() {
+            const model = document.getElementById('news-model-select').value;
+            const btn = document.getElementById('btn-news-instant');
+            const origHtml = btn.innerHTML;
+            btn.innerHTML = '⏳ Fetching...';
+            btn.disabled = true;
+            fetch(`${apiBase}/api/news/instant`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model: model })
+            })
+            .then(r => r.json())
+            .then(data => {
+                fetchNewsState();
+                setTimeout(() => { btn.innerHTML = origHtml; btn.disabled = false; }, 1000);
+            })
+            .catch(err => {
+                console.error(err);
+                btn.innerHTML = origHtml;
+                btn.disabled = false;
+            });
+        }
+        function toggleNewsAuto() {
+            const isChecked = document.getElementById('toggle-news-auto').checked;
+            newsRequestInFlight = true;
+            if (isChecked) {
+                const model = document.getElementById('news-model-select').value;
+                const interval = parseInt(document.getElementById('news-interval').value) || 120;
+                fetch(`${apiBase}/api/news/loop/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ interval: interval, model: model })
+                }).then(() => {
+                    newsRequestInFlight = false;
+                    fetchNewsState();
+                }).catch(() => newsRequestInFlight = false);
+            } else {
+                fetch(`${apiBase}/api/news/loop/stop`, { method: 'POST' }).then(() => {
+                    newsRequestInFlight = false;
+                    fetchNewsState();
+                }).catch(() => newsRequestInFlight = false);
+            }
+        }
+        async function generateIntradayPlaybook() {
+            const btn = document.getElementById('btn-run-discovery');
+            const status = document.getElementById('screener-status');
+            const empty = document.getElementById('screener-empty');
+            const grid = document.getElementById('screener-cards');
+            if (btn) { btn.disabled = true; btn.classList.add('opacity-50'); }
+            if (empty) empty.classList.add('hidden');
+            if (grid) grid.innerHTML = '';
+            if (status) {
+                status.classList.remove('hidden');
+                status.classList.add('block');
+            }
+            try {
+                const modelSelect = document.getElementById('news-model-select');
+                const model = modelSelect ? modelSelect.value : 'gemini-2.5-flash';
+                const res = await fetch(`${apiBase}/api/reasoning/playbook/generate`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({model: model})
+                });
+                if (res.ok) {
+                    showToast("Playbook Generation Triggered", "The AI is compiling the multi-factor matrix in the background. Please wait a few seconds...");
+                }
+            } catch (e) {
+                console.error(e);
+                showToast("Error", "Failed to contact API server.", "error");
+                if (status) { status.classList.add('hidden'); status.classList.remove('block'); }
+                if (btn) { btn.disabled = false; btn.classList.remove('opacity-50'); }
+            }
+        }
+        // --- Database Management Controls (Phase 14.3) ---
+        function loadParquetSymbols() {
+            fetch(`${apiBase}/api/watchlist`)
+                .then(r => r.json())
+                .then(data => {
+                    const grid = document.getElementById('parquet-symbols-grid');
+                    if (!grid) return;
+                    const items = data.data || [];
+                    if (items.length === 0) {
+                        grid.innerHTML = '<span class="text-xs text-slate-500 italic">No symbols in watchlist.</span>';
+                        return;
+                    }
+                    grid.innerHTML = '';
+                    const uniqueSymbols = [...new Set(items.map(i => i.symbol.split('-')[0]))];
+                    uniqueSymbols.forEach(sym => {
+                        if (!sym || sym.toLowerCase() === 'nifty 50') return; // Skip invalid
+                        const label = document.createElement('label');
+                        label.className = "flex items-center gap-2 cursor-pointer p-1 hover:bg-slate-800 rounded transition-colors";
+                        label.innerHTML = `
+                            <input type="checkbox" value="${sym}" class="parquet-sym-checkbox w-3 h-3 bg-slate-900 border-slate-700 rounded text-orange-600 focus:ring-orange-500">
+                            <span class="text-xs text-slate-300 font-mono-custom">${sym}</span>
+                        `;
+                        grid.appendChild(label);
+                    });
+                })
+                .catch(err => console.error("Failed to load symbols for parquet:", err));
+        }
+        function selectAllParquetSymbols() {
+            const checkboxes = document.querySelectorAll('.parquet-sym-checkbox');
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            checkboxes.forEach(cb => cb.checked = !allChecked);
+        }
+        function syncEODParquet() {
+            const checkboxes = document.querySelectorAll('.parquet-sym-checkbox:checked');
+            const symbols = Array.from(checkboxes).map(cb => cb.value);
+            
+            const btn = document.getElementById('btn-sync-parquet');
+            const status = document.getElementById('parquet-sync-status');
+            
+            if (symbols.length === 0) {
+                status.innerHTML = `<span class="text-rose-400">Select at least one symbol.</span>`;
+                status.classList.remove('hidden');
+                setTimeout(() => status.classList.add('hidden'), 3000);
+                return;
+            }
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Syncing...';
+            status.innerHTML = `<span class="text-orange-400">Syncing Database...</span>`;
+            status.classList.remove('hidden');
+            fetch(`${apiBase}/api/admin/sync-parquet`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ symbols: symbols })
+            })
+            .then(r => r.json())
+            .then(data => {
+                btn.innerHTML = '💾 Force Sync EOD Parquet';
+                btn.disabled = false;
+                status.innerHTML = `<span class="text-emerald-400">Sync Complete. Check terminal logs.</span>`;
+                setTimeout(() => status.classList.add('hidden'), 5000);
+            })
+            .catch(err => {
+                console.error(err);
+                btn.innerHTML = '💾 Force Sync EOD Parquet';
+                btn.disabled = false;
+                status.innerHTML = `<span class="text-rose-400">Sync Failed.</span>`;
+            });
+        }
+        // Initialize News Engine
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchNewsState();
+            loadParquetSymbols();
+            newsStateInterval = setInterval(fetchNewsState, 5000);
+        });
+        function renderReasoningReport(reportText) {
+            const el = document.getElementById('reasoning-report-block');
+            if (!el) return;
+            
+            let data = null;
+            let cleanText = reportText.trim();
+            if (cleanText.startsWith('```json')) cleanText = cleanText.substring(7);
+            else if (cleanText.startsWith('```')) cleanText = cleanText.substring(3);
+            if (cleanText.endsWith('```')) cleanText = cleanText.substring(0, cleanText.length - 3);
+            cleanText = cleanText.trim();
 
+            try {
+                data = JSON.parse(cleanText);
+            } catch (e) {
+                // If it fails to parse, just render as text
+                el.innerText = reportText;
+                return;
+            }
+            
+            let html = ``;
+            if (data.Reason) {
+                html += `<div class="mb-4 text-slate-300 font-mono-custom whitespace-pre-wrap">${data.Reason}</div>`;
+            }
+                    
+                    const actionClass = data.Action === 'Short' ? 'bg-rose-900/40 text-rose-300 border-rose-700/50' : data.Action === 'Wait' || data.Action === 'Hold' ? 'bg-amber-900/40 text-amber-300 border-amber-700/50' : 'bg-emerald-900/40 text-emerald-300 border-emerald-700/50';
+                    // Build the beautiful UI card
+                    let actionHtml = `
+                    <div class="bg-slate-900 border border-slate-700/80 rounded-xl p-4 shadow-lg relative overflow-hidden flex flex-col shrink-0">
+                        <div class="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-bl-full -mr-4 -mt-4"></div>
+                        <div class="relative z-10">
+                            <div class="flex justify-between items-start mb-3">
+                                <h3 class="text-lg font-bold text-white tracking-tight">Action Plan</h3>
+                                <span class="px-2 py-0.5 text-xs font-bold rounded ${actionClass} border uppercase">${data.Action || 'N/A'}</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 mb-4 mt-2">
+                                <div class="bg-slate-800/50 p-2 rounded border border-slate-700/50 text-center">
+                                    <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Entry</div>
+                                    <div class="text-sm font-bold text-indigo-400">${data.Entry_Target_Price || 'N/A'}</div>
+                                </div>
+                                <div class="bg-slate-800/50 p-2 rounded border border-slate-700/50 text-center">
+                                    <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Target</div>
+                                    <div class="text-sm font-bold text-emerald-400">${data.Exit_Target_Price || 'N/A'}</div>
+                                </div>
+                                <div class="bg-slate-800/50 p-2 rounded border border-slate-700/50 text-center col-span-2">
+                                    <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Stop Loss</div>
+                                    <div class="text-sm font-bold text-rose-400">${data.Stoploss || 'N/A'}</div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center px-1 mt-2">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-xs text-slate-500 uppercase tracking-wider">Confidence:</span>
+                                    <span class="text-sm font-bold text-indigo-400">${data.Confidence_Score ? data.Confidence_Score + '/10' : 'N/A'}</span>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-xs text-slate-500 uppercase tracking-wider">Risk:</span>
+                                    <span class="text-sm font-bold text-amber-400">${data.Risk_Percentage ? data.Risk_Percentage + '%' : 'N/A'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+                    const actionBlock = document.getElementById('reasoning-action-block');
+                    if (actionBlock) {
+                        actionBlock.innerHTML = actionHtml;
+                        actionBlock.classList.remove('hidden');
+                        actionBlock.classList.add('flex');
+                    }
+            el.innerHTML = html;
+        }
+    </script>
     <!-- Watchlist Manager Modal -->
     <div id="watchlist-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
         <div class="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[80vh]">
@@ -1281,9 +2119,8 @@
                 <div class="mb-4 relative">
                     <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Search to Add</label>
                     <input type="text" id="watchlist-search" onkeyup="onWatchlistSearch()" placeholder="e.g. SAIL, TCS" class="w-full bg-slate-950 text-white text-sm border border-slate-700 rounded px-3 py-2 focus:outline-none focus:border-indigo-500">
-                    <div id="watchlist-search-results" class="absolute left-0 right-0 top-full mt-1 bg-slate-800 border border-slate-600 rounded shadow-lg max-h-48 overflow-y-auto z-10"></div>
+                    <div id="watchlist-search-results" class="absolute left-0 right-0 top-full mt-1 bg-slate-800 border border-slate-600 rounded shadow-lg max-h-96 overflow-y-auto z-10"></div>
                 </div>
-
                 <!-- Current Items -->
                 <div>
                     <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Active Symbols</label>
@@ -1297,5 +2134,295 @@
             </div>
         </div>
     </div>
+<script>
+// Live Action Global State
+window.dismissedLiveReports = {}; // { "RELIANCE": "report_hash_or_text" }
+function startLiveActionPolling() {
+    if (window.liveActionPollInterval) clearInterval(window.liveActionPollInterval);
+    pollLiveActionCards();
+    window.liveActionPollInterval = setInterval(pollLiveActionCards, 3000);
+}
+function stopLiveActionPolling() {
+    if (window.liveActionPollInterval) clearInterval(window.liveActionPollInterval);
+}
+async function pollLiveActionCards() {
+    if (document.getElementById('tab-live-action').classList.contains('hidden')) return;
+    try {
+        const res = await fetch(`${apiBase}/api/reasoning/all_reports`);
+        const data = await res.json();
+        if (data.status === 'success' && data.reports) {
+            window.latestLiveReports = data.reports;
+            renderLiveActionGrid(data.reports);
+        }
+    } catch (e) {
+        console.error("Failed to poll live action reports", e);
+    }
+}
+function renderLiveActionGrid(reportsObj) {
+    const grid = document.getElementById('live-action-grid');
+    
+    let cardsData = [];
+    for (const [symbol, text] of Object.entries(reportsObj)) {
+        if (window.dismissedLiveReports[symbol] === text) continue; // Hidden by Accept
+        
+        let cleanText = text.trim();
+        if (cleanText.startsWith('```json')) cleanText = cleanText.substring(7);
+        else if (cleanText.startsWith('```')) cleanText = cleanText.substring(3);
+        if (cleanText.endsWith('```')) cleanText = cleanText.substring(0, cleanText.length - 3);
+        cleanText = cleanText.trim();
+        
+        try {
+            const actionData = JSON.parse(cleanText);
+            cardsData.push({ symbol, text, actionData });
+        } catch (e) {
+            // Not valid JSON, ignore
+        }
+    }
+    // Sort by Priority Score descending
+    cardsData.sort((a, b) => {
+        const scoreA = a.actionData.Priority_Score || 0;
+        const scoreB = b.actionData.Priority_Score || 0;
+        return scoreB - scoreA;
+    });
+    if (cardsData.length === 0) {
+        grid.innerHTML = `<div class="col-span-full text-center text-slate-500 py-12">No actionable setups detected yet. Turn on Auto-Analyze or hit Instant Analyze on a stock.</div>`;
+        return;
+    }
+    let html = '';
+    cardsData.forEach(card => {
+        const d = card.actionData;
+        const score = d.Priority_Score || 0;
+        const isHighPriority = score > 6;
+        const borderGlow = isHighPriority ? 'border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'border-slate-700/80';
+        
+        const actionClass = d.Action === 'Short' ? 'bg-rose-900/40 text-rose-300 border-rose-700/50' : 
+                           (d.Action === 'Wait' || d.Action === 'Hold' ? 'bg-amber-900/40 text-amber-300 border-amber-700/50' : 
+                           'bg-emerald-900/40 text-emerald-300 border-emerald-700/50');
+        // Escape text for onclick
+        const escapedText = card.text.replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\n/g, '\\n');
+        
+        const state = window.latestGlobalState && window.latestGlobalState[card.symbol];
+        let ltpText = '';
+        if (state && state.ltp) {
+            ltpText = `<span class="text-xs text-slate-300 font-mono ml-2 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">LTP: ${parseFloat(state.ltp).toFixed(2)}</span>`;
+        }
+        
+        html += `
+        <div class="bg-slate-900 border rounded-xl p-4 relative overflow-hidden flex flex-col shrink-0 ${borderGlow} transition-all">
+            <div class="flex justify-between items-start mb-3">
+                <div class="flex flex-wrap items-center gap-1.5">
+                    <h3 class="text-xl font-bold text-white tracking-tight mr-1">${card.symbol.split('|').pop()}</h3>
+                    ${ltpText}
+                    <span class="px-2 py-0.5 text-xs font-bold rounded ${isHighPriority ? 'bg-emerald-900/60 text-emerald-400 border border-emerald-700' : 'bg-slate-800 text-slate-400 border border-slate-700'}">Pri: ${score}</span>
+                    <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-indigo-900/40 text-indigo-300 border border-indigo-700">Conf: ${d.Confidence_Score || '-'}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="px-2 py-0.5 text-xs font-bold rounded ${actionClass} border uppercase">${d.Action || 'N/A'}</span>
+                    <button onclick="dismissActionCard('${card.symbol}', '${escapedText}')" class="text-slate-500 hover:text-rose-500 transition-colors" title="Dismiss Card">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2 mb-4 mt-2">
+                <div class="bg-slate-800/50 p-1.5 rounded border border-slate-700/50 text-center">
+                    <div class="text-[10px] text-slate-400 uppercase tracking-wider mb-0.5">Entry</div>
+                    <div class="text-sm font-bold text-indigo-400">${d.Entry_Target_Price || 'N/A'}</div>
+                </div>
+                <div class="bg-slate-800/50 p-1.5 rounded border border-slate-700/50 text-center">
+                    <div class="text-[10px] text-slate-400 uppercase tracking-wider mb-0.5">Target</div>
+                    <div class="text-sm font-bold text-emerald-400">${d.Exit_Target_Price || 'N/A'}</div>
+                </div>
+                <div class="bg-slate-800/50 p-1.5 rounded border border-slate-700/50 text-center">
+                    <div class="text-[10px] text-slate-400 uppercase tracking-wider mb-0.5">Stop Loss</div>
+                    <div class="text-sm font-bold text-rose-400">${d.Stoploss || 'N/A'}</div>
+                </div>
+                <div class="bg-slate-800/50 p-1.5 rounded border border-slate-700/50 text-center">
+                    <div class="text-[10px] text-slate-400 uppercase tracking-wider mb-0.5">Risk</div>
+                    <div class="text-sm font-bold text-amber-400">${d.Risk_Percentage ? d.Risk_Percentage + '%' : 'N/A'}</div>
+                </div>
+            </div>
+            <div class="flex justify-between items-center gap-2 mt-auto pt-2 border-t border-slate-800">
+                <button onclick="forceReasoning('${card.symbol}')" class="flex-1 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-700/50 py-1.5 rounded text-xs font-bold transition-colors">Instant</button>
+                <button onclick="openJsonModal('${card.symbol}')" class="w-8 h-8 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 rounded transition-colors" title="Settings">⚙️</button>
+                <button onclick="showLiveAnalysisModal('${escapedText}')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 py-1.5 rounded text-xs font-bold transition-colors">Analysis</button>
+            </div>
+            <div class="flex justify-between items-center gap-2 mt-2">
+                <button onclick="openPositionModal('${card.symbol}')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 py-1.5 rounded text-[10px] uppercase font-bold transition-colors">Position</button>
+                <button onclick="acceptLiveActionCard('${card.symbol}', '${escapedText}')" class="flex-1 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-700/50 py-1.5 rounded text-[10px] uppercase font-bold transition-colors">Accept</button>
+            </div>
+        </div>
+        `;
+    });
+    grid.innerHTML = html;
+}
+function showLiveAnalysisModal(text) {
+    let cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    alert("AI Analysis:\\n\\n" + cleanText);
+}
+async function acceptLiveActionCard(symbol, text) {
+    try {
+        let cleanText = text.trim();
+        if (cleanText.startsWith('```json')) cleanText = cleanText.substring(7);
+        else if (cleanText.startsWith('```')) cleanText = cleanText.substring(3);
+        if (cleanText.endsWith('```')) cleanText = cleanText.substring(0, cleanText.length - 3);
+        cleanText = cleanText.trim();
+        
+        let data = {};
+        try {
+            data = JSON.parse(cleanText);
+        } catch (parseErr) {
+            console.warn(`Fallback triggered: Failed to parse LLM JSON for ${symbol}. Assuming Wait action.`, parseErr);
+            data = { Action: "Wait", Reason: "Fallback: " + cleanText, Confidence_Score: 0 };
+        }
+        
+        const action = data.Action ? data.Action.toLowerCase() : "wait";
+        const reason = data.Reason || data.Action || "Manual action accepted from UI.";
+        const confidence = data.Confidence_Score || 5;
+
+        if (action === "long" || action === "short") {
+            const targetPrice = data.Entry_Target_Price || "";
+            document.getElementById('ledger-modal-title').innerText = `Confirm ${action.toUpperCase()} for ${symbol}`;
+            document.getElementById('ledger-modal-price').value = targetPrice;
+            document.getElementById('ledger-modal-qty').value = "100";
+            document.getElementById('ledger-modal-charges-container').classList.add('hidden');
+            document.getElementById('ledger-modal').classList.remove('hidden');
+            
+            document.getElementById('ledger-modal-confirm').onclick = async () => {
+                const executedPrice = parseFloat(document.getElementById('ledger-modal-price').value);
+                const executedQty = parseInt(document.getElementById('ledger-modal-qty').value);
+                closeLedgerModal();
+                if (isNaN(executedPrice) || isNaN(executedQty)) return;
+                
+                await fetch("/api/ledger/open", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        symbol: symbol,
+                        direction: action === "long" ? "Long" : "Short",
+                        entry_price: executedPrice,
+                        entry_qty: executedQty,
+                        confidence: confidence,
+                        reason: reason,
+                        target: data.Exit_Target_Price ? String(data.Exit_Target_Price) : null,
+                        stoploss: data.Stoploss ? String(data.Stoploss) : null
+                    })
+                });
+                
+                const allPos = JSON.parse(localStorage.getItem('user_positions')) || {};
+                allPos[symbol] = {
+                    entry_price: executedPrice,
+                    quantity: executedQty,
+                    entry_timestamp: Math.floor(Date.now() / 1000),
+                    direction: action === "long" ? "Long" : "Short"
+                };
+                localStorage.setItem('user_positions', JSON.stringify(allPos));
+                fetch('/api/reasoning/position/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symbol: symbol, user_position: allPos[symbol] })
+                });
+                pollLiveActionCards();
+            };
+            
+        } else if (action === "hold") {
+            await fetch("/api/ledger/manage", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    symbol: symbol,
+                    action: "Hold",
+                    reason: reason,
+                    target: data.Exit_Target_Price ? String(data.Exit_Target_Price) : null,
+                    stoploss: data.Stoploss ? String(data.Stoploss) : null
+                })
+            });
+            
+        } else if (action === "close") {
+            document.getElementById('ledger-modal-title').innerText = `Confirm CLOSE for ${symbol}`;
+            document.getElementById('ledger-modal-price').value = "";
+            document.getElementById('ledger-modal-qty').value = "100";
+            document.getElementById('ledger-modal-charges').value = "0.00";
+            document.getElementById('ledger-modal-charges-container').classList.remove('hidden');
+            document.getElementById('ledger-modal').classList.remove('hidden');
+            
+            document.getElementById('ledger-modal-confirm').onclick = async () => {
+                const executedPrice = parseFloat(document.getElementById('ledger-modal-price').value);
+                const executedQty = parseInt(document.getElementById('ledger-modal-qty').value);
+                const charges = parseFloat(document.getElementById('ledger-modal-charges').value) || 0.0;
+                closeLedgerModal();
+                if (isNaN(executedPrice) || isNaN(executedQty)) return;
+                
+                await fetch("/api/ledger/close", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        symbol: symbol,
+                        exit_price: executedPrice,
+                        exit_qty: executedQty,
+                        reason: reason,
+                        charges: charges
+                    })
+                });
+                
+                const allPos = JSON.parse(localStorage.getItem('user_positions')) || {};
+                delete allPos[symbol];
+                localStorage.setItem('user_positions', JSON.stringify(allPos));
+                fetch('/api/reasoning/position/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symbol: symbol, user_position: null })
+                });
+                pollLiveActionCards();
+            };
+        }
+        
+        window.dismissedLiveReports[symbol] = text;
+        pollLiveActionCards();
+        
+    } catch (e) {
+        console.error("Error parsing action card JSON", e);
+        alert("Failed to parse LLM reasoning payload. Raw text:\\n" + text);
+    }
+}
+function dismissActionCard(symbol, text) {
+    window.dismissedLiveReports[symbol] = text;
+    pollLiveActionCards();
+}
+function openLiveSettingsModal(symbol) {
+    const freq = prompt(`Enter Auto-Analyze frequency in seconds for ${symbol}:`, "60");
+    if (freq) {
+        const allPos = JSON.parse(localStorage.getItem('user_positions')) || {};
+        const userPosition = allPos[symbol] || null;
+        fetch(`${apiBase}/api/reasoning/loop/start`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ symbol: symbol, interval: parseInt(freq), user_position: userPosition })
+        });
+        alert(`Started auto-analyze for ${symbol} every ${freq} seconds.`);
+    }
+}
+function toggleGlobalAutoAnalyze() {
+    const isChecked = document.getElementById('global-auto-analyze').checked;
+    const freq = document.getElementById('global-analyze-interval').value;
+    const symbols = window.globalWatchlistSymbols || Object.keys(window.latestGlobalState || {});
+    const allPos = JSON.parse(localStorage.getItem('user_positions')) || {};
+    
+    symbols.forEach(sym => {
+        if (isChecked) {
+            fetch(`${apiBase}/api/reasoning/loop/start`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ symbol: sym, interval: parseInt(freq), user_position: allPos[sym] || null })
+            });
+        } else {
+            fetch(`${apiBase}/api/reasoning/loop/stop`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ symbol: sym })
+            });
+        }
+    });
+}
+</script>
 </body>
 </html>

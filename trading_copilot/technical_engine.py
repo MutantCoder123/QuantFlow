@@ -68,10 +68,25 @@ class MathEngine:
             else:
                 df['vwap'], df['vwap_lower'], df['vwap_upper'] = np.nan, np.nan, np.nan
             
-        # 2. Volume Z-Score
-        vol_mean = df['volume'].rolling(window=20).mean()
-        vol_std = df['volume'].rolling(window=20).std()
-        df['vol_z_score'] = (df['volume'] - vol_mean) / vol_std
+        # 2. Time-of-Day (ToD) Normalized Volume Z-Score
+        df['time'] = pd.to_datetime(df['timestamp']).dt.time
+        
+        historical_df = df.iloc[:-1] if len(df) > 1 else df
+        time_stats = historical_df.groupby('time')['volume'].agg(['mean', 'std']).to_dict(orient='index')
+        
+        df['rolling_mean'] = df['volume'].rolling(window=20).mean()
+        df['rolling_std'] = df['volume'].rolling(window=20).std()
+        
+        def calc_tod_z(row):
+            stats = time_stats.get(row['time'])
+            if stats and pd.notna(stats['std']) and stats['std'] > 0:
+                return (row['volume'] - stats['mean']) / stats['std']
+            if pd.notna(row['rolling_std']) and row['rolling_std'] > 0:
+                return (row['volume'] - row['rolling_mean']) / row['rolling_std']
+            return 0.0
+            
+        df['vol_z_score'] = df.apply(calc_tod_z, axis=1)
+        df.drop(columns=['time', 'rolling_mean', 'rolling_std'], inplace=True, errors='ignore')
         
         # 3. Chaikin Money Flow (CMF)
         df['cmf'] = ta.cmf(df['high'], df['low'], df['close'], df['volume'], length=20)
@@ -239,19 +254,103 @@ class MathEngine:
             return 0.0
 
     @staticmethod
+    def generate_omni_dataframes(df_5m: pd.DataFrame) -> dict:
+        """
+        Module 1: The Omni-Resampler
+        Resamples the base 5-minute dataframe up to 15m, 30m, 1h, and 4h.
+        """
+        if df_5m is None or df_5m.empty:
+            return {}
+            
+        df = df_5m.copy()
+        if 'timestamp' in df.columns:
+            df.set_index('timestamp', inplace=True)
+            
+        agg_dict = {
+            'open': 'first',
+            'high': 'max',
+            'low': 'min',
+            'close': 'last',
+            'volume': 'sum'
+        }
+        
+        omni = {}
+        try:
+            for freq, label in [('5min', '5m'), ('15min', '15m'), ('30min', '30m'), ('1h', '1h'), ('4h', '4h')]:
+                omni[label] = df.resample(freq).agg(agg_dict).dropna()
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Error resampling omni dataframes: {e}")
+            
+        return omni
+
+    @staticmethod
+    def calc_omni_metrics(omni_dfs: dict) -> dict:
+        """
+        Module 2: The Omni-Calculator
+        Calculates RSI, MACD, EMAs, and ATR for all 5 DataFrames.
+        """
+        results = {}
+        for tf, df in omni_dfs.items():
+            if df.empty or len(df) < 1:
+                continue
+                
+            try:
+                temp_df = df.copy()
+                temp_df['ema_9'] = ta.ema(temp_df['close'], length=9)
+                temp_df['ema_21'] = ta.ema(temp_df['close'], length=21)
+                temp_df['rsi_14'] = ta.rsi(temp_df['close'], length=14)
+                
+                macd = ta.macd(temp_df['close'], fast=12, slow=26, signal=9)
+                if macd is not None:
+                    temp_df['macd'] = macd['MACD_12_26_9']
+                    temp_df['macd_hist'] = macd['MACDh_12_26_9']
+                else:
+                    temp_df['macd'] = 0.0
+                    temp_df['macd_hist'] = 0.0
+                    
+                temp_df['atr_14'] = ta.atr(temp_df['high'], temp_df['low'], temp_df['close'], length=14)
+                
+                bbands = ta.bbands(temp_df['close'], length=20, std=2)
+                if bbands is not None and not bbands.empty and len(bbands.columns) >= 3:
+                    temp_df['bb_lower'] = bbands.iloc[:, 0]
+                    temp_df['bb_upper'] = bbands.iloc[:, 2]
+                else:
+                    temp_df['bb_lower'] = 0.0
+                    temp_df['bb_upper'] = 0.0
+                
+                latest = temp_df.iloc[-1]
+                
+                def safe_float(val):
+                    return 0.0 if pd.isna(val) else round(float(val), 2)
+                    
+                results[tf] = {
+                    'rsi': safe_float(latest.get('rsi_14')),
+                    'ema_9': safe_float(latest.get('ema_9')),
+                    'ema_21': safe_float(latest.get('ema_21')),
+                    'macd': safe_float(latest.get('macd')),
+                    'macd_hist': safe_float(latest.get('macd_hist')),
+                    'atr': safe_float(latest.get('atr_14')),
+                    'bb_lower': safe_float(latest.get('bb_lower')),
+                    'bb_upper': safe_float(latest.get('bb_upper'))
+                }
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Error calculating omni metrics for {tf}: {e}")
+                
+        return results
+
+    @staticmethod
     def generate_signal_payload(df: pd.DataFrame, htf_df: pd.DataFrame, token: str, index_df: pd.DataFrame = None) -> dict:
         """
         Executes math engine on a copy of the dataframe, extracts the latest row,
         and returns a clean dictionary payload.
         """
-        # Work on a copy to ensure pure function behavior
         df_copy = df.copy()
         
-        # Guard against completely empty source
         if df_copy.empty:
             return {"token": token, "error": "Not enough data"}
             
-        # Calculate indicators
         processed_df = MathEngine.calc_trend_and_momentum(df_copy)
         if processed_df.empty:
             return {"token": token, "error": "Not enough data"}
@@ -266,29 +365,27 @@ class MathEngine:
         htf_trend = MathEngine.calc_htf_trend(htf_df)
         comparative_rs = MathEngine.calc_relative_strength(htf_df, index_df)
         
-        # Extract the very last row (the active live candle)
+        # Phase 11.B: Omni-Timeframe Synthesis Engine
+        omni_dfs = MathEngine.generate_omni_dataframes(df_copy)
+        omni_metrics = MathEngine.calc_omni_metrics(omni_dfs)
+        
         last_row = processed_df.iloc[-1]
         
         def safe_float(val):
             return 0.0 if pd.isna(val) else round(float(val), 2)
             
-        # Format the clean Python dictionary
         payload = {
             "token": token,
-            "rsi": safe_float(last_row.get('rsi_14', 0)),
-            "ema_9": safe_float(last_row.get('ema_9', 0)),
-            "ema_21": safe_float(last_row.get('ema_21', 0)),
-            "macd": safe_float(last_row.get('macd', 0)),
-            "macd_hist": safe_float(last_row.get('macd_hist', 0)),
-            "macd_signal": safe_float(last_row.get('macd_signal', 0)),
-            "bb_lower": safe_float(last_row.get('bb_lower', 0)),
-            "bb_upper": safe_float(last_row.get('bb_upper', 0)),
-            "atr": safe_float(last_row.get('atr_14', 0)),
-            "vwap": safe_float(last_row.get('vwap', 0)),
-            "vwap_lower": safe_float(last_row.get('vwap_lower', 0)),
-            "vwap_upper": safe_float(last_row.get('vwap_upper', 0)),
-            "vol_z_score": safe_float(last_row.get('vol_z_score', 0)),
-            "cmf": safe_float(last_row.get('cmf', 0)),
+            "macd_hist_5m": safe_float(last_row.get('macd_hist', 0)),
+            "macd_signal_5m": safe_float(last_row.get('macd_signal', 0)),
+            "bb_lower_5m": safe_float(last_row.get('bb_lower', 0)),
+            "bb_upper_5m": safe_float(last_row.get('bb_upper', 0)),
+            "vwap_5m": safe_float(last_row.get('vwap', 0)),
+            "vwap_lower_5m": safe_float(last_row.get('vwap_lower', 0)),
+            "vwap_upper_5m": safe_float(last_row.get('vwap_upper', 0)),
+            "vol_z_score_5m": safe_float(last_row.get('vol_z_score', 0)),
+            "cmf_5m": safe_float(last_row.get('cmf', 0)),
+            "rsi_5m": safe_float(last_row.get('rsi_14', 50)),
             "geometry": geometry,
             "candlesticks": candlesticks,
             "camarilla": camarilla,
@@ -296,4 +393,25 @@ class MathEngine:
             "comparative_rs": comparative_rs
         }
         
+        # Flatten Omni metrics into the root level of the payload clearly labeled by timeframe
+        for tf, metrics in omni_metrics.items():
+            for key, val in metrics.items():
+                payload[f"{key}_{tf}"] = val
+                
+        # Calculate and inject 1D metrics from htf_df directly
+        if htf_df is not None and not htf_df.empty:
+            htf_copy = htf_df.copy()
+            htf_processed = MathEngine.calc_trend_and_momentum(htf_copy)
+            if not htf_processed.empty:
+                last_htf = htf_processed.iloc[-1]
+                payload["rsi_1d"] = safe_float(last_htf.get('rsi_14'))
+                payload["ema_9_1d"] = safe_float(last_htf.get('ema_9'))
+                payload["ema_21_1d"] = safe_float(last_htf.get('ema_21'))
+                payload["macd_1d"] = safe_float(last_htf.get('macd'))
+                payload["macd_hist_1d"] = safe_float(last_htf.get('macd_hist'))
+                payload["atr_1d"] = safe_float(last_htf.get('atr_14'))
+                payload["bb_lower_1d"] = safe_float(last_htf.get('bb_lower'))
+                payload["bb_upper_1d"] = safe_float(last_htf.get('bb_upper'))
+        
         return payload
+

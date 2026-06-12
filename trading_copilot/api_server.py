@@ -1,20 +1,20 @@
 import os
 import asyncio
 import logging
+import csv
+import aiohttp
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import HTMLResponse
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 import uvicorn
-
-from diagnostic_ui import TerminalDashboard
-from derivatives_engine import OptionsAnalyzer
-from macro_eod_engine import InstitutionalFlowTracker
-from config import load_watchlist_from_csv
-from screener_engine import PreMarketScreener
-import scrip_master_engine
 
 logger = logging.getLogger(__name__)
 
-from fastapi.middleware.cors import CORSMiddleware
+from diagnostic_ui import TerminalDashboard
+from config import load_watchlist_from_csv
+from reasoning_engine import ReasoningEngine
+from history_manager import HistoryManager
 
 app = FastAPI(title="AlgoTrade Live Web Portal")
 
@@ -26,275 +26,365 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load watchlist for token-to-symbol mapping
 watchlist_path = os.path.join(os.path.dirname(__file__), "watchlist.csv")
 watchlist = load_watchlist_from_csv(watchlist_path)
 
-def make_json_serializable(obj):
-    """
-    Recursively scans and converts NumPy, Pandas, and non-standard float/int datatypes
-    into standard JSON-serializable Python objects to avoid serialization failures.
-    """
-    import numpy as np
-    import pandas as pd
+local_active_states = {}
+local_macro_state = {}
+local_stock_derivatives_state = {}
+local_fii_dii_state = {}
+local_catalyst_cache = {}
+local_macro_context = None
 
-    if isinstance(obj, dict):
-        return {str(k): make_json_serializable(v) for k, v in obj.items()}
-    elif isinstance(obj, (list, tuple, set)):
-        return [make_json_serializable(v) for v in obj]
-    elif isinstance(obj, (np.integer, np.int64, np.int32, np.int16, np.int8)):
-        return int(obj)
-    elif isinstance(obj, (np.floating, np.float64, np.float32, np.float16)):
-        if np.isnan(obj) or np.isinf(obj):
-            return 0.0
-        return float(obj)
-    elif isinstance(obj, np.ndarray):
-        return make_json_serializable(obj.tolist())
-    elif isinstance(obj, pd.Timestamp):
-        return obj.isoformat()
-    elif isinstance(obj, pd.DataFrame) or isinstance(obj, pd.Series):
-        return make_json_serializable(obj.to_dict())
-    elif isinstance(obj, float) and (pd.isna(obj) or obj != obj):  # handles NaN/Inf
-        return 0.0
-    else:
-        return obj
+async def poll_upstox():
+    global local_active_states, watchlist
+    async with aiohttp.ClientSession() as session:
+        while True:
+            try:
+                async with session.get("http://127.0.0.1:8001/state", timeout=2) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        local_active_states = data.get("active_states", {})
+                        # Option: We can let api_server manage its own watchlist from csv
+            except: pass
+            await asyncio.sleep(0.5)
+
+async def poll_nse():
+    global local_macro_state, local_stock_derivatives_state, local_fii_dii_state
+    import os, json
+    flow_file = os.path.join(os.path.dirname(__file__), 'data', 'institutional_flow.json')
+    while True:
+        try:
+            if os.path.exists(flow_file):
+                with open(flow_file, 'r') as f:
+                    data = json.load(f)
+                    local_fii_dii_state = data
+                    local_macro_state = data # Fallback for backwards compat
+        except: pass
+        await asyncio.sleep(5)
+
+async def poll_news():
+    global local_catalyst_cache
+    async with aiohttp.ClientSession() as session:
+        while True:
+            try:
+                async with session.get("http://127.0.0.1:8003/state", timeout=2) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        local_catalyst_cache = data.get("catalyst_cache", {})
+                        global local_macro_context
+                        local_macro_context = data.get("macro_context")
+                        TerminalDashboard.catalyst_cache = local_catalyst_cache
+            except: pass
+            await asyncio.sleep(0.5)
+
+@app.on_event("startup")
+async def startup_event():
+    print("[SYSTEM] Upstox Tri-Stream separated. Macro Polling ENGAGED.")
+    asyncio.create_task(poll_upstox())
+    asyncio.create_task(poll_nse())
+    asyncio.create_task(poll_news())
+    asyncio.create_task(ReasoningEngine.start_global_gatekeeper_loop())
+
+async def proxy_post(port: int, endpoint: str, payload: dict = None, timeout: int = 300):
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(f"http://127.0.0.1:{port}{endpoint}", json=payload, timeout=timeout) as resp:
+                return await resp.json()
+    except Exception as e:
+        logger.error(f"Proxy request failed to {endpoint}: {e}")
+        return {"status": "error", "message": f"Service on {port} unreachable: {e}"}
+
+async def proxy_get(port: int, endpoint: str, timeout: int = 30):
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"http://127.0.0.1:{port}{endpoint}", timeout=timeout) as resp:
+                return await resp.json()
+    except Exception as e:
+        logger.error(f"Proxy request failed to {endpoint}: {e}")
+        return {"status": "error", "message": f"Service on {port} unreachable: {e}"}
+
 
 @app.get("/", response_class=HTMLResponse)
 async def get_dashboard():
     template_path = os.path.join(os.path.dirname(__file__), "templates", "index.html")
     try:
         with open(template_path, "r", encoding="utf-8") as f:
-            html_content = f.read()
-        return HTMLResponse(content=html_content)
+            return HTMLResponse(content=f.read())
     except FileNotFoundError:
-        return HTMLResponse(
-            content="<h1>templates/index.html not found. Ensure the templates directory exists in trading_copilot/</h1>", 
-            status_code=404
-        )
+        return HTMLResponse(content="<h1>templates/index.html not found.</h1>", status_code=404)
 
 @app.post("/api/run-screener")
-async def run_screener(request: Request):
-    smart_connect = request.app.state.smart_connect
-    screener = PreMarketScreener(smart_connect)
-    top_picks = await screener.run_scan()
-    return {"status": "success", "data": top_picks}
+async def run_screener(): return await proxy_post(8001, "/api/run-screener")
 
 @app.post("/api/map-option-tokens")
-async def map_option_tokens(request: Request):
-    logger.info("Received request to map option tokens.")
-    
-    # Download the master if needed
-    await scrip_master_engine.download_scrip_master()
-    
-    option_tokens = []
-    # Loop through watchlist equities and fetch ATM option tokens
-    for token, meta in watchlist.items():
-        symbol = meta.get('symbol', 'UNKNOWN')
-        # Grab LTP from the active dashboard state
-        state = TerminalDashboard.active_states.get(token, {})
-        ltp = state.get('ltp', 0.0)
-        
-        if ltp > 0:
-            base_symbol = symbol.split('-')[0]
-            tokens = await scrip_master_engine.get_atm_option_tokens(base_symbol, ltp)
-            if tokens:
-                option_tokens.extend([tokens.get("CE"), tokens.get("PE")])
-                
-    # Filter out empty/mocked failures
-    option_tokens = [t for t in option_tokens if t]
-    
-    # Inject them into the websocket_engine's subscription loop
-    if hasattr(request.app.state, 'stream_manager') and option_tokens:
-        try:
-            token_list = [{"exchangeType": 2, "tokens": option_tokens}]
-            request.app.state.stream_manager.sws.subscribe(
-                correlation_id="stream_options",
-                mode=3,
-                token_list=token_list
-            )
-            logger.info(f"Subscribed {len(option_tokens)} new Option tokens to WebSocket.")
-        except Exception as e:
-            logger.error(f"Failed to subscribe option tokens: {e}")
-            
-    logger.info(f"Mapped {len(option_tokens)} new Option tokens for the data stream.")
-    
-    return {"status": "success", "message": "Option tokens mapped and injected successfully."}
-
-# --- Phase 8: Neuro-Symbolic Reasoning Endpoints ---
-from pydantic import BaseModel
-from reasoning_engine import ReasoningEngine
+async def map_option_tokens(): return await proxy_post(8001, "/api/map-option-tokens")
 
 class InstantAnalyzeRequest(BaseModel):
-    model: str = "gemini-3-flash"
+    model: str = "gemini-2.5-flash"
     prompt: str = ""
-    user_position: dict = None
-
+    user_position: dict | None = None
+    user_intent: dict | None = None
 
 class LoopStartRequest(BaseModel):
     symbol: str
     interval: int = 90
-    model: str = "gemini-3-flash"
+    model: str = "gemini-2.5-flash"
     prompt: str = ""
-    user_position: dict = None
-
+    user_position: dict | None = None
+    user_intent: dict | None = None
 
 class LoopStopRequest(BaseModel):
     symbol: str
 
+class SavePositionRequest(BaseModel):
+    symbol: str
+    user_position: dict | None = None
+
+@app.post("/api/reasoning/position/save")
+async def save_position_api(req: SavePositionRequest):
+    ReasoningEngine.user_positions[req.symbol] = req.user_position
+    return {"status": "success"}
+
 @app.post("/api/reasoning/instant/{symbol}")
 async def instant_analyze(symbol: str, req: InstantAnalyzeRequest):
-    logger.info(f"Received instant analysis request for {symbol} using {req.model}")
-    report = await ReasoningEngine.analyze_stock(symbol, req.model, req.prompt, user_position=req.user_position)
+    TerminalDashboard.active_states = local_active_states
+    report = await ReasoningEngine.analyze_stock(symbol, req.model, req.prompt, req.user_position, req.user_intent)
     return {"status": "success", "report": report}
 
 @app.post("/api/reasoning/loop/start")
 async def start_analysis_loop(req: LoopStartRequest):
-    logger.info(f"Received loop start request for {req.symbol} every {req.interval}s")
-    await ReasoningEngine.start_analysis_loop(req.symbol, req.interval, req.model, req.prompt, user_position=req.user_position)
-    return {"status": "success", "message": f"Loop started for {req.symbol}"}
+    TerminalDashboard.active_states = local_active_states
+    ReasoningEngine.user_positions[req.symbol] = req.user_position
+    ReasoningEngine.set_llm_toggle(req.symbol, True, req.user_position)
+    return {"status": "success"}
 
 @app.post("/api/reasoning/loop/stop")
 async def stop_analysis_loop(req: LoopStopRequest):
-    logger.info(f"Received loop stop request for {req.symbol}")
-    await ReasoningEngine.stop_analysis_loop(req.symbol)
-    return {"status": "success", "message": f"Loop stopped for {req.symbol}"}
+    ReasoningEngine.set_llm_toggle(req.symbol, False)
+    return {"status": "success"}
+
+@app.get("/api/reasoning/all_reports")
+async def get_all_reports():
+    return {"status": "success", "reports": ReasoningEngine.latest_reports}
 
 @app.get("/api/reasoning/report/{symbol}")
 async def get_latest_report(symbol: str):
     report = ReasoningEngine.latest_reports.get(symbol, "No report generated yet.")
-    is_active = symbol in ReasoningEngine.active_loops
-    return {"status": "success", "report": report, "is_active": is_active}
+    return {"status": "success", "report": report, "is_active": symbol in ReasoningEngine.active_loops}
 
-# --- Phase 9: Alerting Matrix Endpoints ---
-@app.get("/api/alerts/unread")
-async def get_unread_alerts():
-    unread = [a for a in ReasoningEngine.global_alerts if not a["read"]]
-    return {"status": "success", "alerts": unread, "count": len(unread)}
+class NewsInstantRequest(BaseModel): model: str = "gemini-2.5-flash"
+class NewsStartRequest(BaseModel): interval: int = 120; model: str = "gemini-2.5-flash"
 
-@app.get("/api/alerts/history")
-async def get_alert_history():
-    return {"status": "success", "alerts": ReasoningEngine.global_alerts}
+@app.post("/api/reasoning/playbook/generate")
+async def generate_playbook(req: NewsInstantRequest):
+    import asyncio
+    asyncio.create_task(ReasoningEngine.generate_intraday_playbook(req.model))
+    return {"status": "success", "message": "Playbook generation triggered in background."}
 
-@app.post("/api/alerts/mark-read/{alert_id}")
-async def mark_alert_read(alert_id: int):
-    for a in ReasoningEngine.global_alerts:
-        if a["id"] == alert_id:
-            a["read"] = True
-            return {"status": "success"}
-    return {"status": "error", "message": "Alert not found"}
+@app.post("/api/news/instant")
+async def instant_news_fetch(req: NewsInstantRequest): return await proxy_post(8003, "/api/news/instant", {"model": req.model})
 
-# --- Phase 10: Dynamic Watchlist API ---
-import csv
+@app.post("/api/news/fetch/{symbol}")
+async def fetch_symbol_news_api(symbol: str, req: NewsInstantRequest): return await proxy_post(8003, f"/api/news/fetch/{symbol}", {"model": req.model})
+
+@app.post("/api/news/loop/start")
+async def start_news_loop_api(req: NewsStartRequest): return await proxy_post(8003, "/api/news/loop/start", {"interval": req.interval, "model": req.model})
+
+@app.post("/api/news/loop/stop")
+async def stop_news_loop_api(): return await proxy_post(8003, "/api/news/loop/stop")
+
+@app.get("/api/news/state")
+async def get_news_state(): return await proxy_get(8003, "/state")
+
+class SyncParquetRequest(BaseModel):
+    symbols: list[str]
+
+@app.post("/api/admin/sync-parquet")
+async def sync_parquet_endpoint(req: SyncParquetRequest):
+    from data_services.parquet_engine import sync_eod_parquet
+    # Fire and forget
+    asyncio.create_task(sync_eod_parquet(req.symbols))
+    return {"status": "success", "message": "Parquet sync started in the background."}
+
+@app.get("/api/search-token")
+async def search_token_api(q: str):
+    import scrip_master_engine
+    results = await scrip_master_engine.search_scrip_tokens(q)
+    return {"status": "success", "data": results}
 
 @app.get("/api/watchlist")
-async def get_watchlist():
-    return {"status": "success", "data": [{"token": k, "symbol": v["symbol"], "exchange": v["exchange"]} for k, v in watchlist.items()]}
+async def get_watchlist(): return {"status": "success", "data": [{"token": k, "symbol": v["symbol"], "exchange": v["exchange"]} for k, v in watchlist.items()]}
 
-class WatchlistUpdateRequest(BaseModel):
-    items: list[dict]
+class WatchlistUpdateRequest(BaseModel): items: list[dict]
 
 @app.post("/api/watchlist")
-async def update_watchlist(req: WatchlistUpdateRequest, request: Request):
+async def update_watchlist(req: WatchlistUpdateRequest):
     global watchlist
-    old_tokens = set(watchlist.keys())
-    
-    # Save to CSV
     try:
         with open(watchlist_path, mode="w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow(["Token", "Symbol", "Exchange"])
-            for item in req.items:
-                writer.writerow([item["token"], item["symbol"], item["exchange"]])
-    except Exception as e:
-        logger.error(f"Failed to write watchlist.csv: {e}")
-        return {"status": "error", "message": str(e)}
-        
-    # Reload watchlist variable
-    from config import load_watchlist_from_csv
-    watchlist = load_watchlist_from_csv(watchlist_path)
-    
-    new_tokens = set(watchlist.keys())
-    
-    tokens_to_add = new_tokens - old_tokens
-    tokens_to_remove = old_tokens - new_tokens
-    
-    # Handle LiveStreamManager updates
-    if hasattr(request.app.state, 'stream_manager') and request.app.state.stream_manager:
-        sm = request.app.state.stream_manager
-        sm.watchlist = watchlist  # update internal ref
-        
-        try:
-            # Unsubscribe removed
-            if tokens_to_remove:
-                rm_list = [{"exchangeType": 1, "tokens": list(tokens_to_remove)}] # Assuming NSE (1). You'd map dynamically if multiple.
-                sm.sws.unsubscribe("stream_multi", 3, rm_list)
-                logger.info(f"Unsubscribed from tokens: {tokens_to_remove}")
+            for item in req.items: writer.writerow([item["token"], item["symbol"], item["exchange"]])
             
-            # Subscribe new
-            if tokens_to_add:
-                add_list = [{"exchangeType": 1, "tokens": list(tokens_to_add)}]
-                sm.sws.subscribe("stream_multi", 3, add_list)
-                logger.info(f"Subscribed to new tokens: {tokens_to_add}")
+        new_symbols = []
+        for item in req.items:
+            if item["token"] not in watchlist:
+                new_symbols.append(item["symbol"].split('-')[0])
                 
-        except Exception as e:
-            logger.error(f"Failed dynamic websocket update: {e}")
+        watchlist.clear()
+        for item in req.items:
+            watchlist[item["token"]] = {"symbol": item["symbol"], "exchange": item["exchange"]}
+            
+        if new_symbols:
+            logger.info(f"Triggering background Parquet sync for new symbols: {new_symbols}")
+            from data_services.parquet_engine import sync_eod_parquet
+            asyncio.create_task(sync_eod_parquet(new_symbols))
+            
+    except Exception as e: return {"status": "error", "message": str(e)}
+    return await proxy_post(8001, "/api/watchlist/update", {"items": req.items})
 
-    return {"status": "success", "message": "Watchlist updated."}
+class WatchlistAddRequest(BaseModel):
+    token: str
+    symbol: str
+    exchange: str
 
-@app.get("/api/search-token")
-async def search_token_api(q: str):
-    if len(q) < 2: return {"status": "success", "data": []}
-    results = await scrip_master_engine.search_scrip_tokens(q)
-    return {"status": "success", "data": results}
+@app.post("/api/watchlist/add")
+async def add_to_watchlist(req: WatchlistAddRequest):
+    global watchlist
+    if req.token in watchlist:
+        return {"status": "success", "message": "Already in watchlist."}
+    
+    current_items = [{"token": k, "symbol": v["symbol"], "exchange": v["exchange"]} for k, v in watchlist.items()]
+    current_items.append({"token": req.token, "symbol": req.symbol, "exchange": req.exchange})
+    
+    update_req = WatchlistUpdateRequest(items=current_items)
+    return await update_watchlist(update_req)
 
+def make_json_serializable(obj):
+    import numpy as np, pandas as pd
+    if isinstance(obj, dict): return {str(k): make_json_serializable(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple, set)): return [make_json_serializable(v) for v in obj]
+    elif isinstance(obj, (np.integer, np.int64, np.int32, np.int16, np.int8)): return int(obj)
+    elif isinstance(obj, (np.floating, np.float64, np.float32, np.float16)): return 0.0 if np.isnan(obj) or np.isinf(obj) else float(obj)
+    elif isinstance(obj, np.ndarray): return make_json_serializable(obj.tolist())
+    elif isinstance(obj, pd.Timestamp): return obj.isoformat()
+    elif isinstance(obj, (pd.DataFrame, pd.Series)): return make_json_serializable(obj.to_dict())
+    elif isinstance(obj, float) and (pd.isna(obj) or obj != obj): return 0.0
+    return obj
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    logger.info("New web client connected to Live Matrix WebSocket.")
     try:
         while True:
-            # Safely fetch active states
-            pcr = OptionsAnalyzer.macro_state.get('pcr', 1.0)
-            fii_dii_state = InstitutionalFlowTracker.load_state()
-            fii_net = fii_dii_state.get('fii_net', 0)
-            dii_net = fii_dii_state.get('dii_net', 0)
-            date_str = fii_dii_state.get('date', 'N/A')
+            TerminalDashboard.active_states = local_active_states
+            TerminalDashboard.global_market_context = local_macro_context
             
-            ad_ratio = fii_dii_state.get('ad_ratio', 1.0)
+            # Derive PCR from Nifty 50 state if available
+            nifty_state = local_active_states.get("NSE_INDEX|Nifty 50", {})
+            pcr = nifty_state.get('stock_pcr', local_macro_state.get('pcr', 1.0))
             
-            # Enrich global states with symbol names
+            fii_net = local_fii_dii_state.get('fii_net', 0)
+            dii_net = local_fii_dii_state.get('dii_net', 0)
+            date_str = local_fii_dii_state.get('date', local_macro_state.get('date', 'N/A'))
+            
+            # Dynamically calculate Market Breadth (A/D Ratio) from the active watchlist
+            advances = 0
+            declines = 0
+            for k, v in local_active_states.items():
+                if "Nifty 50" in k: continue
+                ltp = v.get("ltp", 0)
+                pc = v.get("prev_close", ltp)
+                if ltp > pc: advances += 1
+                elif ltp < pc: declines += 1
+                
+            dynamic_ad = advances / declines if declines > 0 else (advances if advances > 0 else 1.0)
+            ad_ratio = dynamic_ad
             enriched_states = {}
-            for token, payload in TerminalDashboard.active_states.items():
+            for instrument_key, payload in local_active_states.items():
+                symbol = instrument_key.split('|')[-1] if '|' in instrument_key else instrument_key
+                if symbol == "Nifty 50": continue
+                
                 payload_copy = dict(payload)
-                sym_info = watchlist.get(token, {})
-                payload_copy["symbol"] = sym_info.get("symbol", f"Token {token}")
-                enriched_states[token] = payload_copy
+                payload_copy["symbol"] = symbol
+                
+                # Fetch catalyst from News feed state
+                if symbol in local_catalyst_cache:
+                    payload_copy["latest_catalyst"] = local_catalyst_cache[symbol]
+                
+                try:
+                    payload_copy["structured_payload"] = ReasoningEngine.build_structured_payload(symbol, payload_copy)
+                except Exception as e:
+                    logger.error(f"Error building structured payload for {symbol}: {e}")
+                    payload_copy["structured_payload"] = dict(payload_copy)
+                    
+                enriched_states[symbol] = payload_copy
 
             payload = {
+                "global_market_context": local_macro_context,
+                "dashboard_intraday_plays": getattr(TerminalDashboard, "dashboard_intraday_plays", None),
                 "global_state": enriched_states,
-                "macro_state": {
-                    "pcr": pcr,
-                    "fii_net": fii_net,
-                    "dii_net": dii_net,
-                    "date": date_str,
-                    "ad_ratio": ad_ratio
-                }
+                "macro_state": {"pcr": pcr, "fii_net": fii_net, "dii_net": dii_net, "date": date_str, "ad_ratio": ad_ratio}
             }
-            
-            serializable_payload = make_json_serializable(payload)
-            await websocket.send_json(serializable_payload)
+            await websocket.send_json(make_json_serializable(payload))
             await asyncio.sleep(0.5)
-            
-    except WebSocketDisconnect:
-        logger.info("Web client disconnected from Live Matrix WebSocket.")
-    except Exception as e:
-        logger.error(f"WebSocket loop exception: {e}")
+    except WebSocketDisconnect: pass
+    except Exception as e: logger.error(f"WebSocket loop exception: {e}")
 
-async def start_api_server(smart_connect, stream_manager=None):
-    app.state.smart_connect = smart_connect
-    app.state.stream_manager = stream_manager
-    logger.info("Starting FastAPI/Uvicorn server asynchronously...")
-    config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="warning")
-    server = uvicorn.Server(config)
-    await server.serve()
+class LedgerOpenRequest(BaseModel):
+    symbol: str
+    direction: str
+    entry_price: float
+    entry_qty: int
+    confidence: int
+    reason: str
+    target: str | None = None
+    stoploss: str | None = None
+
+class LedgerManageRequest(BaseModel):
+    symbol: str
+    action: str
+    reason: str
+    target: str | None = None
+    stoploss: str | None = None
+
+class LedgerCloseRequest(BaseModel):
+    symbol: str
+    exit_price: float
+    exit_qty: int
+    reason: str
+    charges: float = 0.0
+
+@app.post("/api/ledger/open")
+def open_ledger_trade(req: LedgerOpenRequest):
+    manager = HistoryManager()
+    trade_id = manager.create_trade(req.symbol, req.direction, req.entry_price, req.entry_qty, req.confidence, req.reason, req.target, req.stoploss)
+    return {"status": "success", "trade_id": trade_id}
+
+@app.post("/api/ledger/manage")
+def manage_ledger_trade(req: LedgerManageRequest):
+    manager = HistoryManager()
+    success = manager.add_management_log(req.symbol, req.action, req.reason, req.target, req.stoploss)
+    return {"status": "success", "updated": success}
+
+@app.post("/api/ledger/close")
+def close_ledger_trade(req: LedgerCloseRequest):
+    manager = HistoryManager()
+    success = manager.add_exit(req.symbol, req.exit_price, req.exit_qty, req.reason, req.charges)
+    return {"status": "success", "updated": success}
+
+async def start_api_server():
+    logger.info("Starting Web API Server (Port 8000)...")
+    import os, json
+    playbook_path = os.path.join("trading_copilot", "playbook_state.json")
+    if os.path.exists(playbook_path):
+        try:
+            with open(playbook_path, "r") as f:
+                TerminalDashboard.dashboard_intraday_plays = json.load(f)
+            logger.info("Loaded saved playbook state.")
+        except Exception as e:
+            logger.error(f"Failed to load playbook state: {e}")
+            
+    config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="warning", ws_ping_interval=None)
+    await uvicorn.Server(config).serve()

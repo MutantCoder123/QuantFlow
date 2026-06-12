@@ -1,0 +1,125 @@
+{
+  "macro_weather": "Dynamic/Mixed with sector-specific divergence. Global sentiment shows tentative positive cues from a mild cooldown in oil prices and reduced geopolitical tensions, however, domestic indices (NIFTY50, SENSEX) experienced intraday gains being erased, signaling underlying caution and potential profit-taking. Focus should be on high-momentum sectors and individual stock catalysts, with a readiness for rotational plays and quick reversals. Expect continued volatility and a nuanced approach rather than broad market bias.",
+  "watchlist": [
+    {
+      "symbol": "ADANIPORTS",
+      "rationale": "Strong fundamental catalyst from securing a significant 10-year marine services contract in Argentina, coupled with robust relative strength (RS 32.76) and a high screener score (125). This indicates strong institutional confidence and potential for continued upward momentum.",
+      "strategy": "Long: Initiate trade on a confirmed breakout above recent resistance on increased volume, or on a healthy pullback that holds above previous support levels.",
+      "entry": "Breakout above immediate resistance (e.g., prior day's high)",
+      "target": "Previous swing high or 5-8% upside from entry",
+      "stoploss": "Below intraday low of breakout candle or 3-4% below entry",
+      "confidence": "High",
+      "risk": "Medium",
+      "token": "15083",
+      "exchange": "NSE"
+    },
+    {
+      "symbol": "RELIANCE",
+      "rationale": "Despite the positive news of an AI data center deal with Meta, the stock exhibited negative relative strength (RS -10.53) and was noted for dragging NIFTY50, suggesting underlying selling pressure or profit-taking from previous rallies. A failure to sustain gains from the positive news could trigger a short-term reversal or breakdown.",
+      "strategy": "Short: Initiate a short position if the stock fails to hold critical support following any rally from the AI news, or breaks below a significant consolidation low with high volume.",
+      "entry": "Breakdown below immediate support / Failed retest of prior resistance",
+      "target": "Next major support level or 5-7% downside from entry",
+      "stoploss": "Above recent swing high or 3-4% above entry",
+      "confidence": "Medium",
+      "risk": "High",
+      "token": "2885",
+      "exchange": "NSE"
+    },
+    {
+      "symbol": "FORTIS",
+      "rationale": "Significant fundamental turnaround reported with the company swinging to profit in Q4FY26 (likely a typo, assumed Q4FY24/25), indicating improving financial health. This positive news is backed by strong relative strength (RS 19.53) and a high screener score (125).",
+      "strategy": "Long: Buy on confirmation of a breakout from a consolidation pattern or on a retest of previous resistance now turned support. Look for volume confirmation.",
+      "entry": "Upon breakout above recent resistance zone",
+      "target": "Previous swing high or 5-8% upside from entry",
+      "stoploss": "Below pattern support or 3-4% below entry",
+      "confidence": "High",
+      "risk": "Medium",
+      "token": "14592",
+      "exchange": "NSE"
+    },
+    {
+      "symbol": "POWERINDIA",
+      "rationale": "Exhibits robust technical momentum with a very high screener score (125) and strong relative strength (RS 29.98). The absence of specific news suggests a pure technical play driven by sustained buying interest and underlying sector strength.",
+      "strategy": "Long: Enter on a continuation move following a strong opening, or on a shallow pullback towards short-term moving averages, ensuring price holds above key support.",
+      "entry": "On strong price action above prior day's high or retest of key support",
+      "target": "Momentum continuation with potential 5-10% upside",
+      "stoploss": "Below previous day's low or 3-5% below entry",
+      "confidence": "Medium",
+      "risk": "Medium",
+      "token": "18457",
+      "exchange": "NSE"
+    },
+    {
+      "symbol": "BHEL",
+      "rationale": "Demonstrates exceptional relative strength (RS 44.37) and a high screener score (120), indicating significant outperformance and strong bullish sentiment. This is a high-momentum technical play in its sector.",
+      "strategy": "Long: Monitor for continuation breakouts, especially if the stock is approaching multi-year or all-time highs. Buy on sustained strength with volume, or on a constructive pullback to support.",
+      "entry": "Breakout above significant resistance/prior high",
+      "target": "Price discovery or 8-12% upside from entry",
+      "stoploss": "Below breakout level or 4-5% below entry",
+      "confidence": "High",
+      "risk": "Medium",
+      "token": "438",
+      "exchange": "NSE"
+    },
+    {
+      "symbol": "IDEA",
+      "rationale": "Benefiting from significant positive news including a Q4 profit turnaround and a favorable Bombay HC ruling quashing a one-time spectrum charge. These strong fundamental catalysts, combined with outstanding relative strength (RS 53.93) and a high screener score (118.8), point to robust bullish sentiment.",
+      "strategy": "Long: Enter on momentum continuation if it holds above recent highs, or on a shallow pullback that holds key support levels. Expect high volatility.",
+      "entry": "Sustained move above recent high or on a pullback to strong support",
+      "target": "Next major resistance level or 8-15% upside",
+      "stoploss": "Below daily swing low or 5-7% below entry",
+      "confidence": "High",
+      "risk": "High",
+      "token": "14366",
+      "exchange": "NSE"
+    },
+    {
+      "symbol": "CGPOWER",
+      "rationale": "Exhibits strong technical performance with high relative strength (RS 31.57) and a solid screener score (117.4). This indicates persistent buying interest and potential for further upside without specific news catalysts.",
+      "strategy": "Long: Look for clear breakout from any short-term consolidation or continuation of its current uptrend. Volume confirmation is crucial.",
+      "entry": "Breakout above recent resistance on increasing volume",
+      "target": "Previous swing high or 5-8% upside from entry",
+      "stoploss": "Below immediate support or 3-4% below entry",
+      "confidence": "Medium",
+      "risk": "Medium",
+      "token": "760",
+      "exchange": "NSE"
+    },
+    {
+      "symbol": "ADANIGREEN",
+      "rationale": "Boasts extremely high relative strength (RS 74.09), indicating it's a significant market leader and outperformer. A high screener score (113.2) further solidifies its strong technical setup, suggesting strong momentum in the renewable energy sector.",
+      "strategy": "Long: Enter on continuation of the established uptrend, preferably after a minor consolidation phase or on a pullback that holds a key moving average.",
+      "entry": "On a break above recent highs or retest of breakout level",
+      "target": "New price discovery or 8-15% upside from entry",
+      "stoploss": "Below recent swing low or 4-6% below entry",
+      "confidence": "High",
+      "risk": "Medium",
+      "token": "3563",
+      "exchange": "NSE"
+    },
+    {
+      "symbol": "ADANIENSOL",
+      "rationale": "Strong institutional buying interest as SBI Mutual Fund acquired a stake, combined with very high relative strength (RS 55.44) and a solid screener score (110.1). This indicates robust investor confidence and potential for sustained upward momentum.",
+      "strategy": "Long: Buy on a confirmed breakout above recent resistance levels with accompanying volume, or on a constructive pullback that demonstrates demand at support.",
+      "entry": "Above recent resistance or retest of key support after a breakout",
+      "target": "Previous swing high or 7-10% upside from entry",
+      "stoploss": "Below recent low of consolidation or 3-5% below entry",
+      "confidence": "High",
+      "risk": "Medium",
+      "token": "10217",
+      "exchange": "NSE"
+    },
+    {
+      "symbol": "INFY",
+      "rationale": "Exhibits negative relative strength (RS -10.07), suggesting underperformance compared to the broader market. While the H-1B visa fee news is positive, the upcoming ex-dividend date (June 10) combined with general IT sector pressures could lead to short-term weakness and profit-taking.",
+      "strategy": "Short: Initiate a short position if the stock breaks below immediate support, particularly around or after the ex-dividend date, or if the broader IT sector shows sustained weakness.",
+      "entry": "Breakdown below immediate support / Failure to reclaim resistance post-dividend",
+      "target": "Next major support level or 5-8% downside from entry",
+      "stoploss": "Above daily high of breakdown candle or 3-4% above entry",
+      "confidence": "Medium",
+      "risk": "Medium",
+      "token": "1594",
+      "exchange": "NSE"
+    }
+  ]
+}

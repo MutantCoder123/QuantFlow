@@ -1,0 +1,232 @@
+[
+  {
+    "symbol": "NIFTY",
+    "state_key": "NSE_INDEX|Nifty 50",
+    "metrics": {
+      "pcr": 1.7472,
+      "max_pain": 23500.0,
+      "atm_iv": 0.0,
+      "ivr": null
+    }
+  },
+  {
+    "symbol": "BANKNIFTY",
+    "state_key": "NSE_INDEX|Nifty Bank",
+    "metrics": {
+      "pcr": 1.0935,
+      "max_pain": 55500.0,
+      "atm_iv": 0.0,
+      "ivr": null
+    }
+  },
+  {
+    "symbol": "SAIL",
+    "state_key": "NSE_EQ|SAIL",
+    "metrics": {
+      "pcr": 0.5744,
+      "max_pain": 190.0,
+      "atm_iv": 39.95,
+      "ivr": 24.643267180580615
+    }
+  },
+  {
+    "symbol": "SUZLON",
+    "state_key": "NSE_EQ|SUZLON",
+    "metrics": {
+      "pcr": 0.4613,
+      "max_pain": 55.0,
+      "atm_iv": 37.03,
+      "ivr": 19.72101972101972
+    }
+  },
+  {
+    "symbol": "TATAPOWER",
+    "state_key": "NSE_EQ|TATAPOWER",
+    "metrics": {
+      "pcr": 0.5238,
+      "max_pain": 405.0,
+      "atm_iv": 18.31,
+      "ivr": 3.726067746686302
+    }
+  },
+  {
+    "symbol": "IDEA",
+    "state_key": "NSE_EQ|IDEA",
+    "metrics": {
+      "pcr": 0.5826,
+      "max_pain": 14.0,
+      "atm_iv": 49.47,
+      "ivr": 34.65300955230751
+    }
+  },
+  {
+    "symbol": "OFSS",
+    "state_key": "NSE_EQ|OFSS",
+    "metrics": {
+      "pcr": 0.6946,
+      "max_pain": 9700.0,
+      "atm_iv": 36.97,
+      "ivr": 35.671308234485124
+    }
+  },
+  {
+    "symbol": "ADANIENSOL",
+    "state_key": "NSE_EQ|ADANIENSOL",
+    "metrics": {
+      "pcr": 0.5399,
+      "max_pain": 1460.0,
+      "atm_iv": 46.35,
+      "ivr": 53.853989813242784
+    }
+  },
+  {
+    "symbol": "POWERINDIA",
+    "state_key": "NSE_EQ|POWERINDIA",
+    "metrics": {
+      "pcr": 0.623,
+      "max_pain": 35000.0,
+      "atm_iv": 37.6,
+      "ivr": null
+    }
+  },
+  {
+    "symbol": "INFY",
+    "state_key": "NSE_EQ|INFY",
+    "metrics": {
+      "pcr": 0.4749,
+      "max_pain": 1155.0,
+      "atm_iv": 31.3,
+      "ivr": 37.2945830797322
+    }
+  },
+  {
+    "symbol": "BHEL",
+    "state_key": "NSE_EQ|BHEL",
+    "metrics": {
+      "pcr": 0.6162,
+      "max_pain": 395.0,
+      "atm_iv": 41.61,
+      "ivr": 35.46594697571043
+    }
+  },
+  {
+    "symbol": "NMDC",
+    "state_key": "NSE_EQ|NMDC",
+    "metrics": {
+      "pcr": 0.4302,
+      "max_pain": 90.0,
+      "atm_iv": 33.19,
+      "ivr": 23.74209513335166
+    }
+  },
+  {
+    "symbol": "ADANIGREEN",
+    "state_key": "NSE_EQ|ADANIGREEN",
+    "metrics": {
+      "pcr": 0.6243,
+      "max_pain": 1460.0,
+      "atm_iv": 40.72,
+      "ivr": 32.504728451769786
+    }
+  },
+  {
+    "symbol": "ADANIENT",
+    "state_key": "NSE_EQ|ADANIENT",
+    "metrics": {
+      "pcr": 0.6528,
+      "max_pain": 2900.0,
+      "atm_iv": 35.08,
+      "ivr": null
+    }
+  },
+  {
+    "symbol": "ANGELONE",
+    "state_key": "NSE_EQ|ANGELONE",
+    "metrics": {
+      "pcr": 0.6806,
+      "max_pain": 335.0,
+      "atm_iv": 41.47,
+      "ivr": 3.946843095876347
+    }
+  },
+  {
+    "symbol": "ADANIPORTS",
+    "state_key": "NSE_EQ|ADANIPORTS",
+    "metrics": {
+      "pcr": 0.5674,
+      "max_pain": 1800.0,
+      "atm_iv": 26.62,
+      "ivr": 31.72066873797899
+    }
+  },
+  {
+    "symbol": "SAMMAANCAP",
+    "state_key": "NSE_EQ|SAMMAANCAP",
+    "metrics": {
+      "pcr": 0.5509,
+      "max_pain": 170.0,
+      "atm_iv": 43.76,
+      "ivr": 30.06345848757271
+    }
+  },
+  {
+    "symbol": "NBCC",
+    "state_key": "NSE_EQ|NBCC",
+    "metrics": {
+      "pcr": 0.6295,
+      "max_pain": 101.0,
+      "atm_iv": 42.97,
+      "ivr": 35.183614107380926
+    }
+  },
+  {
+    "symbol": "IDFCFIRSTB",
+    "state_key": "NSE_EQ|IDFCFIRSTB",
+    "metrics": {
+      "pcr": 1.0665,
+      "max_pain": 74.0,
+      "atm_iv": 26.93,
+      "ivr": 23.769968051118212
+    }
+  },
+  {
+    "symbol": "FORTIS",
+    "state_key": "NSE_EQ|FORTIS",
+    "metrics": {
+      "pcr": 0.5671,
+      "max_pain": 980.0,
+      "atm_iv": 23.89,
+      "ivr": 15.432098765432102
+    }
+  },
+  {
+    "symbol": "CGPOWER",
+    "state_key": "NSE_EQ|CGPOWER",
+    "metrics": {
+      "pcr": 0.6094,
+      "max_pain": 900.0,
+      "atm_iv": 30.39,
+      "ivr": 37.547355128385014
+    }
+  },
+  {
+    "symbol": "YESBANK",
+    "state_key": "NSE_EQ|YESBANK",
+    "metrics": {
+      "pcr": 0.5452,
+      "max_pain": 23.0,
+      "atm_iv": 30.96,
+      "ivr": 22.476525821596248
+    }
+  },
+  {
+    "symbol": "RELIANCE",
+    "state_key": "NSE_EQ|RELIANCE",
+    "metrics": {
+      "pcr": 0.5726,
+      "max_pain": 1310.0,
+      "atm_iv": 26.79,
+      "ivr": 27.560313149065347
+    }
+  }
+]

@@ -78,21 +78,24 @@ class InstitutionalFlowTracker:
                         elif 'DII' in cat:
                             dii_net = val
                     
-                    state = {
+                    state = self.load_state()
+                    state.update({
                         "fii_net": fii_net,
                         "dii_net": dii_net,
                         "date": date_str
-                    }
+                    })
                     self.save_state(state)
                     logger.info(f"FII/DII data successfully updated: FII={fii_net} Cr, DII={dii_net} Cr")
                     
         except Exception as e:
             logger.error(f"FII/DII Scraper Exception: {e}")
-            self.save_state({"fii_net": 0.0, "dii_net": 0.0, "date": datetime.now().strftime("%d-%b-%Y")})
+            state = self.load_state()
+            state.update({"fii_net": 0.0, "dii_net": 0.0, "date": datetime.now().strftime("%d-%b-%Y")})
+            self.save_state(state)
 
     async def fetch_market_breadth(self):
         logger.info("Fetching NSE Market Breadth (A/D Ratio)...")
-        url = "https://www.nseindia.com/api/marketStatus"
+        url = "https://www.nseindia.com/api/allIndices"
         base_url = "https://www.nseindia.com"
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -103,6 +106,7 @@ class InstitutionalFlowTracker:
         try:
             async with aiohttp.ClientSession(headers=headers) as session:
                 await session.get(base_url, timeout=10)
+                await asyncio.sleep(3)  # Required to bypass Akamai anti-bot protection
                 async with session.get(url, timeout=10) as response:
                     if response.status != 200:
                         err_text = await response.text()
@@ -110,11 +114,11 @@ class InstitutionalFlowTracker:
                         return
                         
                     data = await response.json()
-                    market_state = data.get("marketState", [])
+                    indices = data.get("data", [])
                     
                     ad_ratio = 1.0
-                    for item in market_state:
-                        if item.get("market", "") == "Capital Market":
+                    for item in indices:
+                        if item.get("index") == "NIFTY 50":
                             advances = float(item.get("advances", 0))
                             declines = float(item.get("declines", 0))
                             
@@ -128,7 +132,7 @@ class InstitutionalFlowTracker:
                     state = self.load_state()
                     state["ad_ratio"] = round(ad_ratio, 2)
                     self.save_state(state)
-                    logger.info(f"Market Breadth fetched. A/D Ratio: {ad_ratio:.2f}")
+                    logger.info(f"Market Breadth fetched from NIFTY 50. A/D Ratio: {ad_ratio:.2f}")
         except Exception as e:
             logger.error(f"Market Breadth Scraper Exception: {e}")
 

@@ -1,20 +1,20 @@
 import os
-import json
 import asyncio
 import aiohttp
 import logging
 from datetime import datetime
+import pandas as pd
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
-CACHE_FILE = "cache/ScripMaster.json"
-MASTER_URL = "https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json"
+CACHE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cache", "UpstoxMaster.csv.gz")
+MASTER_URL = "https://assets.upstox.com/market-quote/instruments/exchange/complete.csv.gz"
 
-_scrip_cache = None
-option_map = {}
+_scrip_df = None
 
 async def download_scrip_master():
-    os.makedirs("cache", exist_ok=True)
+    os.makedirs(os.path.join(os.path.dirname(os.path.abspath(__file__)), "cache"), exist_ok=True)
     download_needed = True
     
     if os.path.exists(CACHE_FILE):
@@ -27,166 +27,147 @@ async def download_scrip_master():
             download_needed = False
 
     if download_needed:
-        logger.info("Downloading ScripMaster.json (50MB) via aiohttp...")
+        logger.info("Downloading Upstox ScripMaster CSV (Gzipped) via aiohttp...")
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(MASTER_URL) as response:
                     if response.status == 200:
-                        data = await response.text()
-                        with open(CACHE_FILE, 'w', encoding='utf-8') as f:
+                        data = await response.read()
+                        with open(CACHE_FILE, 'wb') as f:
                             f.write(data)
-                        logger.info("ScripMaster.json downloaded and cached successfully.")
+                        logger.info("UpstoxMaster.csv.gz downloaded and cached successfully.")
                     else:
-                        logger.error(f"Failed to download ScripMaster: {response.status}")
+                        logger.error(f"Failed to download Upstox ScripMaster: {response.status}")
         except Exception as e:
             logger.error(f"Aiohttp download exception: {e}")
     else:
-        logger.info("Using cached ScripMaster.json from today.")
+        logger.info("Using cached UpstoxMaster.csv.gz from today.")
         
     return True
 
-def _get_atm_sync(symbol: str, spot_price: float):
-    global _scrip_cache
-    if _scrip_cache is None:
+def _get_df():
+    global _scrip_df
+    if _scrip_df is None:
         if not os.path.exists(CACHE_FILE):
-            logger.error("ScripMaster cache missing!")
-            return {}
-        with open(CACHE_FILE, 'r', encoding='utf-8') as f:
-            _scrip_cache = json.load(f)
-            
-    # Filter for options
-    options = [
-        d for d in _scrip_cache 
-        if d.get('name') == symbol and d.get('instrumenttype') in ['OPTSTK', 'OPTIDX']
-    ]
-    
-    if not options:
-        return {}
-        
-    # Find closest upcoming expiry
-    now = datetime.now()
-    valid_expiries = set()
-    for o in options:
-        try:
-            exp_date = datetime.strptime(o['expiry'], "%d%b%Y")
-            if exp_date >= now:
-                valid_expiries.add(exp_date)
-        except:
-            pass
-            
-    if not valid_expiries:
-        return {}
-        
-    closest_expiry = min(valid_expiries)
-    closest_expiry_str = closest_expiry.strftime("%d%b%Y").upper()
-    
-    # Filter for this exact expiry
-    options_near = [o for o in options if o['expiry'].upper() == closest_expiry_str]
-    
-    ce_tokens = [o for o in options_near if o['symbol'].endswith('CE')]
-    pe_tokens = [o for o in options_near if o['symbol'].endswith('PE')]
-    
-    if not ce_tokens or not pe_tokens:
-        return {}
-        
-    # Find ATM strike
-    # Strike in Angel One is * 100, so we divide by 100
-    closest_ce = min(ce_tokens, key=lambda x: abs(float(x['strike'])/100.0 - spot_price))
-    closest_pe = min(pe_tokens, key=lambda x: abs(float(x['strike'])/100.0 - spot_price))
-    
-    ce_tok = str(closest_ce['token'])
-    pe_tok = str(closest_pe['token'])
-    ce_strike = float(closest_ce['strike'])/100.0
-    pe_strike = float(closest_pe['strike'])/100.0
-    
-    option_map[ce_tok] = {"parent": symbol, "type": "CE", "strike": ce_strike}
-    option_map[pe_tok] = {"parent": symbol, "type": "PE", "strike": pe_strike}
-    
-    return {
-        "CE": ce_tok,
-        "PE": pe_tok
-    }
-
-def _get_chain_sync(symbol: str, spot_price: float, num_strikes: int = 10):
-    global _scrip_cache
-    if _scrip_cache is None:
-        if not os.path.exists(CACHE_FILE):
-            return []
-        with open(CACHE_FILE, 'r', encoding='utf-8') as f:
-            _scrip_cache = json.load(f)
-            
-    options = [
-        d for d in _scrip_cache 
-        if d.get('name') == symbol and d.get('instrumenttype') in ['OPTSTK', 'OPTIDX']
-    ]
-    if not options: return []
-        
-    now = datetime.now()
-    valid_expiries = set()
-    for o in options:
-        try:
-            exp_date = datetime.strptime(o['expiry'], "%d%b%Y")
-            if exp_date >= now:
-                valid_expiries.add(exp_date)
-        except: pass
-            
-    if not valid_expiries: return []
-        
-    closest_expiry = min(valid_expiries)
-    closest_expiry_str = closest_expiry.strftime("%d%b%Y").upper()
-    
-    options_near = [o for o in options if o['expiry'].upper() == closest_expiry_str]
-    
-    # Extract unique strikes
-    strikes = list(set([float(o['strike'])/100.0 for o in options_near]))
-    strikes.sort()
-    
-    # Find closest strike index
-    if not strikes: return []
-    closest_idx = min(range(len(strikes)), key=lambda i: abs(strikes[i] - spot_price))
-    
-    start_idx = max(0, closest_idx - num_strikes)
-    end_idx = min(len(strikes), closest_idx + num_strikes + 1)
-    target_strikes = strikes[start_idx:end_idx]
-    
-    # Collect tokens
-    tokens = []
-    for o in options_near:
-        if float(o['strike'])/100.0 in target_strikes:
-            tokens.append(o)
-            
-    return tokens
-
-async def get_atm_option_tokens(symbol: str, spot_price: float):
-    logger.info(f"Mapping ATM tokens for {symbol} at {spot_price}...")
-    return await asyncio.to_thread(_get_atm_sync, symbol, spot_price)
-
-async def get_option_chain_tokens(symbol: str, spot_price: float, num_strikes: int = 10):
-    return await asyncio.to_thread(_get_chain_sync, symbol, spot_price, num_strikes)
+            return pd.DataFrame()
+        _scrip_df = pd.read_csv(CACHE_FILE)
+        # Drop nan values in critical columns to avoid issues
+        _scrip_df = _scrip_df.dropna(subset=['tradingsymbol', 'exchange'])
+    return _scrip_df
 
 def _search_scrip_sync(query: str, limit: int):
-    global _scrip_cache
-    if _scrip_cache is None:
-        if not os.path.exists(CACHE_FILE):
-            return []
-        with open(CACHE_FILE, 'r', encoding='utf-8') as f:
-            _scrip_cache = json.load(f)
-            
+    df = _get_df()
+    if df.empty: return []
+    
     query = query.upper()
-    results = []
-    for scrip in _scrip_cache:
-        # Match symbol or name
-        if query in scrip.get('symbol', '').upper() or query in scrip.get('name', '').upper():
-            if scrip.get('exch_seg') in ['NSE', 'BSE']:
-                results.append({
-                    "token": str(scrip['token']),
-                    "symbol": scrip['symbol'],
-                    "exchange": scrip['exch_seg']
-                })
-                if len(results) >= limit:
-                    break
-    return results
+    
+    # Filter for NSE Equities and Indices
+    # We want NSE_EQ (EQUITY) and NSE_INDEX (INDEX)
+    mask = ((df['exchange'] == 'NSE_EQ') & (df['instrument_type'] == 'EQUITY')) | \
+           ((df['exchange'] == 'NSE_INDEX') & (df['instrument_type'] == 'INDEX'))
+           
+    search_df = df[mask]
+    
+    # Find exact matches
+    exact_mask = (search_df['tradingsymbol'].str.upper() == query) | \
+                 (search_df['name'].str.upper() == query)
+    exact_matches = search_df[exact_mask].head(limit)
+    
+    # Find partial matches
+    partial_mask = (search_df['tradingsymbol'].str.upper().str.contains(query, na=False)) | \
+                   (search_df['name'].str.upper().str.contains(query, na=False))
+                   
+    # Exclude exact from partial
+    if not exact_matches.empty:
+        partial_mask = partial_mask & ~search_df.index.isin(exact_matches.index)
+        
+    partial_matches = search_df[partial_mask].head(limit * 2)
+    
+    results = pd.concat([exact_matches, partial_matches]).head(limit)
+    
+    formatted_results = []
+    for _, row in results.iterrows():
+        # Using exchange_token as the legacy "token" to prevent breaking watchlist format, 
+        # but also storing instrument_key
+        formatted_results.append({
+            "token": str(int(row['exchange_token'])) if pd.notnull(row['exchange_token']) else row['instrument_key'],
+            "symbol": row['tradingsymbol'],
+            "exchange": "NSE",
+            "instrument_key": row['instrument_key']
+        })
+        
+    return formatted_results
 
 async def search_scrip_tokens(query: str, limit: int = 15):
     return await asyncio.to_thread(_search_scrip_sync, query, limit)
 
+def get_instrument_key(symbol: str) -> str:
+    """Helper to convert a generic symbol (e.g. 'RELIANCE') to an ISIN (NSE_EQ|INE002A01018)"""
+    df = _get_df()
+    if df.empty: return f"NSE_EQ|{symbol}"
+    
+    # Try direct match first for hyphenated symbols like BAJAJ-AUTO
+    full_sym = symbol.upper()
+    mask = (df['exchange'] == 'NSE_EQ') & (df['tradingsymbol'] == full_sym)
+    matches = df[mask]
+    if not matches.empty:
+        return matches.iloc[0]['instrument_key']
+        
+    clean_sym = symbol.split('-')[0].upper()
+    
+    # Check Indices first
+    if clean_sym in ['NIFTY', 'NIFTY 50']:
+        return 'NSE_INDEX|Nifty 50'
+    elif clean_sym in ['BANKNIFTY', 'NIFTY BANK']:
+        return 'NSE_INDEX|Nifty Bank'
+        
+    # Check Equities with cleaned symbol
+    mask = (df['exchange'] == 'NSE_EQ') & (df['tradingsymbol'] == clean_sym)
+    matches = df[mask]
+    if not matches.empty:
+        return matches.iloc[0]['instrument_key']
+        
+    # Check just by token if the symbol passed was actually a token
+    try:
+        tok_val = float(symbol)
+        mask_tok = (df['exchange_token'] == tok_val)
+        matches_tok = df[mask_tok]
+        if not matches_tok.empty:
+            return matches_tok.iloc[0]['instrument_key']
+    except ValueError:
+        pass
+        
+    return f"NSE_EQ|{clean_sym}"
+
+def _get_all_fno_equities_sync():
+    df = _get_df()
+    if df.empty: return {}
+    
+    # 1. Find all underlying names for NSE_FO OPTSTK
+    opt_mask = (df['exchange'] == 'NSE_FO') & (df['instrument_type'] == 'OPTSTK')
+    fno_names = set(df[opt_mask]['name'].dropna().unique())
+    
+    # 2. Find corresponding NSE_EQ tokens
+    eq_mask = (df['exchange'] == 'NSE_EQ') & (df['name'].isin(fno_names))
+    eq_matches = df[eq_mask]
+    
+    fno_equities = {}
+    for _, row in eq_matches.iterrows():
+        token = str(int(row['exchange_token'])) if pd.notnull(row['exchange_token']) else row['instrument_key']
+        fno_equities[token] = {
+            "symbol": row['tradingsymbol'],
+            "exchange": "NSE"
+        }
+        
+    logger.info(f"Dynamically extracted {len(fno_equities)} F&O equities from UpstoxMaster.")
+    return fno_equities
+
+async def get_all_fno_equities():
+    return await asyncio.to_thread(_get_all_fno_equities_sync)
+
+# Legacy stubs for deprecated Angel One option mapping
+async def get_atm_option_tokens(symbol: str, spot_price: float):
+    return {}
+    
+async def get_option_chain_tokens(symbol: str, spot_price: float, num_strikes: int = 10):
+    return []

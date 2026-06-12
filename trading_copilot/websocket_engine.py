@@ -32,6 +32,12 @@ class LiveStreamManager:
                 exchange_map[exch_type] = []
             exchange_map[exch_type].append(token)
             
+        # Hardcode NIFTY index (99926000) subscription for Macro PCR engine
+        if 1 not in exchange_map:
+            exchange_map[1] = []
+        if "99926000" not in exchange_map[1]:
+            exchange_map[1].append("99926000")
+            
         token_list = [{"exchangeType": exch, "tokens": tokens} for exch, tokens in exchange_map.items()]
         
         logger.info(f"Subscribing to: {token_list}")
