@@ -59,7 +59,9 @@ class MTFFeatureExtractor:
                     if tf in ['15m', '30m']:
                         return "15M_30M_COILING_SQUEEZE"
                     else:
-                        return "1H_VOLATILITY_EXPANSION"
+                        return "1H_COILING_SQUEEZE"
+                elif dist > (atr * 3.0):
+                    return f"{tf.upper()}_VOLATILITY_EXPANSION"
                         
         return "NORMAL_RANGING"
 

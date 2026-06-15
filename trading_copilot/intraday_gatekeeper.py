@@ -44,7 +44,8 @@ class IntradayGatekeeper:
         
         position = user_context.get("position", {}) if user_context else {}
         
-        if current_time_ist.hour >= 15 and current_time_ist.minute >= 15:
+        current_decimal = current_time_ist.hour + current_time_ist.minute / 60.0
+        if current_decimal >= 15.25:  # 15:15 IST
             # Force override
             return cls._create_response("Close", priority=10, confidence=10, llm_auth=False)
             
@@ -58,24 +59,38 @@ class IntradayGatekeeper:
         flow_regime = ""
         
         try:
-            # Safely navigate nested payload structures for injected metrics
-            struct = payload.get("structured_payload", payload)
-            micro = struct.get("1_live_microstructure", {}).get("order_flow", {})
-            vol_z_score_5m = float(micro.get("vol_z_score_5m", 0.0))
-            whale_cvd_ema_1h = float(micro.get("whale_cvd_ema_1h", 0.0))
-            flow_regime = micro.get("flow_regime", "")
+            # Read directly from flat payload (Stream A)
+            vol_z_score_5m = float(payload.get("vol_z_score_5m", 0.0))
+            whale_cvd_ema_1h = float(payload.get("whale_cvd_ema_1h", 0.0))
             
-            macro = struct.get("3_macro_statistical_edge_5y", {}).get("structural_liquidity", {})
-            distance_to_poc_pct = float(macro.get("distance_to_poc_pct", 100.0))
-            volume_poc_price = float(macro.get("volume_poc_price", 0.0))
-            
-            kd_obj = struct.get("1_live_microstructure", {}).get("mtf_technicals", {}).get("kinetic_divergence", {})
-            if isinstance(kd_obj, dict):
-                kinetic_divergence = kd_obj.get("divergence_state", "")
-            elif isinstance(kd_obj, str):
-                kinetic_divergence = kd_obj
+            # Compute flow regime since it's not in flat payload natively
+            cvd = float(payload.get("cvd", 0.0))
+            obi = float(payload.get("obi", 0.0))
+            if cvd > 0 and obi > 0.05:
+                flow_regime = "AGGRESSIVE_BUYING"
+            elif cvd < 0 and obi < -0.05:
+                flow_regime = "AGGRESSIVE_SELLING"
+            elif cvd > 0 and obi < -0.05:
+                flow_regime = "ABSORPTION_SELLING"
+            elif cvd < 0 and obi > 0.05:
+                flow_regime = "ABSORPTION_BUYING"
+            else:
+                flow_regime = "NEUTRAL_FLOW"
                 
-            price_to_vwap_pct = float(payload.get("price_to_vwap_pct", micro.get("price_to_vwap_pct", 100.0)))
+            distance_to_poc_pct = float(payload.get("distance_to_poc_pct", 100.0))
+            volume_poc_price = float(payload.get("poc_price", 0.0))
+            
+            # Kinetic divergence is not natively in the flat payload, 
+            # we will rely on whale_cvd_slope and price_to_vwap_pct to emulate the logic if needed
+            # or extract from geometry/MTF if present
+            whale_cvd_slope = float(payload.get("whale_cvd_slope", 0.0))
+            price_to_vwap_pct = float(payload.get("price_to_vwap_pct", 100.0))
+            
+            if price_to_vwap_pct < -0.1 and whale_cvd_slope > 0:
+                kinetic_divergence = "HIDDEN_BULLISH_ABSORPTION"
+            elif price_to_vwap_pct > 0.1 and whale_cvd_slope < 0:
+                kinetic_divergence = "HIDDEN_BEARISH_DISTRIBUTION"
+                
         except (ValueError, TypeError):
             pass
 
@@ -147,7 +162,7 @@ class IntradayGatekeeper:
         gate_1_active = vol_z_score_5m >= 2.0 and kinetic_divergence in ["HIDDEN_BULLISH_ABSORPTION", "HIDDEN_BEARISH_DISTRIBUTION"]
         
         # GATE 2: SESSION VWAP INTERACTION
-        gate_2_active = abs(price_to_vwap_pct) <= 0.2 and vol_z_score_5m >= 1.5 and abs(whale_cvd_ema_1h) > 0
+        gate_2_active = abs(price_to_vwap_pct) <= 0.2 and vol_z_score_5m >= 1.5 and abs(whale_cvd_ema_1h) > 500
         
         # GATE 3: THE MACRO WALL BOUNCE
         gate_3_active = distance_to_poc_pct <= 1.0 and vol_z_score_5m >= 1.5

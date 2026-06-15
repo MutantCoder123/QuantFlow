@@ -65,11 +65,14 @@ class MicrostructureEngine:
             
         state = cls.session_vwap_state[token]
         
-        # Reset at 09:15 IST each day
-        if state['last_reset_date'] != current_date_str and now.hour >= 9 and now.minute >= 15:
+        # Reset on date boundary alone for a clean session
+        if state['last_reset_date'] != current_date_str:
             state['cumulative_pv'] = 0.0
             state['cumulative_v'] = 0.0
             state['last_reset_date'] = current_date_str
+            # Reset CVD and Whale CVD to prevent overnight state corruption
+            cls.cvd_state.pop(token, None)
+            cls.whale_cvd_state.pop(token, None)
             
         state['cumulative_pv'] += float(ltp * volume)
         state['cumulative_v'] += float(volume)
@@ -83,8 +86,9 @@ class MicrostructureEngine:
         if token not in cls.whale_cvd_state:
             cls.whale_cvd_state[token] = 0
             
+        whale_threshold = max(500000.0, ltp * 5000)
         transaction_value = float(ltp * volume)
-        if transaction_value > 500000:
+        if transaction_value > whale_threshold:
             if ltp >= best_ask_price:
                 cls.whale_cvd_state[token] += int(volume)
             elif ltp <= best_bid_price:
@@ -137,6 +141,13 @@ class MicrostructureEngine:
             
         prev_vol = cls.last_vtt_state.get(token, vol)
         tick_vol = max(0, vol - prev_vol)
+        
+        # Guard against VTT anomalies (e.g. WebSocket reconnections)
+        if prev_vol > 100000 and tick_vol > (prev_vol * 0.5):
+            import logging
+            logging.getLogger(__name__).warning(f"VTT anomaly for {token}: tick_vol={tick_vol}. Clamping.")
+            tick_vol = 0
+            
         cls.last_vtt_state[token] = vol
         
         obi = cls.calc_obi(bids, asks)

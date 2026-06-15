@@ -660,7 +660,7 @@
                     cvdBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/30">${cvd.toLocaleString()}</span>`;
                 }
                 // --- 3. POC Pill Badge ---
-                const rawPocDist = parseFloat(payload.poc_distance_pct || 0);
+                const rawPocDist = parseFloat(payload.distance_to_poc_pct || 0);
                 let pocBadge = `<span class="text-slate-300 text-xs">${rawPocDist.toFixed(3)}%</span>`;
                 if (Math.abs(rawPocDist) < 0.1) {
                     pocBadge = `<span class="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-[0_0_8px_rgba(6,182,212,0.2)]">${rawPocDist.toFixed(3)}%</span>`;

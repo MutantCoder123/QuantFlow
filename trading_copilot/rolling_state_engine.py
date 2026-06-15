@@ -285,32 +285,84 @@ class RollingStateEngine:
                         logger.error(f"MathEngine failed for {token}: {e}")
                         continue
                         
+                    import datetime, os, json
+                    from reasoning_engine import ReasoningEngine
+                    from historical_engine import HistoricalFetcher
+                    
                     final_payload['token'] = token
                     final_payload['timestamp'] = int(time.time() * 1000)
                     final_payload['ltp'] = phantom['close']
                     
+                    parent_symbol = self.watchlist.get(token, {}).get("symbol", "").split('-')[0]
+                    final_payload['symbol'] = parent_symbol
+                    
+                    ist = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+                    now_ist = datetime.datetime.now(ist)
+                    final_payload['current_time'] = now_ist.strftime("%I:%M %p").lower()
+                    
+                    if datetime.time(9, 15) <= now_ist.time() <= datetime.time(15, 30):
+                        final_payload['market_state'] = "LIVE"
+                    else:
+                        final_payload['market_state'] = "CLOSED"
+                        
+                    # Load Macro Baselines
+                    baselines_path = os.path.join(os.path.dirname(__file__), 'data', 'macro_baselines.json')
+                    baselines = {}
+                    if os.path.exists(baselines_path):
+                        with open(baselines_path, 'r') as f:
+                            baselines = json.load(f)
+                    
+                    stock_macro = baselines.get(parent_symbol, {})
+                    vol_edge = stock_macro.get("volatility_edge_52w", {})
+                    opt_pos = stock_macro.get("options_positioning_52w", {})
+                    struct_liq = stock_macro.get("structural_liquidity_5y", {})
+                    regime_conf = stock_macro.get("regime_confluence_5y", {})
+                    
+                    final_payload['value_area_high'] = struct_liq.get("value_area_high")
+                    final_payload['value_area_low'] = struct_liq.get("value_area_low")
+                    final_payload['volume_poc_price'] = struct_liq.get("volume_poc_price")
+                    
+                    final_payload['iv_percentile_52w'] = vol_edge.get("iv_percentile_52w")
+                    atm_iv_live = final_payload.get("atm_iv")
+                    hv_20d = vol_edge.get("historical_vol_20d")
+                    final_payload['iv_hv_premium_pct'] = (atm_iv_live - hv_20d) if (atm_iv_live is not None and hv_20d is not None) else None
+                    
+                    final_payload['oi_volume_shock_52w_z'] = opt_pos.get("oi_volume_shock_52w_z")
+                    final_payload['pcr_percentile_52w'] = opt_pos.get("pcr_percentile_52w")
+                    final_payload['drift_20d_strike_migration'] = opt_pos.get("drift_20d_strike_migration")
+                    
+                    final_payload['alpha_vs_nifty_5y'] = regime_conf.get("alpha_5y")
+                    final_payload['beta_vs_nifty_5y'] = regime_conf.get("beta_5y")
+                    
+                    mp_price = final_payload.get('max_pain_price')
+                    final_payload['max_pain_divergence_pct'] = ((final_payload['ltp'] - mp_price) / mp_price * 100) if mp_price else None
+                    
                     micro = phantom.get('microstructure', {})
                     final_payload['obi'] = micro.get('obi', 0.0)
                     final_payload['cvd'] = micro.get('cvd', 0)
-                    final_payload['poc_distance_pct'] = micro.get('poc_distance_pct', 100)
+                    final_payload['distance_to_poc_pct'] = micro.get('poc_distance_pct', 100)
                     final_payload['session_vwap'] = micro.get('session_vwap', 0.0)
                     final_payload['price_to_vwap_pct'] = micro.get('price_to_vwap_pct', 0.0)
                     final_payload['whale_cvd_live'] = micro.get('whale_cvd_live', 0)
                     final_payload['whale_cvd_ema_1h'] = micro.get('whale_cvd_ema_1h', 0.0)
                     final_payload['whale_cvd_slope'] = micro.get('whale_cvd_slope', 0.0)
                     
-                    # 3. Inject External States
-                    parent_symbol = self.watchlist.get(token, {}).get("symbol", "").split('-')[0]
+                    # 20d and 5d Advanced calculations
+                    vp_20d = MathEngine.calc_volume_profile_high_fidelity(temp_df, bins=100)
+                    final_payload.update(vp_20d)
                     
-                    # Macro & Derivative
+                    if htf_df is not None and not htf_df.empty:
+                        final_payload['alpha_vs_nifty_5d'] = MathEngine.calc_alpha_5d(htf_df, HistoricalFetcher.nifty_baseline_df)
+                    else:
+                        final_payload['alpha_vs_nifty_5d'] = 0.0
+                    
+                    # 3. Inject External States
                     nifty_state = TerminalDashboard.active_states.get('NSE_INDEX|Nifty 50', {})
                     final_payload['macro_pcr'] = nifty_state.get('stock_pcr', 1.0)
                     
-                    # Flows
                     fii_dii_state = InstitutionalFlowTracker.load_state()
                     final_payload['fii_net_flow'] = fii_dii_state.get('fii_net', 0)
                     
-                    # Dynamic Market Breadth (A/D Ratio)
                     advances = 0
                     declines = 0
                     for tk, st in TerminalDashboard.active_states.items():
@@ -319,14 +371,20 @@ class RollingStateEngine:
                     ad_ratio = round(advances / max(declines, 1), 2)
                     final_payload['market_breadth_ad'] = ad_ratio
                     
-                    # News & Setup
+                    # News & Setup array standardization
                     from news_engine import NewsEngine
-                    final_payload['latest_catalyst'] = NewsEngine.catalyst_cache.get(parent_symbol, {
-                        "summary": "NEUTRAL - Monitoring tape for live catalysts.",
-                        "raw_title": "Waiting for News Engine to poll.",
-                        "raw_desc": "",
-                        "timestamp": int(time.time())
-                    })
+                    cat = NewsEngine.catalyst_cache.get(parent_symbol, {})
+                    final_payload['raw_news'] = cat.get('raw_news', [])
+                    
+                    # User Context & Global Market Context
+                    final_payload['global_market_context'] = getattr(TerminalDashboard, "global_market_context", None)
+                    u_pos = ReasoningEngine.user_positions.get(token) or ReasoningEngine.user_positions.get(parent_symbol)
+                    u_ctx = {}
+                    if u_pos:
+                        u_ctx['position'] = u_pos
+                        if 'intent' in u_pos:
+                            u_ctx['intent'] = u_pos['intent']
+                    final_payload['user_context'] = u_ctx
                     
                     # Confluence Checks
                     vol_z = final_payload.get('vol_z_score_5m', 0)
@@ -334,7 +392,7 @@ class RollingStateEngine:
                     obi = final_payload.get('obi', 0.0)
                     geo = final_payload.get('geometry', {})
                     cdl = final_payload.get('candlesticks', {})
-                    poc_dist = final_payload.get('poc_distance_pct', 100)
+                    poc_dist = final_payload.get('distance_to_poc_pct', 100)
                     
                     has_bullish_cdl = any(v == "Bullish" for k, v in cdl.items() if k != "active_patterns")
                     max_pain = final_payload.get('max_pain_price')

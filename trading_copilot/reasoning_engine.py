@@ -4,6 +4,7 @@ import json
 import logging
 import re
 import time
+import collections
 from google import genai
 from diagnostic_ui import TerminalDashboard
 
@@ -26,6 +27,9 @@ class ReasoningEngine:
     global_alerts = []
     alert_counter = 0
     
+    # Layer 2: Decision History (anti-whipsaw temporal context)
+    decision_history = {}
+
     @classmethod
     def _get_token_for_symbol(cls, symbol: str):
         from api_server import TerminalDashboard
@@ -37,204 +41,27 @@ class ReasoningEngine:
         return None
 
     @classmethod
-    async def analyze_stock(cls, symbol: str, model_name: str, system_prompt: str, user_position: dict = None, user_intent: dict = None):
-        token = cls._get_token_for_symbol(symbol)
-        if not token:
-            error_msg = f"Error: Cannot find active data stream for {symbol}."
-            cls.latest_reports[symbol] = error_msg
-            return error_msg
-            
-        # Extract live JSON telemetry from memory
-        payload = TerminalDashboard.active_states.get(token)
-        if not payload:
-            error_msg = f"Error: No live telemetry data available yet for {symbol}."
-            cls.latest_reports[symbol] = error_msg
-            return error_msg
-            
-        from mtf_extractor import MTFFeatureExtractor, sanitize_for_json
-        import pandas as pd
-        import numpy as np
-
-    @classmethod
     def build_structured_payload(cls, symbol: str, payload: dict, user_position: dict = None, user_intent: dict = None) -> dict:
-        from mtf_extractor import MTFFeatureExtractor, sanitize_for_json
-        import pandas as pd
-        import numpy as np
-        import os, json, time
+        from mtf_extractor import sanitize_for_json
+        from semantic_tagger import SemanticTagger
+        import time
         
         if user_position is None:
             user_position = cls.user_positions.get(symbol)
-        
-        
-        def _load_macro_baselines() -> dict:
-            try:
-                baselines_path = os.path.join(os.path.dirname(__file__), 'data', 'macro_baselines.json')
-                if os.path.exists(baselines_path):
-                    with open(baselines_path, 'r') as f:
-                        return json.load(f)
-            except Exception as e:
-                logger.error(f"Error loading macro_baselines.json: {e}")
-            return {}
-
-        baselines = _load_macro_baselines()
-        stock_macro = baselines.get(symbol, {})
-        
-        volatility_edge_52w = stock_macro.get("volatility_edge_52w", {})
-        options_positioning_52w = stock_macro.get("options_positioning_52w", {})
-        structural_liquidity_5y = stock_macro.get("structural_liquidity_5y", {})
-        regime_confluence_5y = stock_macro.get("regime_confluence_5y", {})
-
-        ltp = payload.get("ltp", 0.0)
-        
-        # Calculate dynamic edge metrics
-        atm_iv_live = payload.get("atm_iv")
-        hv_20d = volatility_edge_52w.get("historical_vol_20d")
-        iv_hv_premium_pct = (atm_iv_live - hv_20d) if (atm_iv_live is not None and hv_20d is not None) else None
-        
-        max_pain_price = payload.get("max_pain_price")
-        max_pain_divergence_pct = ((ltp - max_pain_price) / max_pain_price * 100) if (ltp and max_pain_price) else None
-        
-        poc_price = structural_liquidity_5y.get("volume_poc_price")
-        distance_to_poc_pct = ((ltp - poc_price) / poc_price * 100) if (ltp and poc_price) else None
-        
-        # Calculate Flow Regime
-        cvd = payload.get("cvd", 0.0)
-        obi = payload.get("obi", 0.0)
-        if cvd > 0 and obi > 0.05:
-            flow_regime = "AGGRESSIVE_BUYING"
-        elif cvd < 0 and obi < -0.05:
-            flow_regime = "AGGRESSIVE_SELLING"
-        elif cvd > 0 and obi < -0.05:
-            flow_regime = "ABSORPTION_SELLING"
-        elif cvd < 0 and obi > 0.05:
-            flow_regime = "ABSORPTION_BUYING"
-        else:
-            flow_regime = "NEUTRAL_FLOW"
             
-        # Calculate Volatility Regime & IVR
-        iv_pct_52w = volatility_edge_52w.get("iv_percentile_52w")
-        if iv_pct_52w is not None:
-            if iv_pct_52w > 80:
-                vol_regime = "VOLATILITY_EXPANSION"
-            elif iv_pct_52w < 20:
-                vol_regime = "VOLATILITY_COMPRESSION_SQUEEZE"
-            else:
-                vol_regime = "NORMAL_VOLATILITY"
-        else:
-            vol_regime = None
-            
-        iv_52w_high = volatility_edge_52w.get("iv_52w_high")
-        iv_52w_low = volatility_edge_52w.get("iv_52w_low")
-        if payload.get("ivr") is not None:
-            ivr_live = payload.get("ivr")
-        elif atm_iv_live is not None and iv_52w_high is not None and iv_52w_low is not None and iv_52w_high > iv_52w_low:
-            ivr_live = ((atm_iv_live - iv_52w_low) / (iv_52w_high - iv_52w_low)) * 100
-        else:
-            ivr_live = None
-
-        # Load Strike Migration
-        drift_20d = options_positioning_52w.get("drift_20d_strike_migration")
-
-        # Fetch Catalyst Engine explicitly from Memory Cache
-        catalyst_cache = getattr(TerminalDashboard, "catalyst_cache", {})
-        latest_catalyst = payload.get("latest_catalyst") or catalyst_cache.get(symbol, {})
-
-        import datetime
-        now = datetime.datetime.utcnow() + datetime.timedelta(hours=5, minutes=30)
-        market_state = "LIVE"
-        if now.time() < datetime.time(9, 15) or now.time() > datetime.time(15, 30):
-            market_state = "CLOSED"
-            
-        session_vwap = payload.get("session_vwap", 0.0)
-        price_to_vwap_pct = payload.get("price_to_vwap_pct", 0.0)
-        whale_cvd_live = payload.get("whale_cvd_live", 0)
-        whale_cvd_ema_1h = payload.get("whale_cvd_ema_1h", 0.0)
-        whale_cvd_slope = payload.get("whale_cvd_slope", 0.0)
-        vol_z_score_5m = payload.get("vol_z_score_5m", 0.0)
+        tactical_payload = SemanticTagger.translate_to_llm_payload(payload)
         
-        if market_state == "CLOSED":
-            whale_cvd_live = 0
-            vol_z_score_5m = 0.0
-            
-        if market_state == "CLOSED":
-            divergence_state = "MARKET_CLOSED_SUPPRESSED"
-        elif price_to_vwap_pct < -0.1 and whale_cvd_slope > 0:
-            divergence_state = "HIDDEN_BULLISH_ABSORPTION"
-        elif price_to_vwap_pct > 0.1 and whale_cvd_slope < 0:
-            divergence_state = "HIDDEN_BEARISH_DISTRIBUTION"
-        elif (price_to_vwap_pct > 0.1 and whale_cvd_slope > 0) or (price_to_vwap_pct < -0.1 and whale_cvd_slope < 0):
-            divergence_state = "MOMENTUM_CONFIRMED"
-        else:
-            divergence_state = "EQUILIBRIUM_CHOP"
-
-        current_time_str = now.strftime("%I:%M %p").lower()
-
-        # Build strict hierarchical dictionary
-        tactical_payload = {
-            "market_state": market_state,
-            "symbol": symbol,
-            "timestamp": payload.get("timestamp", int(time.time() * 1000)),
-            "current_time": current_time_str,
-            "ltp": ltp,
-            "prev_close": payload.get("prev_close", 0.0),
-            "high_probability_setup": payload.get("high_probability_setup", False),
-            "user_context": {},
-            "1_live_microstructure": {
-                "order_flow": {
-                    "cvd": cvd,
-                    "obi": obi,
-                    "vol_z_score_5m": vol_z_score_5m,
-                    "flow_regime": flow_regime,
-                    "session_vwap": session_vwap,
-                    "price_to_vwap_pct": price_to_vwap_pct,
-                    "whale_cvd_live": whale_cvd_live,
-                    "whale_cvd_ema_1h": whale_cvd_ema_1h
-                },
-                "mtf_technicals": {
-                    **MTFFeatureExtractor.extract_all(payload, ltp),
-                    "kinetic_divergence": {
-                        "whale_cvd_slope": whale_cvd_slope,
-                        "divergence_state": divergence_state
-                    }
-                }
-            },
-            "2_derivatives_matrix_52w": {
-                "volatility_edge": {
-                    "ivr_live": ivr_live,
-                    "iv_percentile_52w": iv_pct_52w,
-                    "iv_hv_premium_pct": iv_hv_premium_pct,
-                    "regime": vol_regime
-                },
-                "options_positioning": {
-                    "stock_pcr": payload.get("stock_pcr", 1.0),
-                    "pcr_percentile_52w": options_positioning_52w.get("pcr_percentile_52w"),
-                    "oi_volume_shock_52w_z": options_positioning_52w.get("oi_volume_shock_52w_z"),
-                    "max_pain_price": max_pain_price,
-                    "max_pain_divergence_pct": max_pain_divergence_pct,
-                    "drift_20d_strike_migration": drift_20d
-                }
-            },
-            "3_macro_statistical_edge_5y": {
-                "structural_liquidity": {
-                    "volume_poc_price": poc_price,
-                    "value_area_high": structural_liquidity_5y.get("value_area_high"),
-                    "value_area_low": structural_liquidity_5y.get("value_area_low"),
-                    "distance_to_poc_pct": distance_to_poc_pct
-                },
-                "regime_confluence": {
-                    "alpha_vs_nifty_5y": regime_confluence_5y.get("alpha_5y"),
-                    "beta_vs_nifty_5y": regime_confluence_5y.get("beta_5y"),
-                    "macro_trend_alignment": regime_confluence_5y.get("macro_trend_alignment")
-                }
-            },
-            "4_catalyst_engine": {
-                "raw_news": latest_catalyst.get("raw_news", [])
-            }
-        }
+        # Inject Regime
+        from regime_manager import RegimeManagerRegistry
+        manager = RegimeManagerRegistry.get_or_create(symbol)
+        regime_metadata = manager.determine_regime(tactical_payload)
+        tactical_payload["market_regime"] = regime_metadata
         
-        # Inject macro market context for global awareness (Phase 14.7)
-        if hasattr(TerminalDashboard, "global_market_context") and TerminalDashboard.global_market_context:
-            tactical_payload["global_market_context"] = TerminalDashboard.global_market_context
+        # Inject Conviction Score & Math Setup
+        from conviction_scorer import ConvictionScorerRegistry
+        scorer = ConvictionScorerRegistry.get_or_create(symbol)
+        math_setup = scorer.score_setup(tactical_payload, payload)
+        tactical_payload["math_setup"] = math_setup
             
         if user_position:
             # Dynamically calculate how long the position has been held
@@ -247,9 +74,19 @@ class ReasoningEngine:
                 mins = int(time_in_trade_minutes % 60)
                 user_position["duration_held"] = f"{hours}h {mins}m"
                 
+            if "user_context" not in tactical_payload:
+                tactical_payload["user_context"] = {}
             tactical_payload["user_context"]["position"] = user_position
+            
         if user_intent:
+            if "user_context" not in tactical_payload:
+                tactical_payload["user_context"] = {}
             tactical_payload["user_context"]["intent"] = user_intent
+
+        # Inject Decision History for Layer 2 anti-whipsaw context
+        tactical_payload["decision_history"] = list(
+            cls.decision_history.get(symbol, [])
+        )
 
         return sanitize_for_json(tactical_payload)
 
@@ -272,6 +109,15 @@ class ReasoningEngine:
         payload = TerminalDashboard.active_states[target_token]
         payload_copy = cls.build_structured_payload(symbol, payload, user_position, user_intent)
 
+        if payload_copy.get("math_setup", {}).get("setup_rejected", True):
+            # TOKEN SAVING FIREWALL: Do NOT call the LLM API.
+            current_time = payload_copy.get('current_time', 'UNKNOWN')
+            print(f"[{current_time}] SETUP REJECTED BY MATH ENGINE. LLM bypassed to save tokens.")
+            import json
+            rejection_msg = json.dumps(payload_copy.get("math_setup"))
+            cls.latest_reports[symbol] = rejection_msg
+            return rejection_msg
+
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
             error_msg = "Error: GEMINI_API_KEY is missing from the environment."
@@ -284,53 +130,94 @@ class ReasoningEngine:
                 logger.info(f"Triggering LLM Reasoning for {symbol} using {model_name}...")
                 client = genai.Client(api_key=api_key)
                 
-                # Format payload for the prompt
-                user_payload = json.dumps(payload_copy, indent=2)
+                # Format payload for the prompt without indentation to save tokens
+                user_payload = json.dumps(payload_copy, separators=(',', ':'))
                 
                 # Combine system prompt and user payload.
                 default_prompt = (
-                    "ROLE & OPERATIONAL FRAMEWORK:\n"
-                    "You are the Lead Quantitative Execution Strategist. You are an API endpoint that ingests a Phase 6 Hierarchical JSON Telemetry Payload and outputs raw, deterministic execution logic. Your goal is to synthesize 4 data blocks to isolate true institutional positioning from retail traps, optimizing for a 2-6 hour intraday predictive horizon.\n\n"
-                    "CRITICAL CONSTRAINTS & NULL SAFETY:\n"
-                    "1. ABSOLUTE DATA ADHERENCE: Never assume or extrapolate targets. If metrics are null, 0, or state 'MARKET_CLOSED_SUPPRESSED', default to a neutral risk mitigation posture.\n"
-                    "2. MARKET STATE SHIELD: If root level `market_state` is 'CLOSED' or 'AUCTION', immediately output Action: 'Wait' or 'Hold' with a Priority_Score of 0. Do not calculate new trade targets on post-market ghost books.\n\n"
-                    "STEP 1: THE 4-BLOCK MULTI-VARIABLE SYNTHESIS MATRIX\n"
-                    "You must cross-examine the payload fields using the following strict institutional logic:\n\n"
-                    "1. BLOCK 1: LIVE MICROSTRUCTURE & INTENT ANALYSIS\n"
-                    "   - Evaluate `price_to_vwap_pct` against `kinetic_divergence.divergence_state`. If state is 'HIDDEN_BULLISH_ABSORPTION', price drops are artificial liquidity sweeps; you must heavily favor LONG or HOLD positions. If 'HIDDEN_BEARISH_DISTRIBUTION', favor SHORT or CLOSE.\n"
-                    "   - Evaluate `mtf_technicals.elasticity_risk`. If it reads 'OVERSTRETCHED', you face an imminent mean-reversion snapback. You MUST penalize breakout continuation trades. Only authorize mean-reversion setups or 'Wait'.\n"
-                    "   - Read `mtf_technicals.key_geometry`. If LTP is within 0.2% of a reversal neckline (e.g., `double_top`) on high volume (`vol_z_score_5m` > 2), anticipate a structural breakout or immediate rejection.\n\n"
-                    "2. BLOCK 2: DERIVATIVES MATRIX (THE PRICING REALITY)\n"
-                    "   - Analyze `volatility_edge.ivr_live` and `iv_percentile_52w`. High levels (>70) indicate massive premium expansion. Require an overwhelming structural edge to buy into expansion.\n"
-                    "   - Synthesize `options_positioning.max_pain_divergence_pct`. If divergence is > 5% and expiration is approaching, apply a structural gravity factor dragging LTP toward `max_pain_price`.\n\n"
-                    "3. BLOCK 3: MACRO STATISTICAL EDGE (THE CONCRETE WALLS)\n"
-                    "   - Measure LTP against `structural_liquidity.volume_poc_price`. This is an absolute multi-year liquidity wall. Never short directly on top of a 5-year POC floor, and never long directly under a major Value Area High rejection.\n"
-                    "   - Cross-check `regime_confluence.alpha_vs_nifty_5y`. If alpha is highly negative, the stock has persistent secular weakness. Short setups require less volume conviction than long setups.\n\n"
-                    "4. BLOCK 4: CATALYST ENGINE\n"
-                    "   - Parse the `raw_news` array. Map news sentiment directly against Block 1 order flow. If headlines are highly bullish but `whale_cvd_ema_1h` is flat/negative, classify the asset as an active Institutional Distribution Trap and avoid long entries.\n\n"
-                    "STEP 2: DIRECTIONAL CONTEXT & TRADE ACTIONS\n"
-                    "- If `user_context.position` is completely empty: You are hunting entries. Output Action as 'Long', 'Short', or 'Wait'.\n"
-                    "- If `user_context.position` exists: You are managing risk. You are restricted to outputting 'Hold', 'Close', or 'Wait'. Evaluate position PnL using entry price vs LTP and match against local structural stops.\n\n"
-                    "OUTPUT FORMAT:\n"
-                    "Output NOTHING except a raw, valid JSON object that can be directly passed to `json.loads()`. Do not wrap the output in markdown blocks, backticks, or prepend text. Every numeric field must be a float or null, strings must be exact matches.\n\n"
-                    "{\n"
-                    "  \"Action\": \"Short/Long/Hold/Close/Wait\",\n"
-                    "  \"Entry_Target_Price\": <float or null>,\n"
-                    "  \"Stoploss\": <float or null>,\n"
-                    "  \"Exit_Target_Price\": <float or null>,\n"
-                    "  \"Confidence_Score\": <int from 1 to 10>,\n"
-                    "  \"Risk_Percentage\": <float>,\n"
-                    "  \"Priority_Score\": <int from 1 to 10>, // Set > 6 ONLY if a high-conviction asymmetric edge or critical position exit exists right now\n"
-                    "  \"Reason\": \"<string>\" // CRITICAL: Exactly 1-2 dense sentences detailing the precise multi-block convergence (e.g., Whale Absorption vs. Macro Walls) that dictates this action.\n"
-                    "}"
+                    "ROLE: Senior Institutional Portfolio Manager & Chief Risk Officer.\n"
+                    "You are the Layer 2 Qualitative Judge in an autonomous intraday trading pipeline. "
+                    "Layer 1 (the deterministic Math Engine) has already scored, normalized, mapped the volatility regime, "
+                    "and generated a strict mathematical trade proposal in the `math_setup` block.\n\n"
+                    "YOUR EXCLUSIVE FUNCTION: Resolve ambiguity and synthesize contradictions across "
+                    "the semantic data blocks to determine if the Math Engine's proposal survives "
+                    "real-world qualitative scrutiny. You do NOT invent trades or calculate geometry.\n\n"
+                    "PRIME DIRECTIVES:\n\n"
+                    "1. MATH IS BASELINE:\n"
+                    "Treat `math_setup.execution_geometry` (calculated_entry, padded_stop, calculated_target) "
+                    "and `math_setup.expectancy_matrix` (implied_probability, statistical_edge) as ground truth. "
+                    "Do not recalculate. Only modify if a catastrophic qualitative event demands it, "
+                    "and only within the ADJUSTMENT CONSTRAINTS below.\n\n"
+                    "2. HOLISTIC SYNTHESIS (SEEK CONTRADICTIONS):\n"
+                    "Cross-reference the math against qualitative context across these blocks. "
+                    "Your attention weighting MUST follow the active regime:\n\n"
+                    "  BLOCK 1 — `1_live_microstructure`:\n"
+                    "  Is the mathematical breakout supported by organic order flow (flow_divergence_state, "
+                    "volume_regime), or is it a low-volume anomaly? In TREND_EXPANSION this block is paramount. "
+                    "In RANGE_BOUND_CHOP it is misleading noise.\n\n"
+                    "  BLOCK 2 — `2_derivatives_matrix_52w`:\n"
+                    "  Are options markets (volatility_regime_state, pcr_regime) pricing in a volatility crush "
+                    "or expansion that invalidates the mathematical target? In RANGE_BOUND_CHOP and "
+                    "MEAN_REVERSION_IMMINENT this block is dominant.\n\n"
+                    "  BLOCK 3 — `3_local_structural_edge_20d`:\n"
+                    "  Are the math engine's stop and target anchored to genuine structural walls? "
+                    "If structural_proximity_state.state is TEST_IMMINENT at a Value Area boundary, "
+                    "the math's geometry may be about to get invalidated. Cross-check camarilla_pivots "
+                    "against execution_geometry boundaries. In PRE_BREAKOUT_SQUEEZE this block is critical.\n\n"
+                    "  BLOCK 4 — `4_catalyst_engine`:\n"
+                    "  Does the macroeconomic narrative align with the mathematical momentum? "
+                    "If math signals LONG but catalyst is catastrophic bearish, you MUST ABORT. "
+                    "If raw_news is empty, treat catalyst as NEUTRAL — do not infer from absence.\n\n"
+                    "  BLOCK 5 — `market_regime`:\n"
+                    "  Is the math proposal coherent with the active regime? A TREND_EXPANSION setup in "
+                    "RANGE_BOUND_CHOP demands extreme scrutiny. If just_transitioned is true, the math scores "
+                    "may reflect the OLD regime — demand extra confluence before CONFIRMing. "
+                    "session_phase provides time-of-day context (OPENING_RANGE, LUNCH_CHOP, POWER_HOUR).\n\n"
+                    "  BLOCK 6 — `decision_history`:\n"
+                    "  If this array contains previous verdicts, check for whipsaw. If you are reversing "
+                    "a directional call from the last 2 entries, demand overwhelming multi-block evidence. "
+                    "If the array is empty, this is a fresh session — proceed normally.\n\n"
+                    "3. USER CONTEXT RESOLUTION:\n"
+                    "Read `user_context`. If user holds a LONG position and math proposes SHORT, "
+                    "your action_directive must reflect portfolio management: CLOSE_EXISTING or "
+                    "REVERSE_POSITION — never open a conflicting position silently. "
+                    "If user_context is empty, treat user as IDLE with no positions.\n\n"
+                    "4. ADJUSTMENT CONSTRAINTS:\n"
+                    "If verdict is ADJUST, you may ONLY modify risk_parameters within these bounds:\n"
+                    "  - final_stop: Widen by at most 1x ATR(15m) or tighten by at most 0.5x ATR(15m) "
+                    "from math_setup's padded_stop.\n"
+                    "  - final_target: Reduce by at most 0.5x ATR(15m).\n"
+                    "  - final_entry: Must remain within ±0.3% of math_setup's calculated_entry.\n"
+                    "  - Any adjustment MUST be justified in institutional_rationale by citing the "
+                    "specific qualitative signal.\n\n"
+                    "5. NULL SAFETY:\n"
+                    "  - If global_market_context is null, skip macro synthesis.\n"
+                    "  - If any block contains null/0 values, default to NEUTRAL for that block.\n"
+                    "  - If market_state is CLOSED or AUCTION, immediately output verdict ABORT "
+                    "with action_directive PASS.\n\n"
+                    "6. RATIONALE:\n"
+                    "institutional_rationale must be exactly 2-3 sentences of dense, institutional logic. "
+                    "No definitions. State which blocks agree, which contradict, and why one dominates.\n\n"
+                    "OUTPUT: Emit ONLY a raw JSON object passable to json.loads(). "
+                    "No markdown, no backticks, no commentary.\n\n"
+                    "{\"execution_ticket\":{"
+                    "\"verdict\":\"CONFIRM|DEFER|ABORT|ADJUST\","
+                    "\"action_directive\":\"EXECUTE_LONG|EXECUTE_SHORT|PASS|CLOSE_EXISTING|REVERSE_POSITION\","
+                    "\"conviction_modifier\":0.0,"
+                    "\"urgency\":\"IMMEDIATE|LIMIT_ONLY|WAIT_FOR_PULLBACK\","
+                    "\"regime_echo\":\"<active regime string for audit>\","
+                    "\"institutional_rationale\":\"<2-3 dense sentences>\","
+                    "\"risk_parameters\":{"
+                    "\"final_entry\":0.0,"
+                    "\"final_stop\":0.0,"
+                    "\"final_target\":0.0"
+                    "}}}"
                 )
                 
-                strict_prompt = default_prompt + "\n\nCRITICAL: You function purely as a machine-readable data serialization engine. No markdown blocks, no footnotes. Just pure JSON output."
+                strict_prompt = default_prompt + "\n\nCRITICAL: You are a machine-readable API endpoint. Output ONLY the JSON object. No markdown blocks, no footnotes, no preamble."
                 
                 if prompt_override:
-                    output_format = "OUTPUT FORMAT:\n" + strict_prompt.split("OUTPUT FORMAT:\n")[1]
-                    system_prompt = prompt_override + "\n\n" + output_format
-                    strict_prompt = system_prompt
+                    strict_prompt = prompt_override + "\n\n" + strict_prompt
                 
                 full_prompt = f"SYSTEM INSTRUCTION:\n{strict_prompt}\n\nDATA PAYLOAD:\n{user_payload}"
                 
@@ -354,25 +241,38 @@ class ReasoningEngine:
                 # Phase 9: Parse and Trigger Alerts
                 try:
                     data = json.loads(report_text)
-                    verdict = data.get("Action", "Wait").strip()
-                    score = int(data.get("Priority_Score", 0))
+                    ticket = data.get("execution_ticket", {})
+                    verdict = ticket.get("verdict", "UNKNOWN")
+                    action = ticket.get("action_directive", "UNKNOWN")
                     
-                    actionable_keywords = ["Long", "Short", "Close"]
-                    if score >= 7 and any(kw.lower() in verdict.lower() for kw in actionable_keywords):
+                    # Record into decision_history deque
+                    cls.decision_history.setdefault(
+                        symbol, collections.deque(maxlen=5)
+                    ).append({
+                        "time": payload_copy.get("current_time", ""),
+                        "verdict": verdict,
+                        "action": action,
+                        "composite_score": payload_copy.get("math_setup", {}).get("composite_score"),
+                        "ltp": payload_copy.get("ltp")
+                    })
+                    
+                    actionable_directives = ["EXECUTE_LONG", "EXECUTE_SHORT", "CLOSE_EXISTING", "REVERSE_POSITION"]
+                    if verdict in ("CONFIRM", "ADJUST") and action in actionable_directives:
                         cls.alert_counter += 1
                         cls.global_alerts.insert(0, {
                             "id": cls.alert_counter,
                             "timestamp": time.time(),
                             "symbol": symbol,
                             "verdict": verdict,
-                            "score": score,
+                            "action": action,
+                            "rationale": ticket.get("institutional_rationale", ""),
                             "read": False
                         })
                         # Cap at 50 alerts in history to prevent memory leak
                         if len(cls.global_alerts) > 50:
                             cls.global_alerts.pop()
                             
-                        logger.warning(f"🚨 SYSTEM ALERT TRIGGERED for {symbol}: {verdict} (Score: {score})")
+                        logger.warning(f"🚨 SYSTEM ALERT TRIGGERED for {symbol}: {verdict} → {action}")
                         
                 except json.JSONDecodeError as e:
                     logger.error(f"Failed to parse LLM JSON output for {symbol}: {e}")
