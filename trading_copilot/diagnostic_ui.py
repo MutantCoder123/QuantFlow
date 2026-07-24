@@ -12,6 +12,7 @@ class TerminalDashboard:
     active_states = {}
     global_market_context = None
     dashboard_intraday_plays = None
+    catalyst_cache = {}
 
     @classmethod
     def update_state(cls, token, payload):

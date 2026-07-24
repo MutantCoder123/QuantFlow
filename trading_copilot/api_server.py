@@ -45,7 +45,8 @@ async def poll_upstox():
                     if resp.status == 200:
                         data = await resp.json()
                         local_active_states = data.get("active_states", {})
-                        # Option: We can let api_server manage its own watchlist from csv
+                        from diagnostic_ui import TerminalDashboard
+                        TerminalDashboard.active_states = local_active_states
             except: pass
             await asyncio.sleep(0.5)
 
@@ -143,8 +144,43 @@ class SavePositionRequest(BaseModel):
 
 @app.post("/api/reasoning/position/save")
 async def save_position_api(req: SavePositionRequest):
-    ReasoningEngine.user_positions[req.symbol] = req.user_position
+    norm = ReasoningEngine._normalize_symbol(req.symbol)
+    ReasoningEngine.user_positions[norm] = req.user_position
     return {"status": "success"}
+
+class SyncPositionsRequest(BaseModel):
+    positions: dict
+
+@app.post("/api/reasoning/position/sync_all")
+async def sync_all_positions_api(req: SyncPositionsRequest):
+    for sym, pos in req.positions.items():
+        norm = ReasoningEngine._normalize_symbol(sym)
+        ReasoningEngine.user_positions[norm] = pos
+    return {"status": "success"}
+
+@app.get("/api/performance/dashboard")
+async def get_performance_dashboard():
+    try:
+        from performance_analyzer import PerformanceAnalyzer
+        return {"status": "success", "data": PerformanceAnalyzer.compute_dashboard()}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/performance/regime")
+async def get_regime_accuracy():
+    try:
+        from performance_analyzer import PerformanceAnalyzer
+        return {"status": "success", "data": PerformanceAnalyzer.compute_regime_accuracy()}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/performance/symbols")
+async def get_symbol_accuracy():
+    try:
+        from performance_analyzer import PerformanceAnalyzer
+        return {"status": "success", "data": PerformanceAnalyzer.compute_symbol_accuracy()}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 @app.post("/api/reasoning/instant/{symbol}")
 async def instant_analyze(symbol: str, req: InstantAnalyzeRequest):
@@ -155,7 +191,9 @@ async def instant_analyze(symbol: str, req: InstantAnalyzeRequest):
 @app.post("/api/reasoning/loop/start")
 async def start_analysis_loop(req: LoopStartRequest):
     TerminalDashboard.active_states = local_active_states
-    ReasoningEngine.user_positions[req.symbol] = req.user_position
+    norm = ReasoningEngine._normalize_symbol(req.symbol)
+    if req.user_position is not None:
+        ReasoningEngine.user_positions[norm] = req.user_position
     ReasoningEngine.set_llm_toggle(req.symbol, True, req.user_position)
     return {"status": "success"}
 
@@ -164,14 +202,27 @@ async def stop_analysis_loop(req: LoopStopRequest):
     ReasoningEngine.set_llm_toggle(req.symbol, False)
     return {"status": "success"}
 
+@app.get("/api/reasoning/debug/toggles")
+async def debug_toggles():
+    return {
+        "llm_enabled": ReasoningEngine.llm_enabled,
+        "active_loops": list(ReasoningEngine.active_loops.keys()),
+        "user_positions_keys": list(ReasoningEngine.user_positions.keys()),
+    }
+
 @app.get("/api/reasoning/all_reports")
 async def get_all_reports():
-    return {"status": "success", "reports": ReasoningEngine.latest_reports}
-
+    return {
+        "status": "success", 
+        "reports": ReasoningEngine.latest_reports,
+        "llm_trigger_count": getattr(ReasoningEngine, "llm_trigger_count", 0)
+    }
 @app.get("/api/reasoning/report/{symbol}")
 async def get_latest_report(symbol: str):
-    report = ReasoningEngine.latest_reports.get(symbol, "No report generated yet.")
-    return {"status": "success", "report": report, "is_active": symbol in ReasoningEngine.active_loops}
+    norm = ReasoningEngine._normalize_symbol(symbol)
+    report = ReasoningEngine.latest_reports.get(norm, "No report generated yet.")
+    is_active = ReasoningEngine.llm_enabled.get(norm, False)
+    return {"status": "success", "report": report, "is_active": is_active}
 
 class NewsInstantRequest(BaseModel): model: str = "gemini-2.5-flash"
 class NewsStartRequest(BaseModel): interval: int = 120; model: str = "gemini-2.5-flash"
@@ -307,6 +358,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 if symbol == "Nifty 50": continue
                 
                 payload_copy = dict(payload)
+                from pipeline_guard import is_market_open
+                payload_copy["market_state"] = "LIVE" if is_market_open() else "CLOSED"
                 payload_copy["symbol"] = symbol
                 
                 # Fetch catalyst from News feed state

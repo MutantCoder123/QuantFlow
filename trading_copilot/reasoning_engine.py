@@ -4,6 +4,7 @@ import json
 import logging
 import re
 import time
+import datetime
 import collections
 from google import genai
 from diagnostic_ui import TerminalDashboard
@@ -30,6 +31,19 @@ class ReasoningEngine:
     # Layer 2: Decision History (anti-whipsaw temporal context)
     decision_history = {}
 
+    # State Machine Memory to prevent redundant LLM triggers
+    last_math_advice = {}
+    advice_debounce = {}
+    llm_trigger_count = 0
+
+    @staticmethod
+    def _normalize_symbol(raw: str) -> str:
+        """Extract the bare stock name from any key format.
+        'NSE_EQ|SAIL-EQ' → 'SAIL', 'NSE_EQ|SAIL' → 'SAIL', 'SAIL' → 'SAIL'"""
+        s = raw.split('|')[-1]    # strip exchange prefix
+        s = s.split('-')[0]        # strip -EQ suffix
+        return s
+
     @classmethod
     def _get_token_for_symbol(cls, symbol: str):
         from api_server import TerminalDashboard
@@ -47,7 +61,17 @@ class ReasoningEngine:
         import time
         
         if user_position is None:
-            user_position = cls.user_positions.get(symbol)
+            user_position = cls.user_positions.get(cls._normalize_symbol(symbol))
+            
+        # Inject Global Market Context & Catalyst into flat payload BEFORE translation
+        from diagnostic_ui import TerminalDashboard
+        if TerminalDashboard.global_market_context:
+            payload["global_market_context"] = TerminalDashboard.global_market_context
+            
+        clean_sym = symbol.split('|')[-1]
+        catalyst = TerminalDashboard.catalyst_cache.get(clean_sym)
+        if catalyst and "raw_news" in catalyst:
+            payload["raw_news"] = catalyst["raw_news"]
             
         tactical_payload = SemanticTagger.translate_to_llm_payload(payload)
         
@@ -78,6 +102,10 @@ class ReasoningEngine:
                 tactical_payload["user_context"] = {}
             tactical_payload["user_context"]["position"] = user_position
             
+            # Strip geometry to prevent the LLM and UI from showing new entry suggestions during an active trade
+            tactical_payload["math_setup"]["execution_geometry"] = None
+            tactical_payload["math_setup"]["expectancy_matrix"] = None
+            
         if user_intent:
             if "user_context" not in tactical_payload:
                 tactical_payload["user_context"] = {}
@@ -91,7 +119,7 @@ class ReasoningEngine:
         return sanitize_for_json(tactical_payload)
 
     @classmethod
-    async def analyze_stock(cls, symbol: str, model_name: str = "gemini-2.5-flash", prompt_override: str = None, user_position: dict = None, user_intent: dict = None) -> str:
+    async def analyze_stock(cls, symbol: str, model_name: str = "gemini-2.5-flash", prompt_override: str = None, user_position: dict = None, user_intent: dict = None, is_autonomous: bool = False, precomputed_payload: dict = None) -> str:
         target_token = None
         if symbol in TerminalDashboard.active_states:
             target_token = symbol
@@ -103,30 +131,47 @@ class ReasoningEngine:
                     
         if not target_token:
             msg = f"No active live data for {symbol}."
-            cls.latest_reports[symbol] = msg
+            cls.latest_reports[cls._normalize_symbol(symbol)] = msg
             return msg
 
-        payload = TerminalDashboard.active_states[target_token]
-        payload_copy = cls.build_structured_payload(symbol, payload, user_position, user_intent)
+        if precomputed_payload:
+            payload_copy = precomputed_payload
+        else:
+            payload = TerminalDashboard.active_states[target_token]
+            payload_copy = cls.build_structured_payload(symbol, payload, user_position, user_intent)
 
         if payload_copy.get("math_setup", {}).get("setup_rejected", True):
             # TOKEN SAVING FIREWALL: Do NOT call the LLM API.
             current_time = payload_copy.get('current_time', 'UNKNOWN')
             print(f"[{current_time}] SETUP REJECTED BY MATH ENGINE. LLM bypassed to save tokens.")
-            import json
-            rejection_msg = json.dumps(payload_copy.get("math_setup"))
-            cls.latest_reports[symbol] = rejection_msg
+            math_setup = payload_copy.get("math_setup", {})
+            ui_data = {
+                "Action": math_setup.get("directional_bias", "Wait"),
+                "Reason": "Math Engine Rejection: " + math_setup.get("rejection_reason", "LLM bypassed to save tokens."),
+                "Entry_Target_Price": 0.0,
+                "Stoploss": 0.0,
+                "Exit_Target_Price": 0.0,
+                "Confidence_Score": 0,
+                "Priority_Score": 0,
+                "Status_Tag": "",
+                "math_rejection": math_setup.get("rejection_reason", "UNKNOWN"),
+                "llm_authorized": False,
+                "Generated_Time": current_time
+            }
+            rejection_msg = json.dumps(ui_data, indent=2)
+            cls.latest_reports[cls._normalize_symbol(symbol)] = rejection_msg
             return rejection_msg
 
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
             error_msg = "Error: GEMINI_API_KEY is missing from the environment."
-            cls.latest_reports[symbol] = error_msg
+            cls.latest_reports[cls._normalize_symbol(symbol)] = error_msg
             return error_msg
 
         # We lock this exact API call so at most 3 execute at the same time globally
         async with cls.llm_semaphore:
             try:
+                cls.llm_trigger_count += 1
                 logger.info(f"Triggering LLM Reasoning for {symbol} using {model_name}...")
                 client = genai.Client(api_key=api_key)
                 
@@ -181,6 +226,9 @@ class ReasoningEngine:
                     "Read `user_context`. If user holds a LONG position and math proposes SHORT, "
                     "your action_directive must reflect portfolio management: CLOSE_EXISTING or "
                     "REVERSE_POSITION — never open a conflicting position silently. "
+                    "CRITICAL: If user holds a LONG position and math proposes LONG (or user holds SHORT and math proposes SHORT), "
+                    "your action_directive MUST be HOLD. Do NOT output EXECUTE_LONG or EXECUTE_SHORT for an already active position. "
+                    "If user holds an active position, `execution_geometry` will intentionally be null. Do NOT abort due to missing geometry. "
                     "If user_context is empty, treat user as IDLE with no positions.\n\n"
                     "4. ADJUSTMENT CONSTRAINTS:\n"
                     "If verdict is ADJUST, you may ONLY modify risk_parameters within these bounds:\n"
@@ -214,10 +262,29 @@ class ReasoningEngine:
                     "}}}"
                 )
                 
-                strict_prompt = default_prompt + "\n\nCRITICAL: You are a machine-readable API endpoint. Output ONLY the JSON object. No markdown blocks, no footnotes, no preamble."
+                strict_prompt = default_prompt + "\n\nCRITICAL: You are a machine-readable API endpoint. Output ONLY the JSON object. No markdown blocks, no footnotes, no preamble. NEVER use double quotes inside string values (use single quotes instead)."
                 
                 if prompt_override:
                     strict_prompt = prompt_override + "\n\n" + strict_prompt
+                    
+                # Phase 10: Inject feedback calibration into prompt
+                try:
+                    from performance_analyzer import PerformanceAnalyzer
+                    feedback = PerformanceAnalyzer.get_feedback_payload(last_n_days=14)
+                    if feedback and feedback.get("total_signals", 0) >= 20:
+                        feedback_block = (
+                            f"\n\nHISTORICAL CALIBRATION (last 14 days, {feedback['total_signals']} signals):\n"
+                            f"- Overall 30m directional accuracy: {feedback['win_rate_30m']}%\n"
+                            f"- Overall 60m directional accuracy: {feedback['win_rate_60m']}%\n"
+                            f"- Profit factor: {feedback['profit_factor']}\n"
+                            f"- Best regime: {feedback['best_regime']} ({feedback['best_regime_wr']}% win rate)\n"
+                            f"- Worst regime: {feedback['worst_regime']} ({feedback['worst_regime_wr']}% win rate)\n"
+                            "Calibrate your conviction_modifier accordingly. Be MORE aggressive in regimes "
+                            "where historical accuracy is high, and MORE cautious where it is low."
+                        )
+                        strict_prompt += feedback_block
+                except Exception:
+                    pass
                 
                 full_prompt = f"SYSTEM INSTRUCTION:\n{strict_prompt}\n\nDATA PAYLOAD:\n{user_payload}"
                 
@@ -236,14 +303,68 @@ class ReasoningEngine:
                     report_text = report_text[:-3]
                 report_text = report_text.strip()
                 
-                cls.latest_reports[symbol] = report_text
-                
                 # Phase 9: Parse and Trigger Alerts
                 try:
                     data = json.loads(report_text)
+                except json.JSONDecodeError as jde:
+                    import re
+                    # Fallback 1: Strip extra text (e.g. trailing commentary) by extracting outermost braces
+                    json_match = re.search(r'(\{.*\})', report_text, re.DOTALL)
+                    if json_match:
+                        clean_json = json_match.group(1)
+                        try:
+                            data = json.loads(clean_json)
+                        except json.JSONDecodeError as nested_jde:
+                            # Fallback 2: fix unescaped double quotes inside institutional_rationale
+                            rationale_match = re.search(r'"institutional_rationale"\s*:\s*"(.*?)"\s*,\s*"risk_parameters"', clean_json, re.DOTALL)
+                            if rationale_match:
+                                bad_rationale = rationale_match.group(1)
+                                good_rationale = bad_rationale.replace('"', "'")
+                                clean_json = clean_json[:rationale_match.start(1)] + good_rationale + clean_json[rationale_match.end(1):]
+                                data = json.loads(clean_json)
+                            else:
+                                raise nested_jde
+                    else:
+                        raise jde
+                except Exception as e:
+                    raise e
+                    
+                try:
                     ticket = data.get("execution_ticket", {})
                     verdict = ticket.get("verdict", "UNKNOWN")
                     action = ticket.get("action_directive", "UNKNOWN")
+                    
+                    # Convert LLM execution ticket back to UI-compatible format
+                    ui_action = "Wait"
+                    if "LONG" in action: ui_action = "Long"
+                    elif "SHORT" in action: ui_action = "Short"
+                    elif "CLOSE" in action: ui_action = "Close"
+                    elif "HOLD" in action: ui_action = "Hold"
+                    
+                    # Calculate priority & confidence mirroring Gatekeeper math
+                    math_setup = payload_copy.get("math_setup") or {}
+                    composite_score = math_setup.get("composite_score", 0.0)
+                    
+                    expectancy_matrix = math_setup.get("expectancy_matrix") or {}
+                    stat_edge = expectancy_matrix.get("statistical_edge", 0.0)
+                    
+                    calc_priority = min(10, int(abs(composite_score) * 20))
+                    calc_confidence = min(10, int(stat_edge * 33)) if stat_edge > 0 else 0
+                    
+                    risk_params = ticket.get("risk_parameters") or {}
+                    ui_data = {
+                        "Action": ui_action,
+                        "Reason": ticket.get("institutional_rationale", verdict),
+                        "Entry_Target_Price": risk_params.get("final_entry", 0.0),
+                        "Stoploss": risk_params.get("final_stop", 0.0),
+                        "Exit_Target_Price": risk_params.get("final_target", 0.0),
+                        "Confidence_Score": calc_confidence,
+                        "Priority_Score": calc_priority,
+                        "Status_Tag": "LLM_ANALYZED",
+                        "llm_authorized": True,
+                        "Generated_Time": payload_copy.get("current_time", "UNKNOWN")
+                    }
+                    cls.latest_reports[cls._normalize_symbol(symbol)] = json.dumps(ui_data, indent=2)
                     
                     # Record into decision_history deque
                     cls.decision_history.setdefault(
@@ -258,6 +379,17 @@ class ReasoningEngine:
                     
                     actionable_directives = ["EXECUTE_LONG", "EXECUTE_SHORT", "CLOSE_EXISTING", "REVERSE_POSITION"]
                     if verdict in ("CONFIRM", "ADJUST") and action in actionable_directives:
+                        # Phase 10: Record to Signal Ledger for outcome tracking
+                        if is_autonomous:
+                            from signal_ledger import SignalLedger
+                            SignalLedger.record_signal(
+                                symbol=symbol,
+                                execution_ticket=ticket,
+                                math_setup=payload_copy.get("math_setup", {}),
+                                market_regime=payload_copy.get("market_regime", {}),
+                                ltp=payload_copy.get("ltp", 0.0)
+                            )
+                            
                         cls.alert_counter += 1
                         cls.global_alerts.insert(0, {
                             "id": cls.alert_counter,
@@ -279,13 +411,12 @@ class ReasoningEngine:
                     logger.error(f"Raw output: {report_text}")
                 
                 logger.info(f"Successfully generated reasoning report for {symbol}.")
-                cls.latest_reports[symbol] = report_text
                 return report_text
                 
             except Exception as e:
                 logger.error(f"Reasoning Engine API Exception for {symbol}: {e}")
                 error_msg = f"Error generating report: {str(e)}"
-                cls.latest_reports[symbol] = error_msg
+                cls.latest_reports[cls._normalize_symbol(symbol)] = error_msg
                 return error_msg
 
     llm_enabled = {} # symbol -> bool
@@ -297,41 +428,100 @@ class ReasoningEngine:
         import json
         from diagnostic_ui import TerminalDashboard
         
+        from signal_ledger import SignalLedger
+        asyncio.create_task(SignalLedger.start_outcome_resolver())
+        
         while True:
             for symbol, payload in list(TerminalDashboard.active_states.items()):
-                token = payload.get('token', symbol)
-                sym = payload.get('symbol', symbol)
+                token = payload.get('token') or symbol
+                sym = payload.get('symbol') or symbol
                 
-                ltp = payload.get("ltp", 0.0)
-                current_pos = cls.user_positions.get(sym, {})
-                
-                try:
-                    gatekeeper_res = IntradayGatekeeper.evaluate(payload, {"position": current_pos} if current_pos else {}, ltp)
+                # Skip invalid symbols or broad market indices from individual actionable analysis
+                if not sym or "Nifty 50" in sym or "Nifty Bank" in sym:
+                    continue
                     
-                    if gatekeeper_res["llm_authorized"]:
-                        if cls.llm_enabled.get(sym):
-                            # Authorized AND toggled ON -> run LLM!
-                            # Avoid parallel duplicate tasks for the same symbol
-                            if sym not in cls.active_loops:
-                                cls.active_loops[sym] = True
-                                
-                                async def run_and_unlock():
-                                    try:
-                                        await cls.analyze_stock(sym, "gemini-2.5-flash", "", user_position=current_pos)
-                                    finally:
-                                        if sym in cls.active_loops:
-                                            del cls.active_loops[sym]
-                                            
-                                asyncio.create_task(run_and_unlock())
-                        else:
-                            # Authorized BUT toggled OFF -> add Tag and show in UI
-                            gatekeeper_res["Status_Tag"] = "REQUIRED LLM ANALYZE"
-                            gatekeeper_res["Reason"] = "Local Gatekeeper authorized LLM, but toggle is OFF."
-                            cls.latest_reports[sym] = json.dumps(gatekeeper_res, indent=2)
+                ltp = payload.get("ltp", 0.0)
+                norm_sym = cls._normalize_symbol(sym)
+                # Use canonical normalized key for position lookup
+                current_pos = cls.user_positions.get(norm_sym)
+                if current_pos is None:
+                    current_pos = {}
+                try:
+                    # ---- NEW: Run Math Engine FIRST for every symbol ----
+                    structured = cls.build_structured_payload(sym, payload, current_pos)
+                    
+                    # ---- Pass structured payload to Gatekeeper V2 ----
+                    gatekeeper_res = IntradayGatekeeper.evaluate(
+                        structured_payload=structured,
+                        raw_payload=payload,
+                        user_context={"position": current_pos} if current_pos else {},
+                        ltp=ltp
+                    )
+                    
+                    has_pos = bool(current_pos)
+                    current_advice = {
+                        "action": gatekeeper_res.get("Action", ""),
+                        "auth": gatekeeper_res.get("llm_authorized", False),
+                        "has_pos": has_pos
+                    }
+                    
+                    # --- DEBOUNCE LOGIC ---
+                    debounce_record = cls.advice_debounce.setdefault(norm_sym, {"advice": current_advice, "count": 0})
+                    if debounce_record["advice"] == current_advice:
+                        debounce_record["count"] += 1
                     else:
-                        # Local gatekeeper Action
-                        gatekeeper_res["Reason"] = "Local Gatekeeper active. LLM analysis suppressed to save tokens."
-                        cls.latest_reports[sym] = json.dumps(gatekeeper_res, indent=2)
+                        cls.advice_debounce[norm_sym] = {"advice": current_advice, "count": 1}
+                        
+                    # Require 3 consecutive ticks of stability to accept state change
+                    if cls.advice_debounce[norm_sym]["count"] < 3:
+                        continue
+                    # ----------------------
+                    
+                    last_advice = cls.last_math_advice.get(norm_sym)
+                    
+                    if current_advice != last_advice:
+                        cls.last_math_advice[norm_sym] = current_advice
+                        
+                        if gatekeeper_res["llm_authorized"]:
+                            if cls.llm_enabled.get(norm_sym):
+                                # Authorized AND toggled ON -> run LLM!
+                                
+                                # Publish the pending state to UI immediately
+                                gatekeeper_res["Status_Tag"] = "PENDING_LLM"
+                                gatekeeper_res["Generated_Time"] = payload.get("current_time", "UNKNOWN")
+                                cls.latest_reports[norm_sym] = json.dumps(gatekeeper_res, indent=2)
+                                
+                                # Avoid parallel duplicate tasks for the same symbol
+                                if norm_sym not in cls.active_loops:
+                                    cls.active_loops[norm_sym] = True
+                                    
+                                    # ---- FIX: Capture by value ----
+                                    async def run_and_unlock(s=norm_sym, p=current_pos, sp=structured):
+                                        try:
+                                            await cls.analyze_stock(
+                                                s, "gemini-2.5-flash", "", 
+                                                user_position=p, 
+                                                is_autonomous=True,
+                                                precomputed_payload=sp
+                                            )
+                                        finally:
+                                            cls.active_loops.pop(s, None)
+                                                
+                                    asyncio.create_task(run_and_unlock())
+                            else:
+                                # Authorized BUT toggled OFF -> add Tag and show in UI
+                                gatekeeper_res["Status_Tag"] = "REQUIRED LLM ANALYZE"
+                                gatekeeper_res["Reason"] = "Local Gatekeeper authorized LLM, but toggle is OFF."
+                                gatekeeper_res["Generated_Time"] = payload.get("current_time", "UNKNOWN")
+                                cls.latest_reports[norm_sym] = json.dumps(gatekeeper_res, indent=2)
+                        else:
+                            # Local gatekeeper Action
+                            gatekeeper_res["Reason"] = gatekeeper_res.get("math_rejection", "Local Gatekeeper active. LLM analysis suppressed.")
+                            gatekeeper_res["Generated_Time"] = payload.get("current_time", "UNKNOWN")
+                            cls.latest_reports[norm_sym] = json.dumps(gatekeeper_res, indent=2)
+                    else:
+                        # State unchanged. Preserve UI card, do nothing.
+                        pass
                         
                 except Exception as e:
                     logger.error(f"Gatekeeper error for {sym}: {e}")
@@ -340,26 +530,24 @@ class ReasoningEngine:
 
     @classmethod
     def set_llm_toggle(cls, symbol: str, enabled: bool, user_position: dict = None):
-        cls.llm_enabled[symbol] = enabled
+        norm = cls._normalize_symbol(symbol)
+        cls.llm_enabled[norm] = enabled
+
         if user_position is not None:
-            cls.user_positions[symbol] = user_position
-        if enabled:
-            cls.active_loops[symbol] = True
-        else:
-            if symbol in cls.active_loops:
-                del cls.active_loops[symbol]
+            cls.user_positions[norm] = user_position
 
     @classmethod
     async def stop_analysis_loop(cls, symbol: str):
-        loop_data = cls.active_loops.get(symbol)
+        norm = cls._normalize_symbol(symbol)
+        loop_data = cls.active_loops.get(norm)
         if loop_data:
             task = loop_data.get("task") if isinstance(loop_data, dict) else loop_data
             if task and not task.done():
                 task.cancel()
-                logger.info(f"Stopped background reasoning loop for {symbol}")
+                logger.info(f"Stopped background reasoning loop for {norm}")
         
-        if symbol in cls.active_loops:
-            del cls.active_loops[symbol]
+        if norm in cls.active_loops:
+            del cls.active_loops[norm]
         return True
 
     @classmethod
@@ -398,9 +586,8 @@ class ReasoningEngine:
             active_states = getattr(TerminalDashboard, "active_states", {})
             for pick in top_picks:
                 token = pick["token"]
-                derivatives = OptionsAnalyzer.stock_derivatives_state.get(token, {})
                 state = active_states.get(token, {})
-                pick["pcr"] = derivatives.get("stock_pcr", "N/A")
+                pick["microstructure_available"] = token in active_states
                 pick["obi"] = state.get("obi", "N/A")
                 pick["cvd"] = state.get("cvd", "N/A")
                 enriched_picks.append(pick)
@@ -416,9 +603,11 @@ class ReasoningEngine:
             system_prompt = (
                 "You are an elite Quantitative Systems Architect acting as a Market-Wide Discoverer. "
                 "Analyze this multi-factor matrix containing the Top 20 mathematically scored 'Screener 0' candidates, "
-                "along with their technical metrics (OBI, CVD, PCR, IVR), deep news summaries, and the current global macroeconomic context.\n"
+                "along with their technical metrics (OBI, CVD, structural levels), deep news summaries, and the current global macroeconomic context.\n"
+                "The candidates have already been mathematically scored (magnitude_score) and assigned a directional bias (LONG/SHORT) by the Math Engine.\n"
                 "Your objective is to generate an actionable Discovery Playbook for the current session. "
-"You MUST actively identify and suggest BOTH Bullish (Long) and Bearish (Short) trade setups, prioritizing maximum profit potential regardless of market direction. "
+                "You MUST act as a narrative synthesizer. Do NOT override the provided 'directional_bias' of a candidate. "
+                "Instead, explain WHY the math engine selected this bias by correlating the news and technical metrics.\n"
                 "The output MUST be a strict JSON object with the following schema:\n"
                 "{\n"
                 "  \"macro_weather\": \"Your assessment of the global market bias based on the macro context.\",\n"
@@ -427,9 +616,9 @@ class ReasoningEngine:
                 "      \"symbol\": \"STOCK_SYMBOL\",\n"
                 "      \"rationale\": \"Precise reason this stock was selected, correlating its technical score and setup with the macro/thematic news.\",\n"
                 "      \"strategy\": \"Execution strategy (e.g., 'Buy only if price holds above VWAP')\",\n"
-                "      \"entry\": \"Suggested entry price or zone\",\n"
-                "      \"target\": \"Take profit target\",\n"
-                "      \"stoploss\": \"Stop loss level\",\n"
+                "      \"entry\": 1425.50, // MUST BE A FLOAT (e.g., derived from Camarilla H3 or prev_day_high)\n"
+                "      \"target\": 1472.00, // MUST BE A FLOAT\n"
+                "      \"stoploss\": 1398.00, // MUST BE A FLOAT\n"
                 "      \"confidence\": \"High/Medium/Low\",\n"
                 "      \"risk\": \"High/Medium/Low\",\n"
                 "      \"token\": \"INSTRUMENT_TOKEN\",\n"
@@ -459,6 +648,9 @@ class ReasoningEngine:
                 text = text[:-3]
                 
             playbook_json = json.loads(text)
+            playbook_json["generated_at"] = datetime.datetime.now().isoformat()
+            playbook_json["session_date"] = datetime.datetime.now().strftime("%Y-%m-%d")
+            
             TerminalDashboard.dashboard_intraday_plays = playbook_json
             
             try:

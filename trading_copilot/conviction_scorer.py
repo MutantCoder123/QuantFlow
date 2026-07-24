@@ -3,6 +3,42 @@ class ConvictionScorer:
         self.previous_bias = "NEUTRAL"
         self.polarity_flips_today = 0
 
+    def _get_adaptive_weights(self, regime: str) -> dict:
+        base_weights = {
+            "TREND_EXPANSION": {"w_micro": 0.45, "w_struct": 0.15, "w_deriv": 0.15, "w_cat": 0.25},
+            "VOLATILITY_EXPANSION": {"w_micro": 0.50, "w_struct": 0.30, "w_deriv": 0.10, "w_cat": 0.10},
+            "RANGE_BOUND_CHOP": {"w_micro": 0.20, "w_struct": 0.30, "w_deriv": 0.40, "w_cat": 0.10},
+            "PRE_BREAKOUT_SQUEEZE": {"w_micro": 0.30, "w_struct": 0.40, "w_deriv": 0.20, "w_cat": 0.10},
+            "MEAN_REVERSION_IMMINENT": {"w_micro": 0.40, "w_struct": 0.20, "w_deriv": 0.30, "w_cat": 0.10},
+            "DEFAULT": {"w_micro": 0.40, "w_struct": 0.25, "w_deriv": 0.20, "w_cat": 0.15}
+        }
+        
+        base = base_weights.get(regime, base_weights["DEFAULT"])
+        
+        try:
+            from performance_analyzer import PerformanceAnalyzer
+            feedback = PerformanceAnalyzer.get_feedback_payload(last_n_days=14)
+            if not feedback or feedback.get("total_signals", 0) < 30:
+                return base
+            
+            regime_stats = feedback.get("regime_accuracy", {}).get(regime)
+            if not regime_stats or regime_stats.get("total_resolved", 0) < 10:
+                return base
+            
+            win_rate = regime_stats["win_rate_30m"] / 100.0
+            scale = 0.8 + (win_rate - 0.4) * (0.4 / 0.3)
+            scale = max(0.7, min(1.3, scale))
+            
+            adjusted = dict(base)
+            dominant_key = max(base, key=base.get)
+            adjusted[dominant_key] = base[dominant_key] * scale
+            
+            total = sum(adjusted.values())
+            return {k: round(v / total, 3) for k, v in adjusted.items()}
+            
+        except Exception:
+            return base
+
     def score_setup(self, semantic_payload: dict, flat_telemetry: dict) -> dict:
         market_regime = semantic_payload.get("market_regime", {})
         regime = market_regime.get("current_regime", "TRANSITIONAL_DRIFT")
@@ -56,7 +92,7 @@ class ConvictionScorer:
         if vol_regime == "TIME_ADJUSTED_SHOCK":
             micro_score *= 1.5
 
-        micro_norm = max(min(micro_score / 11.0, 1.0), -1.0)  # Normalize and bound to [-1, 1]
+        micro_norm = max(min(micro_score / 5.0, 1.0), -1.0)  # Normalize and bound to [-1, 1]
 
         # --- Derivatives (Max abs sum: 4) ---
         deriv = semantic_payload.get("2_derivatives_matrix_52w", {})
@@ -71,7 +107,7 @@ class ConvictionScorer:
         if gravity == "ESCAPE_VELOCITY_ACHIEVED": deriv_score += 1
         elif gravity == "GRAVITY_MAX_IMMINENT_PULL": deriv_score -= 1
         
-        deriv_norm = max(min(deriv_score / 4.0, 1.0), -1.0)
+        deriv_norm = max(min(deriv_score / 3.0, 1.0), -1.0)
 
         # --- Structural Edge (Max abs sum: 4) ---
         struct = semantic_payload.get("3_local_structural_edge_20d", {})
@@ -97,37 +133,24 @@ class ConvictionScorer:
             elif prox_level == "rolling_20d_poc_price":
                 struct_score += 1
 
-        struct_norm = max(min(struct_score / 4.0, 1.0), -1.0)
+        struct_norm = max(min(struct_score / 3.0, 1.0), -1.0)
 
         # --- Catalyst (Max abs sum: 0.5) ---
         catalyst = semantic_payload.get("4_catalyst_engine", {})
         raw_news = catalyst.get("raw_news", [])
-        catalyst_score = 0.5 if len(raw_news) > 0 else 0.0
-        catalyst_norm = catalyst_score / 0.5 if catalyst_score > 0 else 0.0
+        catalyst_norm = 0.0  # Pass-through logic: qualitative news interpretation belongs in LLM Layer 2
 
-        # Step 3: Regime-Adjusted Weighted Sum
-        if regime == "TREND_EXPANSION":
-            w_micro, w_struct, w_deriv, w_cat = 0.50, 0.30, 0.10, 0.10
-        elif regime == "RANGE_BOUND_CHOP":
-            w_micro, w_struct, w_deriv, w_cat = 0.20, 0.30, 0.40, 0.10
-        elif regime == "PRE_BREAKOUT_SQUEEZE":
-            w_micro, w_struct, w_deriv, w_cat = 0.30, 0.40, 0.20, 0.10
-        elif regime == "MEAN_REVERSION_IMMINENT":
-            w_micro, w_struct, w_deriv, w_cat = 0.40, 0.20, 0.30, 0.10
-        else: # Default
-            w_micro, w_struct, w_deriv, w_cat = 0.40, 0.25, 0.20, 0.15
+        # Step 3: Composite Calculation (Adaptive Feedback)
+        weights = self._get_adaptive_weights(regime)
+        w_micro, w_struct, w_deriv, w_cat = weights["w_micro"], weights["w_struct"], weights["w_deriv"], weights["w_cat"]
 
         composite = (micro_norm * w_micro) + (struct_norm * w_struct) + (deriv_norm * w_deriv) + (catalyst_norm * w_cat)
 
-        # OVERRIDE: Time-of-Day Penalty
-        if session_phase == "LUNCH_CHOP":
-            composite *= 0.5
-            
         # OVERRIDE: The Whipsaw Shield
         candidate_bias = "NEUTRAL"
-        if composite >= 0.30:
+        if composite >= 0.15:
             candidate_bias = "LONG"
-        elif composite <= -0.30:
+        elif composite <= -0.15:
             candidate_bias = "SHORT"
             
         if candidate_bias in ["LONG", "SHORT"] and self.previous_bias in ["LONG", "SHORT"] and candidate_bias != self.previous_bias:
@@ -137,8 +160,8 @@ class ConvictionScorer:
             composite *= 0.5  # Apply 50% penalty to the composite score
             self.polarity_flips_today = 0  # Reset
             # Re-evaluate candidate bias after penalty
-            if composite >= 0.30: candidate_bias = "LONG"
-            elif composite <= -0.30: candidate_bias = "SHORT"
+            if composite >= 0.15: candidate_bias = "LONG"
+            elif composite <= -0.15: candidate_bias = "SHORT"
             else: candidate_bias = "NEUTRAL"
 
         if candidate_bias != "NEUTRAL":
@@ -159,7 +182,10 @@ class ConvictionScorer:
                 return self._create_rejected_output(composite, bias, "MEAN_REVERSION_DIRECTIONAL_CONFLICT")
 
         if regime == "RANGE_BOUND_CHOP" and prox_state == "TEST_IMMINENT":
-             return self._create_rejected_output(composite, bias, "CHOP_PROXIMITY_CONFLICT")
+            if bias == "LONG" and prox_dir == "TESTING_FROM_BELOW" and "value_area_high" in prox_level:
+                return self._create_rejected_output(composite, bias, "CHOP_PROXIMITY_CONFLICT")
+            elif bias == "SHORT" and prox_dir == "TESTING_FROM_ABOVE" and "value_area_low" in prox_level:
+                return self._create_rejected_output(composite, bias, "CHOP_PROXIMITY_CONFLICT")
 
         # Step 6: Dynamic Geometric Risk Gateway & Expectancy Matrix
         ltp = flat_telemetry.get("ltp")
@@ -170,7 +196,7 @@ class ConvictionScorer:
         
         atr_15m = flat_telemetry.get("atr_15m")
         if not atr_15m or atr_15m <= 0:
-            atr_15m = ltp * 0.0025  # 0.25% fallback
+            atr_15m = ltp * 0.0050  # 0.50% fallback
 
         atr_5m = flat_telemetry.get("atr_5m")
         if not atr_5m or atr_5m <= 0:
@@ -188,8 +214,10 @@ class ConvictionScorer:
         nearest_ceiling = min([lvl for lvl in valid_levels if lvl > ltp], default=float('inf'))
         nearest_floor = max([lvl for lvl in valid_levels if lvl < ltp], default=0.0)
 
-        if nearest_ceiling == float('inf') or nearest_floor == 0.0:
-            return self._create_rejected_output(composite, bias, "MISSING_STRUCTURAL_BOUNDARIES")
+        if nearest_ceiling == float('inf'):
+            nearest_ceiling = ltp + (2.0 * atr_15m)
+        if nearest_floor == 0.0:
+            nearest_floor = ltp - (2.0 * atr_15m)
 
         vol_state = deriv.get("volatility_regime_state", "")
         if vol_state == 'EXTREME_EXPANSION': atr_mult = 1.0
@@ -198,23 +226,47 @@ class ConvictionScorer:
         else: atr_mult = 0.50
 
         if bias == "LONG":
-            target = nearest_ceiling
+            ceilings = sorted([lvl for lvl in valid_levels if lvl > ltp])
+            if regime in ("TREND_EXPANSION", "PRE_BREAKOUT_SQUEEZE") and len(ceilings) >= 2:
+                target = ceilings[1]
+            elif ceilings:
+                target = ceilings[0]
+            else:
+                target = ltp + (2.0 * atr_15m)
+                
+            min_reward = 1.5 * atr_15m
+            if abs(target - ltp) < min_reward:
+                target = ltp + min_reward
+                
+            calculated_entry = ltp - (0.2 * atr_5m)
             padded_stop = nearest_floor - (atr_mult * atr_15m)
         else: # SHORT
-            target = nearest_floor
+            floors = sorted([lvl for lvl in valid_levels if lvl < ltp], reverse=True)
+            if regime in ("TREND_EXPANSION", "PRE_BREAKOUT_SQUEEZE") and len(floors) >= 2:
+                target = floors[1]
+            elif floors:
+                target = floors[0]
+            else:
+                target = ltp - (2.0 * atr_15m)
+                
+            min_reward = 1.5 * atr_15m
+            if abs(target - ltp) < min_reward:
+                target = ltp - min_reward
+                
+            calculated_entry = ltp + (0.2 * atr_5m)
             padded_stop = nearest_ceiling + (atr_mult * atr_15m)
 
-        risk = abs(ltp - padded_stop)
-        reward = abs(target - ltp)
+        risk = abs(calculated_entry - padded_stop)
+        reward = abs(target - calculated_entry)
 
         effective_risk = risk + (0.1 * atr_5m)
         effective_reward = max(0.0001, reward - (0.1 * atr_5m))
 
         import math
-        # Multiply absolute score by 3.0 to stretch the logistic curve
-        raw_prob = 1 / (1 + math.exp(-(abs(composite) * 3.0)))
-        # Dampen slightly to cap absolute perfection at ~84%
-        p_implied = 0.50 + ((raw_prob - 0.50) * 0.75)
+        # Multiply absolute score by 4.5 to stretch the logistic curve
+        raw_prob = 1 / (1 + math.exp(-(abs(composite) * 4.5)))
+        # Dampen slightly to cap absolute perfection at ~92%
+        p_implied = 0.50 + ((raw_prob - 0.50) * 0.85)
         
         p_breakeven = effective_risk / (effective_risk + effective_reward)
         stat_edge = p_implied - p_breakeven
@@ -222,7 +274,7 @@ class ConvictionScorer:
         if stat_edge < 0.05:
              return self._create_rejected_output(
                  composite, bias, "INSUFFICIENT_STATISTICAL_EDGE",
-                 geometry={"calculated_entry": round(ltp, 2), "padded_stop": round(padded_stop, 2), "calculated_target": round(target, 2), "effective_risk": round(effective_risk, 2), "effective_reward": round(effective_reward, 2)},
+                 geometry={"calculated_entry": round(calculated_entry, 2), "padded_stop": round(padded_stop, 2), "calculated_target": round(target, 2), "effective_risk": round(effective_risk, 2), "effective_reward": round(effective_reward, 2)},
                  expectancy_matrix={"implied_probability": round(p_implied, 2), "breakeven_probability": round(p_breakeven, 2), "statistical_edge": round(stat_edge, 2)}
              )
 
@@ -233,7 +285,7 @@ class ConvictionScorer:
             "setup_rejected": False,
             "rejection_reason": None,
             "execution_geometry": {
-                "calculated_entry": round(ltp, 2),
+                "calculated_entry": round(calculated_entry, 2),
                 "padded_stop": round(padded_stop, 2),
                 "calculated_target": round(target, 2),
                 "effective_risk": round(effective_risk, 2),

@@ -52,9 +52,9 @@ class RegimeManager:
             
             if hour < 9 or (hour == 9 and minute < 45):
                 return "OPENING_RANGE"
-            elif hour < 11 or (hour == 11 and minute < 30):
+            elif hour < 12:
                 return "MORNING_SESSION"
-            elif hour < 13 or (hour == 13 and minute < 30):
+            elif hour < 13:
                 return "LUNCH_CHOP"
             elif hour < 15:
                 return "POWER_HOUR"
@@ -73,26 +73,33 @@ class RegimeManager:
         structural_proximity_state = snapshot.get("structural_proximity_state", "NO_MANS_LAND")
 
         # PRIORITY 1: SQUEEZE
-        if "SQUEEZE" in volatility_state and volume_regime in ("ELEVATED_ACCUMULATION", "TIME_ADJUSTED_SHOCK"):
+        # A squeeze is defined primarily by volatility contraction. Volume is usually low/normal before the breakout.
+        if "SQUEEZE" in volatility_state:
             return "PRE_BREAKOUT_SQUEEZE"
 
         # PRIORITY 2: MEAN REVERSION
-        if "OVERSTRETCHED" in elasticity_risk and options_gravity_state != "ESCAPE_VELOCITY_ACHIEVED" and volume_regime != "TIME_ADJUSTED_SHOCK":
+        # Mean reversion happens when price is overstretched from VWAP/EMAs, regardless of volume.
+        if "OVERSTRETCHED" in elasticity_risk and options_gravity_state != "ESCAPE_VELOCITY_ACHIEVED":
             return "MEAN_REVERSION_IMMINENT"
 
         # PRIORITY 3: TREND EXPANSION
-        if "MOMENTUM_CONFIRMED" in flow_divergence and fractal in ("STRONG_FRACTAL_BULL", "STRONG_FRACTAL_BEAR") and volume_regime in ("TIME_ADJUSTED_SHOCK", "ELEVATED_ACCUMULATION") and "OVERSTRETCHED" not in elasticity_risk:
-            return "TREND_EXPANSION"
+        # Trend requires momentum and either elevated volume OR a strong fractal alignment
+        if "MOMENTUM_CONFIRMED" in flow_divergence and ("OVERSTRETCHED" not in elasticity_risk):
+            if volume_regime in ("TIME_ADJUSTED_SHOCK", "ELEVATED_ACCUMULATION") or fractal in ("STRONG_FRACTAL_BULL", "STRONG_FRACTAL_BEAR"):
+                return "TREND_EXPANSION"
 
         # PRIORITY 4: RANGE BOUND CHOP
-        if flow_divergence == "EQUILIBRIUM_CHOP" and fractal in ("CONFLICTING_CHOP", "WEAK_FRACTAL_BULL", "WEAK_FRACTAL_BEAR") and volume_regime in ("NORMAL_DRIFT", "SUPPRESSED_FLOW") and structural_proximity_state != "TEST_IMMINENT":
-            return "RANGE_BOUND_CHOP"
+        # If flow is at equilibrium and volatility is ranging, it's chop.
+        if "EQUILIBRIUM" in flow_divergence or fractal == "CONFLICTING_CHOP":
+            if volume_regime in ("NORMAL_DRIFT", "SUPPRESSED_FLOW") or "RANGING" in volatility_state:
+                return "RANGE_BOUND_CHOP"
 
         # FALLBACK
         return "TRANSITIONAL_DRIFT"
 
     def determine_regime(self, payload: dict) -> dict:
-        market_state = payload.get("market_state", "LIVE")
+        from pipeline_guard import is_market_open
+        market_state = "LIVE" if is_market_open() else "CLOSED"
         time_str = payload.get("current_time", "")
         session_phase = self._get_session_phase(time_str)
 

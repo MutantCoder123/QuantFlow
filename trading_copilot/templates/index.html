@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,52 +10,83 @@
     <!-- Google Fonts: Outfit & JetBrains Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
+        rel="stylesheet">
     <style>
         body {
             font-family: 'Outfit', sans-serif;
         }
+
         .font-mono-custom {
             font-family: 'JetBrains Mono', monospace;
         }
     </style>
 </head>
-<body class="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 min-h-screen text-slate-100 flex flex-col relative">
+
+<body
+    class="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 min-h-screen text-slate-100 flex flex-col relative">
     <!-- Navbar / Header -->
-    <header class="border-b border-slate-800/80 bg-slate-950/55 backdrop-blur-md sticky top-0 z-40 px-6 py-4 flex items-center justify-between">
+    <header
+        class="border-b border-slate-800/80 bg-slate-950/55 backdrop-blur-md sticky top-0 z-40 px-6 py-4 flex items-center justify-between">
         <div class="flex items-center gap-8">
             <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <div
+                    class="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
                     <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                            d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
                     </svg>
                 </div>
                 <div>
-                    <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-indigo-200 via-white to-violet-200 bg-clip-text text-transparent">AlgoTrade System</h1>
-                    <p class="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Phase 4.3 Visual Diagnostics</p>
+                    <h1
+                        class="text-xl font-bold tracking-tight bg-gradient-to-r from-indigo-200 via-white to-violet-200 bg-clip-text text-transparent">
+                        AlgoTrade System</h1>
+                    <p class="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Phase 4.3 Visual
+                        Diagnostics</p>
                 </div>
             </div>
-            
+
             <!-- Navigation Tabs -->
-            <nav class="hidden md:flex items-center gap-1 bg-slate-900/80 p-1 rounded-lg border border-slate-700/50 shadow-inner">
-                <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="px-4 py-1.5 text-xs font-bold rounded-md bg-slate-800 text-white shadow transition-all border border-slate-700/50">Live Dashboard</button>
-                <button onclick="switchTab('screener')" id="tab-btn-screener" class="px-4 py-1.5 text-xs font-bold rounded-md text-slate-400 hover:text-slate-200 transition-all border border-transparent">Market Discovery</button>
-                <button onclick="switchTab('live-action')" id="tab-btn-live-action" class="px-4 py-1.5 text-xs font-bold rounded-md text-slate-400 hover:text-slate-200 transition-all border border-transparent">Live Action</button>
+            <nav
+                class="hidden md:flex items-center gap-1 bg-slate-900/80 p-1 rounded-lg border border-slate-700/50 shadow-inner">
+                <button onclick="switchTab('dashboard')" id="tab-btn-dashboard"
+                    class="px-4 py-1.5 text-xs font-bold rounded-md bg-slate-800 text-white shadow transition-all border border-slate-700/50">Live
+                    Dashboard</button>
+                <button onclick="switchTab('screener')" id="tab-btn-screener"
+                    class="px-4 py-1.5 text-xs font-bold rounded-md text-slate-400 hover:text-slate-200 transition-all border border-transparent">Market
+                    Discovery</button>
+                <button onclick="switchTab('live-action')" id="tab-btn-live-action"
+                    class="px-4 py-1.5 text-xs font-bold rounded-md text-slate-400 hover:text-slate-200 transition-all border border-transparent">Live
+                    Action</button>
             </nav>
         </div>
         <div class="flex items-center gap-4">
             <!-- Phase 9: Notification Bell -->
             <div class="relative cursor-pointer" onclick="toggleAlertTray()">
-                <div class="w-10 h-10 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center hover:bg-slate-800 transition-colors shadow-lg">
-                    <svg class="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                <div
+                    class="w-10 h-10 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center hover:bg-slate-800 transition-colors shadow-lg">
+                    <svg class="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9">
+                        </path>
+                    </svg>
                 </div>
-                <div id="alert-badge" class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-rose-500 text-[10px] font-bold flex items-center justify-center text-white border-2 border-slate-950 hidden shadow-[0_0_8px_#f43f5e]">0</div>
-                
+                <div id="alert-badge"
+                    class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-rose-500 text-[10px] font-bold flex items-center justify-center text-white border-2 border-slate-950 hidden shadow-[0_0_8px_#f43f5e]">
+                    0</div>
+
                 <!-- Alert Tray Dropdown -->
-                <div id="alert-tray" class="absolute top-12 right-0 w-80 bg-slate-900 border border-slate-700 shadow-2xl rounded-lg hidden flex-col z-50 overflow-hidden cursor-default" onclick="event.stopPropagation()">
+                <div id="alert-tray"
+                    class="absolute top-12 right-0 w-80 bg-slate-900 border border-slate-700 shadow-2xl rounded-lg hidden flex-col z-50 overflow-hidden cursor-default"
+                    onclick="event.stopPropagation()">
                     <div class="px-4 py-3 border-b border-slate-800 bg-slate-800/40 flex justify-between items-center">
                         <h4 class="text-xs font-bold uppercase tracking-wider text-slate-300">System Alerts</h4>
-                        <button onclick="toggleAlertTray()" class="text-slate-500 hover:text-slate-300"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+                        <button onclick="toggleAlertTray()" class="text-slate-500 hover:text-slate-300"><svg
+                                class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12"></path>
+                            </svg></button>
                     </div>
                     <div id="alert-tray-body" class="max-h-96 overflow-y-auto p-2 flex flex-col gap-2">
                         <div class="text-center text-xs text-slate-500 p-4">No alerts right now.</div>
@@ -70,204 +102,282 @@
     </header>
     <!-- Main Container -->
     <main class="flex-1 max-w-[90rem] w-full mx-auto p-6 space-y-6">
-        
+
         <!-- DASHBOARD TAB -->
         <div id="tab-dashboard" class="block space-y-6">
             <!-- Section: Macro Weather -->
             <section class="space-y-3">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-4">
-                        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                        <h2
+                            class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
                             <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z">
+                                </path>
                             </svg>
                             Macro Weather Monitor
                         </h2>
-                    <button id="btn-settings" class="bg-slate-700 hover:bg-slate-600 text-white text-[10px] uppercase font-bold py-1 px-3 rounded shadow transition-colors border border-slate-500/30">⚙️ Prompt Settings</button>
-                    <button id="btn-edit-watchlist" onclick="openWatchlistModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] uppercase font-bold py-1 px-3 rounded shadow transition-colors border border-emerald-400/30">📋 Edit Watchlist</button>
-                    <button id="btn-map-tokens" class="bg-purple-600 hover:bg-purple-500 text-white text-[10px] uppercase font-bold py-1 px-3 rounded shadow transition-colors border border-purple-400/30">🔗 Map Option Tokens</button>
+                        <button id="btn-settings"
+                            class="bg-slate-700 hover:bg-slate-600 text-white text-[10px] uppercase font-bold py-1 px-3 rounded shadow transition-colors border border-slate-500/30">⚙️
+                            Prompt Settings</button>
+                        <button id="btn-edit-watchlist" onclick="openWatchlistModal()"
+                            class="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] uppercase font-bold py-1 px-3 rounded shadow transition-colors border border-emerald-400/30">📋
+                            Edit Watchlist</button>
+                        <button id="btn-map-tokens"
+                            class="bg-purple-600 hover:bg-purple-500 text-white text-[10px] uppercase font-bold py-1 px-3 rounded shadow transition-colors border border-purple-400/30">🔗
+                            Map Option Tokens</button>
+                    </div>
+                    <span id="macro-date" class="text-xs text-slate-500 font-mono-custom">Date: N/A</span>
                 </div>
-                <span id="macro-date" class="text-xs text-slate-500 font-mono-custom">Date: N/A</span>
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <!-- Card 1: Put Call Ratio -->
+                    <div
+                        class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 backdrop-blur-sm flex flex-col justify-between shadow-md">
+                        <div class="flex justify-between items-start">
+                            <span class="text-xs font-semibold text-slate-400">Put-Call Ratio (PCR)</span>
+                            <span id="pcr-badge"
+                                class="px-2 py-0.5 text-[10px] font-bold rounded bg-slate-800 text-slate-400 border border-slate-700">Neutral</span>
+                        </div>
+                        <div class="mt-2 flex items-baseline gap-2">
+                            <span id="pcr-val" class="text-3xl font-extrabold font-mono-custom text-white">1.0000</span>
+                            <span class="text-[10px] text-slate-500">Nifty 50</span>
+                        </div>
+                    </div>
+                    <!-- Card 2: FII Net Flow -->
+                    <div
+                        class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 backdrop-blur-sm flex flex-col justify-between shadow-md">
+                        <div class="flex justify-between items-start">
+                            <span class="text-xs font-semibold text-slate-400">FII Cash Net Flow</span>
+                            <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z">
+                                </path>
+                            </svg>
+                        </div>
+                        <div class="mt-2">
+                            <span id="fii-val" class="text-2xl font-bold font-mono-custom text-slate-300">₹0 Cr</span>
+                            <p class="text-[10px] text-slate-500 mt-0.5">NSE Cash Market Net</p>
+                        </div>
+                    </div>
+                    <!-- Card 3: DII Net Flow -->
+                    <div
+                        class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 backdrop-blur-sm flex flex-col justify-between shadow-md">
+                        <div class="flex justify-between items-start">
+                            <span class="text-xs font-semibold text-slate-400">DII Cash Net Flow</span>
+                            <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
+                                </path>
+                            </svg>
+                        </div>
+                        <div class="mt-2">
+                            <span id="dii-val" class="text-2xl font-bold font-mono-custom text-slate-300">₹0 Cr</span>
+                            <p class="text-[10px] text-slate-500 mt-0.5">Domestic Cash Net</p>
+                        </div>
+                    </div>
+                    <!-- Card 4: Net Market Direction -->
+                    <div
+                        class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 backdrop-blur-sm flex flex-col justify-between shadow-md">
+                        <div class="flex justify-between items-start">
+                            <span class="text-xs font-semibold text-slate-400">Net Inst Flow</span>
+                            <span class="w-2 h-2 rounded-full bg-slate-600"></span>
+                        </div>
+                        <div class="mt-2">
+                            <span id="net-direction" class="text-sm font-semibold text-slate-300">Net Flow: ₹0.00 Cr
+                                (Neutral)</span>
+                            <p class="text-[10px] text-slate-500 mt-1.5">Combined FII + DII Cash</p>
+                        </div>
+                    </div>
+                    <!-- Card 5: Market Breadth -->
+                    <div
+                        class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 backdrop-blur-sm flex flex-col justify-between shadow-md">
+                        <div class="flex justify-between items-start">
+                            <span class="text-xs font-semibold text-slate-400">Market Breadth</span>
+                            <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                            </svg>
+                        </div>
+                        <div class="mt-2">
+                            <span id="breadth-val" class="text-2xl font-bold font-mono-custom text-slate-300">--</span>
+                            <p class="text-[10px] text-slate-500 mt-0.5">NSE A/D Ratio</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <!-- Global Market Context Full Width Card -->
+            <div class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 backdrop-blur-sm shadow-md mb-6">
+                <div class="flex items-center gap-3 mb-2">
+                    <span class="text-xs font-semibold text-slate-400">Global Market Context (AI Summarized)</span>
+                    <span id="macro-sentiment-badge"
+                        class="px-2 py-0.5 text-[10px] font-bold rounded bg-slate-800 text-slate-400 border border-slate-700">Waiting
+                        for data...</span>
+                    <span id="macro-time" class="text-[10px] text-slate-500"></span>
+                </div>
+                <p id="macro-summary" class="text-sm text-slate-300 leading-relaxed italic">
+                    The macro engine is currently fetching and compiling the latest global market conditions...
+                </p>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-                <!-- Card 1: Put Call Ratio -->
-                <div class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 backdrop-blur-sm flex flex-col justify-between shadow-md">
-                    <div class="flex justify-between items-start">
-                        <span class="text-xs font-semibold text-slate-400">Put-Call Ratio (PCR)</span>
-                        <span id="pcr-badge" class="px-2 py-0.5 text-[10px] font-bold rounded bg-slate-800 text-slate-400 border border-slate-700">Neutral</span>
+            <!-- Section: News Engine Control Panel -->
+            <section class="bg-slate-900 border border-slate-700 rounded-lg p-4 shadow-lg mb-6">
+                <h4 class="text-sm font-bold text-slate-300 mb-3 uppercase tracking-wider flex items-center gap-2">
+                    <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9.5a2.5 2.5 0 00-2.5-2.5H15">
+                        </path>
+                    </svg>
+                    Live News Engine
+                </h4>
+
+                <div class="flex flex-wrap items-center gap-4">
+                    <button id="btn-news-instant" onclick="triggerNewsInstant()"
+                        class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded shadow-lg transition-colors flex items-center gap-2">
+                        ⚡ Instant Fetch
+                    </button>
+
+                    <div class="flex items-center gap-2 border-l border-slate-700 pl-4">
+                        <span class="text-xs text-slate-400 font-semibold uppercase">Model:</span>
+                        <select id="news-model-select"
+                            class="bg-slate-800 text-white text-xs border border-slate-600 rounded px-2 py-1 focus:outline-none focus:border-emerald-500">
+                            <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash</option>
+                            <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                        </select>
                     </div>
-                    <div class="mt-2 flex items-baseline gap-2">
-                        <span id="pcr-val" class="text-3xl font-extrabold font-mono-custom text-white">1.0000</span>
-                        <span class="text-[10px] text-slate-500">Nifty 50</span>
+
+                    <div class="flex items-center gap-2 border-l border-slate-700 pl-4">
+                        <label
+                            class="text-xs text-slate-400 font-semibold uppercase flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="toggle-news-auto"
+                                class="form-checkbox h-4 w-4 text-emerald-500 bg-slate-800 border-slate-600 rounded focus:ring-emerald-500 focus:ring-offset-slate-900"
+                                onchange="toggleNewsAuto()">
+                            Auto Fetch
+                        </label>
                     </div>
-                </div>
-                <!-- Card 2: FII Net Flow -->
-                <div class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 backdrop-blur-sm flex flex-col justify-between shadow-md">
-                    <div class="flex justify-between items-start">
-                        <span class="text-xs font-semibold text-slate-400">FII Cash Net Flow</span>
-                        <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                        </svg>
+
+                    <div class="flex items-center gap-2 border-l border-slate-700 pl-4">
+                        <span class="text-xs text-slate-400 font-semibold uppercase">Interval (s):</span>
+                        <input type="number" id="news-interval" value="120" min="30" step="30"
+                            class="w-16 bg-slate-800 text-white text-xs border border-slate-600 rounded px-2 py-1 text-center focus:outline-none focus:border-emerald-500"
+                            onchange="toggleNewsAuto()">
                     </div>
-                    <div class="mt-2">
-                        <span id="fii-val" class="text-2xl font-bold font-mono-custom text-slate-300">₹0 Cr</span>
-                        <p class="text-[10px] text-slate-500 mt-0.5">NSE Cash Market Net</p>
-                    </div>
-                </div>
-                <!-- Card 3: DII Net Flow -->
-                <div class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 backdrop-blur-sm flex flex-col justify-between shadow-md">
-                    <div class="flex justify-between items-start">
-                        <span class="text-xs font-semibold text-slate-400">DII Cash Net Flow</span>
-                        <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
-                        </svg>
-                    </div>
-                    <div class="mt-2">
-                        <span id="dii-val" class="text-2xl font-bold font-mono-custom text-slate-300">₹0 Cr</span>
-                        <p class="text-[10px] text-slate-500 mt-0.5">Domestic Cash Net</p>
-                    </div>
-                </div>
-                <!-- Card 4: Net Market Direction -->
-                <div class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 backdrop-blur-sm flex flex-col justify-between shadow-md">
-                    <div class="flex justify-between items-start">
-                        <span class="text-xs font-semibold text-slate-400">Net Inst Flow</span>
-                        <span class="w-2 h-2 rounded-full bg-slate-600"></span>
-                    </div>
-                    <div class="mt-2">
-                        <span id="net-direction" class="text-sm font-semibold text-slate-300">Net Flow: ₹0.00 Cr (Neutral)</span>
-                        <p class="text-[10px] text-slate-500 mt-1.5">Combined FII + DII Cash</p>
-                    </div>
-                </div>
-                <!-- Card 5: Market Breadth -->
-                <div class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 backdrop-blur-sm flex flex-col justify-between shadow-md">
-                    <div class="flex justify-between items-start">
-                        <span class="text-xs font-semibold text-slate-400">Market Breadth</span>
-                        <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
-                        </svg>
-                    </div>
-                    <div class="mt-2">
-                        <span id="breadth-val" class="text-2xl font-bold font-mono-custom text-slate-300">--</span>
-                        <p class="text-[10px] text-slate-500 mt-0.5">NSE A/D Ratio</p>
+
+                    <div class="ml-auto flex items-center gap-2">
+                        <span class="text-xs text-slate-400 font-semibold uppercase">Status:</span>
+                        <span id="news-status-text" class="text-xs font-bold text-slate-500">Checking...</span>
                     </div>
                 </div>
-            </div>
-        </section>
-        <!-- Global Market Context Full Width Card -->
-        <div class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 backdrop-blur-sm shadow-md mb-6">
-            <div class="flex items-center gap-3 mb-2">
-                <span class="text-xs font-semibold text-slate-400">Global Market Context (AI Summarized)</span>
-                <span id="macro-sentiment-badge" class="px-2 py-0.5 text-[10px] font-bold rounded bg-slate-800 text-slate-400 border border-slate-700">Waiting for data...</span>
-                <span id="macro-time" class="text-[10px] text-slate-500"></span>
-            </div>
-            <p id="macro-summary" class="text-sm text-slate-300 leading-relaxed italic">
-                The macro engine is currently fetching and compiling the latest global market conditions...
-            </p>
-        </div>
-        <!-- Section: News Engine Control Panel -->
-        <section class="bg-slate-900 border border-slate-700 rounded-lg p-4 shadow-lg mb-6">
-            <h4 class="text-sm font-bold text-slate-300 mb-3 uppercase tracking-wider flex items-center gap-2">
-                <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9.5a2.5 2.5 0 00-2.5-2.5H15"></path></svg>
-                Live News Engine
-            </h4>
-            
-            <div class="flex flex-wrap items-center gap-4">
-                <button id="btn-news-instant" onclick="triggerNewsInstant()" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded shadow-lg transition-colors flex items-center gap-2">
-                    ⚡ Instant Fetch
-                </button>
-                
-                <div class="flex items-center gap-2 border-l border-slate-700 pl-4">
-                    <span class="text-xs text-slate-400 font-semibold uppercase">Model:</span>
-                    <select id="news-model-select" class="bg-slate-800 text-white text-xs border border-slate-600 rounded px-2 py-1 focus:outline-none focus:border-emerald-500">
-                        <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash</option>
-                        <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-                    </select>
+            </section>
+            <!-- Section: Live Market Matrix -->
+            <section class="space-y-3">
+                <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
+                        </path>
+                    </svg>
+                    Real-Time Market Matrix
+                </h2>
+                <div
+                    class="bg-slate-900/60 border border-slate-800/80 rounded-2xl overflow-hidden backdrop-blur-md shadow-xl">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-800/50">
+                            <thead class="bg-slate-950/80">
+                                <tr>
+                                    <th scope="col"
+                                        class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                        Ticker</th>
+                                    <th scope="col"
+                                        class="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                        LTP</th>
+                                    <th scope="col"
+                                        class="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                        Imbalance (OBI)</th>
+                                    <th scope="col"
+                                        class="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                        Delta (CVD)</th>
+                                    <th scope="col"
+                                        class="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                        POC %</th>
+                                    <th scope="col"
+                                        class="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                        RSI (14)</th>
+                                    <th scope="col"
+                                        class="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                        PCR</th>
+                                    <th scope="col"
+                                        class="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                        IVR</th>
+                                    <th scope="col"
+                                        class="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                        Max Pain</th>
+                                    <th scope="col"
+                                        class="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                        RS</th>
+                                    <th scope="col"
+                                        class="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                        Matrix</th>
+                                    <th scope="col"
+                                        class="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                        Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="matrix-body" class="divide-y divide-slate-800/40">
+                                <!-- Loading / Empty state -->
+                                <tr id="loading-row">
+                                    <td colspan="12" class="px-6 py-16 text-center text-slate-500">
+                                        <svg class="mx-auto h-8 w-8 animate-spin text-indigo-500 mb-3" fill="none"
+                                            viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                                stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor"
+                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                            </path>
+                                        </svg>
+                                        Connecting to real-time streams...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                
-                <div class="flex items-center gap-2 border-l border-slate-700 pl-4">
-                    <label class="text-xs text-slate-400 font-semibold uppercase flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" id="toggle-news-auto" class="form-checkbox h-4 w-4 text-emerald-500 bg-slate-800 border-slate-600 rounded focus:ring-emerald-500 focus:ring-offset-slate-900" onchange="toggleNewsAuto()">
-                        Auto Fetch
-                    </label>
-                </div>
-                
-                <div class="flex items-center gap-2 border-l border-slate-700 pl-4">
-                    <span class="text-xs text-slate-400 font-semibold uppercase">Interval (s):</span>
-                    <input type="number" id="news-interval" value="120" min="30" step="30" class="w-16 bg-slate-800 text-white text-xs border border-slate-600 rounded px-2 py-1 text-center focus:outline-none focus:border-emerald-500" onchange="toggleNewsAuto()">
-                </div>
-                
-                <div class="ml-auto flex items-center gap-2">
-                    <span class="text-xs text-slate-400 font-semibold uppercase">Status:</span>
-                    <span id="news-status-text" class="text-xs font-bold text-slate-500">Checking...</span>
-                </div>
-            </div>
-        </section>
-        <!-- Section: Live Market Matrix -->
-        <section class="space-y-3">
-            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
-                </svg>
-                Real-Time Market Matrix
-            </h2>
-            <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl overflow-hidden backdrop-blur-md shadow-xl">
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-slate-800/50">
-                        <thead class="bg-slate-950/80">
-                            <tr>
-                                <th scope="col" class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Ticker</th>
-                                <th scope="col" class="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">LTP</th>
-                                <th scope="col" class="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">Imbalance (OBI)</th>
-                                <th scope="col" class="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">Delta (CVD)</th>
-                                <th scope="col" class="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">POC %</th>
-                                <th scope="col" class="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">RSI (14)</th>
-                                <th scope="col" class="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">PCR</th>
-                                <th scope="col" class="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">IVR</th>
-                                <th scope="col" class="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">Max Pain</th>
-                                <th scope="col" class="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">RS</th>
-                                <th scope="col" class="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">Matrix</th>
-                                <th scope="col" class="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="matrix-body" class="divide-y divide-slate-800/40">
-                            <!-- Loading / Empty state -->
-                            <tr id="loading-row">
-                                <td colspan="12" class="px-6 py-16 text-center text-slate-500">
-                                    <svg class="mx-auto h-8 w-8 animate-spin text-indigo-500 mb-3" fill="none" viewBox="0 0 24 24">
-                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    Connecting to real-time streams...
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-    
+            </section>
+
         </div> <!-- End of tab-dashboard -->
         <!-- LIVE ACTION TAB -->
         <div id="tab-live-action" class="hidden space-y-6">
             <div class="flex items-center justify-between mb-4">
                 <div>
                     <h2 class="text-xl font-bold text-white flex items-center gap-2">
-                        <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
                         Live Action
                     </h2>
-                    <p class="text-sm text-slate-400 mt-1">Dynamic algorithmic trade setups ordered by AI Priority Score.</p>
+                    <p class="text-sm text-slate-400 mt-1">Dynamic algorithmic trade setups ordered by AI Priority
+                        Score.</p>
                 </div>
                 <div class="flex items-center gap-4 bg-slate-900 border border-slate-700/80 p-2 rounded-lg">
                     <div class="flex items-center gap-3">
                         <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" id="global-auto-analyze" class="sr-only peer" onchange="toggleGlobalAutoAnalyze()">
-                            <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                            <input type="checkbox" id="global-auto-analyze" class="sr-only peer"
+                                onchange="toggleGlobalAutoAnalyze()">
+                            <div
+                                class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600">
+                            </div>
                             <span class="ml-2 text-xs font-semibold text-slate-300">Global Auto-Analyze</span>
                         </label>
                         <div class="h-4 w-px bg-slate-700"></div>
                         <div class="flex items-center gap-2">
                             <span class="text-xs text-slate-400">Freq (s):</span>
-                            <input type="number" id="global-analyze-interval" value="90" min="10" class="w-16 bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1 text-center focus:outline-none focus:border-indigo-500">
+                            <input type="number" id="global-analyze-interval" value="90" min="10"
+                                class="w-16 bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1 text-center focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div class="h-4 w-px bg-slate-700"></div>
+                        <div class="flex items-center gap-2" title="Total number of times the LLM was triggered for deep analysis">
+                            <span class="text-xs text-slate-400">LLM Triggers:</span>
+                            <span id="llm-trigger-counter" class="text-xs font-bold text-indigo-400 bg-indigo-900/30 px-2 py-0.5 rounded border border-indigo-500/30">0</span>
                         </div>
                     </div>
                 </div>
@@ -281,30 +391,43 @@
             <div class="flex items-center justify-between">
                 <div>
                     <h2 class="text-xl font-bold text-white flex items-center gap-2">
-                        <svg class="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        <svg class="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
                         Predicted Top Performing Stocks
                     </h2>
                     <p class="text-sm text-slate-400 mt-1">AI-driven technical and fundamentals breakout scanner</p>
                 </div>
-                <button id="btn-run-discovery" onclick="generateIntradayPlaybook()" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow-lg shadow-indigo-500/20 transition-all flex items-center gap-2 border border-indigo-500/50">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <button id="btn-run-discovery" onclick="generateIntradayPlaybook()"
+                    class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow-lg shadow-indigo-500/20 transition-all flex items-center gap-2 border border-indigo-500/50">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z">
+                        </path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
                     Run Discovery Engine
                 </button>
             </div>
-            
+
             <!-- Discovery Status -->
             <div id="screener-status" class="hidden text-center p-8 bg-slate-900/50 rounded-xl border border-slate-800">
                 <svg class="animate-spin h-8 w-8 text-indigo-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <path class="opacity-75" fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                    </path>
                 </svg>
-                <p class="text-sm text-slate-300 font-semibold animate-pulse" id="screener-status-text">Scanning F&O Universe...</p>
+                <p class="text-sm text-slate-300 font-semibold animate-pulse" id="screener-status-text">Scanning F&O
+                    Universe...</p>
             </div>
             <!-- Discovery Results Grid -->
             <div id="screener-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 <!-- Cards injected here -->
             </div>
-            
+
             <div id="screener-empty" class="text-center p-12 bg-slate-900/40 rounded-xl border border-slate-800/80">
                 <p class="text-slate-500 font-mono-custom text-sm">No discovery playbook generated yet.</p>
                 <p class="text-slate-600 text-xs mt-2">Click 'Run Discovery Engine' to analyze the broader market.</p>
@@ -316,82 +439,107 @@
         AlgoTrade Multi-Tenant Quantitative System &copy; 2026. All rights reserved.
     </footer>
     <!-- LLM JSON Inspection Modal -->
-    <div id="llm-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 transition-opacity duration-200">
-        <div class="bg-slate-900 border border-slate-700 shadow-2xl rounded-xl w-full max-w-5xl flex flex-col overflow-hidden h-[90vh]">
+    <div id="llm-modal"
+        class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 transition-opacity duration-200">
+        <div
+            class="bg-slate-900 border border-slate-700 shadow-2xl rounded-xl w-full max-w-5xl flex flex-col overflow-hidden h-[90vh]">
             <!-- Modal Header -->
             <div class="flex items-center justify-between px-5 py-3 border-b border-slate-800 bg-slate-800/40">
-                <h3 id="modal-title" class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                <h3 id="modal-title"
+                    class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
                     <span class="text-xl">🤖</span> Raw LLM Payload
                 </h3>
                 <div class="flex gap-2">
-                    <button id="modal-copy-btn" onclick="copyToClipboard()" class="px-4 py-1.5 text-xs font-semibold rounded bg-indigo-600 text-white hover:bg-indigo-500 transition-colors shadow-lg">
+                    <button id="modal-copy-btn" onclick="copyToClipboard()"
+                        class="px-4 py-1.5 text-xs font-semibold rounded bg-indigo-600 text-white hover:bg-indigo-500 transition-colors shadow-lg">
                         Copy
                     </button>
-                    <button onclick="closeJsonModal()" class="px-4 py-1.5 text-xs font-semibold rounded bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors shadow-lg">
+                    <button onclick="closeJsonModal()"
+                        class="px-4 py-1.5 text-xs font-semibold rounded bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors shadow-lg">
                         Close
                     </button>
                 </div>
             </div>
             <!-- Modal Body -->
             <div class="p-5 overflow-hidden flex-1 bg-slate-950 flex flex-col gap-4">
-                
+
                 <!-- Tab Navigation -->
                 <div class="flex items-center gap-2 border-b border-slate-800 pb-2">
-                    <button id="tab-btn-reasoning" onclick="switchModalTab('reasoning')" class="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-t-lg bg-slate-800 text-indigo-400 border-t border-l border-r border-slate-700 transition-colors">AI Reasoning</button>
-                    <button id="tab-btn-catalyst" onclick="switchModalTab('catalyst')" class="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-t-lg bg-transparent text-slate-500 hover:text-slate-300 transition-colors">News Catalyst</button>
-                    <button id="tab-btn-telemetry" onclick="switchModalTab('telemetry')" class="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-t-lg bg-transparent text-slate-500 hover:text-slate-300 transition-colors">Raw Telemetry</button>
+                    <button id="tab-btn-reasoning" onclick="switchModalTab('reasoning')"
+                        class="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-t-lg bg-slate-800 text-indigo-400 border-t border-l border-r border-slate-700 transition-colors">AI
+                        Reasoning</button>
+                    <button id="tab-btn-catalyst" onclick="switchModalTab('catalyst')"
+                        class="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-t-lg bg-transparent text-slate-500 hover:text-slate-300 transition-colors">News
+                        Catalyst</button>
+                    <button id="tab-btn-telemetry" onclick="switchModalTab('telemetry')"
+                        class="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-t-lg bg-transparent text-slate-500 hover:text-slate-300 transition-colors">Raw
+                        Telemetry</button>
                 </div>
                 <!-- Tab Content: Reasoning -->
                 <div id="tab-content-reasoning" class="flex flex-col gap-4 flex-1 overflow-hidden pr-2">
-                <!-- AI Reasoning Engine Control Panel -->
-                <div class="bg-slate-900 border border-slate-700 rounded-lg p-4 shadow-lg flex flex-col flex-1 overflow-hidden min-h-0">
-                    <h4 class="text-sm font-bold text-slate-300 mb-3 uppercase tracking-wider flex items-center gap-2 shrink-0">
-                        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                        AI Reasoning Engine
-                    </h4>
-                    
-                    <div class="flex flex-wrap items-center gap-4 mb-4 shrink-0">
-                        <button id="btn-instant-analyze" onclick="triggerInstantAnalysis()" class="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded shadow-lg transition-colors flex items-center gap-2">
-                            ⚡ Instant Analyze
-                        </button>
-                        
-                        <div class="flex items-center gap-2 border-l border-slate-700 pl-4">
-                            <span class="text-xs text-slate-400 font-semibold uppercase">Model:</span>
-                            <select id="reasoning-model-select" class="bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1 focus:outline-none focus:border-indigo-500">
-                                <option value="gemini-3-flash">Gemini 3 Flash</option>
-                                <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash</option>
-                                <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
-                                <option value="gemini-3.1-pro">Gemini 3.1 Pro</option>
-                            </select>
+                    <!-- AI Reasoning Engine Control Panel -->
+                    <div
+                        class="bg-slate-900 border border-slate-700 rounded-lg p-4 shadow-lg flex flex-col flex-1 overflow-hidden min-h-0">
+                        <h4
+                            class="text-sm font-bold text-slate-300 mb-3 uppercase tracking-wider flex items-center gap-2 shrink-0">
+                            <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                            AI Reasoning Engine
+                        </h4>
+
+                        <div class="flex flex-wrap items-center gap-4 mb-4 shrink-0">
+                            <button id="btn-instant-analyze" onclick="triggerInstantAnalysis()"
+                                class="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded shadow-lg transition-colors flex items-center gap-2">
+                                ⚡ Instant Analyze
+                            </button>
+
+                            <div class="flex items-center gap-2 border-l border-slate-700 pl-4">
+                                <span class="text-xs text-slate-400 font-semibold uppercase">Model:</span>
+                                <select id="reasoning-model-select"
+                                    class="bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1 focus:outline-none focus:border-indigo-500">
+                                    <option value="gemini-3-flash">Gemini 3 Flash</option>
+                                    <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash</option>
+                                    <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                                    <option value="gemini-3.1-pro">Gemini 3.1 Pro</option>
+                                </select>
+                            </div>
+
+                            <div class="flex items-center gap-2 border-l border-slate-700 pl-4">
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="toggle-auto-analyze" class="sr-only peer"
+                                        onchange="toggleAutoAnalyze()">
+                                    <div
+                                        class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600">
+                                    </div>
+                                    <span class="ml-2 text-xs font-semibold text-slate-300">Live Auto-Analyze</span>
+                                </label>
+                            </div>
+
+                            <div class="flex items-center gap-2 border-l border-slate-700 pl-4">
+                                <span class="text-xs text-slate-400">Freq (s):</span>
+                                <input type="number" id="auto-analyze-interval" value="90" min="10"
+                                    class="w-16 bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1 text-center focus:outline-none focus:border-indigo-500">
+                            </div>
                         </div>
-                        
-                        <div class="flex items-center gap-2 border-l border-slate-700 pl-4">
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="toggle-auto-analyze" class="sr-only peer" onchange="toggleAutoAnalyze()">
-                                <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
-                                <span class="ml-2 text-xs font-semibold text-slate-300">Live Auto-Analyze</span>
-                            </label>
-                        </div>
-                        
-                        <div class="flex items-center gap-2 border-l border-slate-700 pl-4">
-                            <span class="text-xs text-slate-400">Freq (s):</span>
-                            <input type="number" id="auto-analyze-interval" value="90" min="10" class="w-16 bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1 text-center focus:outline-none focus:border-indigo-500">
+
+                        <div class="flex gap-4 flex-1 overflow-hidden min-h-0">
+                            <div class="bg-[#0d1117] rounded-md p-4 border border-slate-800 flex-1 overflow-y-auto">
+                                <div id="reasoning-report-block"
+                                    class="text-sm font-mono-custom text-slate-300 whitespace-pre-wrap">Awaiting
+                                    trigger...</div>
+                            </div>
+                            <div id="reasoning-action-block" class="w-72 shrink-0 hidden flex-col gap-3"></div>
                         </div>
                     </div>
-                    
-                    <div class="flex gap-4 flex-1 overflow-hidden min-h-0">
-                        <div class="bg-[#0d1117] rounded-md p-4 border border-slate-800 flex-1 overflow-y-auto">
-                            <div id="reasoning-report-block" class="text-sm font-mono-custom text-slate-300 whitespace-pre-wrap">Awaiting trigger...</div>
-                        </div>
-                        <div id="reasoning-action-block" class="w-72 shrink-0 hidden flex-col gap-3"></div>
-                    </div>
-                </div>
                     <!-- Intent Inputs -->
                     <div class="flex flex-wrap items-center gap-4 pt-3 border-t border-slate-700/50">
                         <span class="text-xs font-bold text-slate-400 uppercase">Optional: Proposed Trade</span>
                         <div class="flex items-center gap-2">
                             <span class="text-xs text-slate-400">Action:</span>
-                            <select id="intent-action" class="bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1 focus:outline-none focus:border-indigo-500">
+                            <select id="intent-action"
+                                class="bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1 focus:outline-none focus:border-indigo-500">
                                 <option value="None" selected>None</option>
                                 <option value="Buy Market">Buy Market</option>
                                 <option value="Buy Limit">Buy Limit</option>
@@ -401,34 +549,43 @@
                         </div>
                         <div class="flex items-center gap-2">
                             <span class="text-xs text-slate-400">Type:</span>
-                            <select id="intent-type" class="bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1 focus:outline-none focus:border-indigo-500">
+                            <select id="intent-type"
+                                class="bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1 focus:outline-none focus:border-indigo-500">
                                 <option value="Intraday" selected>Intraday</option>
                                 <option value="Delivery">Delivery</option>
                             </select>
                         </div>
                         <div class="flex items-center gap-2">
                             <span class="text-xs text-slate-400">Qty:</span>
-                            <input type="number" id="intent-qty" placeholder="e.g. 100" class="w-16 bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1 focus:outline-none focus:border-indigo-500">
+                            <input type="number" id="intent-qty" placeholder="e.g. 100"
+                                class="w-16 bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1 focus:outline-none focus:border-indigo-500">
                         </div>
                         <div class="flex items-center gap-2">
                             <span class="text-xs text-slate-400">Price:</span>
-                            <input type="number" id="intent-price" placeholder="e.g. 150.5" class="w-16 bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1 focus:outline-none focus:border-indigo-500">
+                            <input type="number" id="intent-price" placeholder="e.g. 150.5"
+                                class="w-16 bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1 focus:outline-none focus:border-indigo-500">
                         </div>
                     </div>
                     <div class="flex flex-wrap items-center gap-4 pb-2">
                         <div class="flex items-center gap-2 flex-1">
                             <span class="text-xs text-slate-400">Advice:</span>
-                            <input type="text" id="intent-advice" placeholder="e.g. Scaling in slowly on dips..." class="flex-1 bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1 focus:outline-none focus:border-indigo-500">
+                            <input type="text" id="intent-advice" placeholder="e.g. Scaling in slowly on dips..."
+                                class="flex-1 bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1 focus:outline-none focus:border-indigo-500">
                         </div>
-                        <button id="btn-inject-intent" onclick="copyToClipboard()" class="px-4 py-1 text-xs font-semibold rounded bg-purple-600 text-white hover:bg-purple-500 transition-colors shadow-lg">Inject & Copy</button>
+                        <button id="btn-inject-intent" onclick="copyToClipboard()"
+                            class="px-4 py-1 text-xs font-semibold rounded bg-purple-600 text-white hover:bg-purple-500 transition-colors shadow-lg">Inject
+                            & Copy</button>
                     </div>
                 </div>
                 <!-- Tab Content: Catalyst -->
                 <div id="tab-content-catalyst" class="hidden flex-col gap-4 flex-1 overflow-y-auto pr-2">
-                    <div class="bg-[#0d1117] rounded-lg p-4 border border-slate-700 h-[400px] overflow-y-auto shadow-inner relative">
-                        <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-2 sticky top-0 bg-[#0d1117] z-10 pt-1">
+                    <div
+                        class="bg-[#0d1117] rounded-lg p-4 border border-slate-700 h-[400px] overflow-y-auto shadow-inner relative">
+                        <div
+                            class="flex justify-between items-center mb-4 border-b border-slate-800 pb-2 sticky top-0 bg-[#0d1117] z-10 pt-1">
                             <h4 class="text-xs font-bold text-slate-500 uppercase">Live News Catalyst</h4>
-                            <button id="btn-force-news" onclick="forceFetchNews()" class="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white text-[10px] uppercase font-bold rounded shadow transition-colors flex items-center gap-2">
+                            <button id="btn-force-news" onclick="forceFetchNews()"
+                                class="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white text-[10px] uppercase font-bold rounded shadow transition-colors flex items-center gap-2">
                                 📰 Force Fetch News
                             </button>
                         </div>
@@ -438,7 +595,9 @@
                 <!-- Tab Content: Telemetry -->
                 <div id="tab-content-telemetry" class="hidden flex-col gap-4 flex-1 overflow-y-auto pr-2">
                     <div class="bg-[#0d1117] border border-slate-800 rounded-lg p-4 h-[400px] overflow-y-auto">
-                        <h4 class="text-xs font-bold text-slate-500 mb-2 uppercase sticky top-0 bg-[#0d1117] z-10 pt-1 pb-2">Raw Telemetry JSON</h4>
+                        <h4
+                            class="text-xs font-bold text-slate-500 mb-2 uppercase sticky top-0 bg-[#0d1117] z-10 pt-1 pb-2">
+                            Raw Telemetry JSON</h4>
                         <pre><code id="modal-code-block" class="text-xs font-mono-custom text-emerald-400 whitespace-pre-wrap break-all"></code></pre>
                     </div>
                 </div>
@@ -451,7 +610,7 @@
         const isLocalFile = window.location.protocol === 'file:';
         const wsHost = isLocalFile ? SERVER_IP : window.location.host;
         const apiHost = isLocalFile ? SERVER_IP : window.location.host;
-        
+
         const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
         const wsUri = `ws://${wsHost}/ws`;
         const apiBase = isLocalFile ? `http://${apiHost}` : '';
@@ -478,30 +637,30 @@
                     breadthElem.innerText = adRatio.toFixed(2);
                     breadthElem.className = adRatio >= 1.0 ? 'text-2xl font-bold font-mono-custom text-emerald-400' : 'text-2xl font-bold font-mono-custom text-rose-400';
                 }
-                
+
                 // MOCK DATA FALLBACK FOR GLOBAL MARKET CONTEXT
-                  if (!payload.global_market_context) {
-                      payload.global_market_context = {
-                          summary: "Global markets are showing strong resilience with cooling inflation data out of the US and steady domestic inflows in Indian markets. FII selling pressure seems to have absorbed. Key focus remains on upcoming Fed commentary and RBI policy alignment.",
-                          sentiment: "BULLISH",
-                          timestamp: Math.floor(Date.now() / 1000)
-                      };
-                  }
-                  
-                  // 5. Update Global Market Context
+                if (!payload.global_market_context) {
+                    payload.global_market_context = {
+                        summary: "Global markets are showing strong resilience with cooling inflation data out of the US and steady domestic inflows in Indian markets. FII selling pressure seems to have absorbed. Key focus remains on upcoming Fed commentary and RBI policy alignment.",
+                        sentiment: "BULLISH",
+                        timestamp: Math.floor(Date.now() / 1000)
+                    };
+                }
+
+                // 5. Update Global Market Context
                 if (payload.global_market_context) {
                     const ctx = payload.global_market_context;
                     const badge = document.getElementById('macro-sentiment-badge');
                     const summary = document.getElementById('macro-summary');
                     const timeElem = document.getElementById('macro-time');
-                    
+
                     if (summary) summary.innerText = ctx.summary || "No summary available.";
                     if (badge) badge.innerText = ctx.sentiment || "NEUTRAL";
-                    
+
                     if (ctx.timestamp && timeElem) {
                         timeElem.innerText = "Updated: " + new Date(ctx.timestamp * 1000).toLocaleTimeString();
                     }
-                    
+
                     let bgClass = 'bg-slate-800', textClass = 'text-slate-400', borderClass = 'border-slate-700';
                     if (ctx.sentiment === 'BULLISH') {
                         bgClass = 'bg-emerald-500/20'; textClass = 'text-emerald-400'; borderClass = 'border-emerald-500/30';
@@ -512,7 +671,7 @@
                     }
                     if (badge) badge.className = `px-2 py-0.5 text-[10px] font-bold rounded border ${bgClass} ${textClass} ${borderClass}`;
                 }
-                
+
                 // 6. Update AI Intraday Playbook
                 if (payload.dashboard_intraday_plays) {
                     const plays = payload.dashboard_intraday_plays;
@@ -523,7 +682,7 @@
                         if (status) { status.classList.add('hidden'); status.classList.remove('block'); }
                         const btn = document.getElementById('btn-run-discovery');
                         if (btn) { btn.disabled = false; btn.classList.remove('opacity-50'); }
-                        
+
                         // Forward playbook data to the Discovery UI render function
                         renderDiscoveryCards(items);
                         // Hide empty state if needed
@@ -551,7 +710,7 @@
         }
         function updateMacroWeather(macro) {
             if (!macro) return;
-            
+
             // 1. Update PCR
             const pcrVal = parseFloat(macro.pcr || 1.0);
             document.getElementById('pcr-val').innerText = pcrVal.toFixed(4);
@@ -587,12 +746,12 @@
                 netDir.className = 'text-sm font-semibold text-slate-400';
                 netDir.innerText = `Net Flow: ₹0.00 Cr (Neutral)`;
             }
-            
+
             document.getElementById('macro-date').innerText = `Date: ${dateStr}`;
         }
         function updateMarketMatrix(globalState) {
             const tableBody = document.getElementById('matrix-body');
-            
+
             if (!globalState || Object.keys(globalState).length === 0) {
                 tableBody.innerHTML = `
                     <tr>
@@ -607,7 +766,7 @@
                 `;
                 return;
             }
-            
+
             // Cache the state globally for the modal
             window.latestGlobalState = globalState;
             // True DOM Diffing: Do NOT clear tableBody.innerHTML
@@ -615,12 +774,12 @@
             const loadingRow = document.getElementById('loading-row');
             if (loadingRow) loadingRow.remove();
             const tokens = Object.keys(globalState).sort();
-            
+
             tokens.forEach(token => {
                 const payload = globalState[token];
                 const symbol = payload.symbol || token.split('|').pop();
                 const ltp = parseFloat(payload.ltp || 0).toFixed(2);
-                
+
                 // --- 1. OBI Visual Gauge Logic ---
                 const rawObi = parseFloat(payload.obi || 0);
                 const obiPct = Math.min(100, Math.abs(rawObi) * 100);
@@ -629,7 +788,7 @@
                     obiBarHTML = `
                         <div class="relative w-full h-1.5 bg-slate-800 rounded-full overflow-hidden flex items-center justify-center mt-1">
                             <div class="absolute w-px h-full bg-slate-600 z-10"></div>
-                            <div class="absolute left-1/2 h-full bg-emerald-500 rounded-r shadow-[0_0_5px_#10b981]" style="width: ${obiPct/2}%"></div>
+                            <div class="absolute left-1/2 h-full bg-emerald-500 rounded-r shadow-[0_0_5px_#10b981]" style="width: ${obiPct / 2}%"></div>
                         </div>
                         <div class="text-[10px] text-emerald-400 text-center mt-0.5">${rawObi.toFixed(4)}</div>
                     `;
@@ -637,7 +796,7 @@
                     obiBarHTML = `
                         <div class="relative w-full h-1.5 bg-slate-800 rounded-full overflow-hidden flex items-center justify-center mt-1">
                             <div class="absolute w-px h-full bg-slate-600 z-10"></div>
-                            <div class="absolute right-1/2 h-full bg-rose-500 rounded-l shadow-[0_0_5px_#f43f5e]" style="width: ${obiPct/2}%"></div>
+                            <div class="absolute right-1/2 h-full bg-rose-500 rounded-l shadow-[0_0_5px_#f43f5e]" style="width: ${obiPct / 2}%"></div>
                         </div>
                         <div class="text-[10px] text-rose-400 text-center mt-0.5">${rawObi.toFixed(4)}</div>
                     `;
@@ -692,13 +851,13 @@
                 if (validCdls.length > 0) {
                     activeCdl = validCdls[validCdls.length - 1].replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
                 }
-                
+
                 let cdlBadge = '<span class="text-slate-500 text-[11px] font-medium">None</span>';
                 if (activeCdl !== "None") {
                     const cdlLower = activeCdl.toLowerCase();
                     const isBullish = cdlLower.includes('bullish') || (cdlLower.includes('hammer') || cdlLower.includes('morning')) && !cdlLower.includes('evening') && !cdlLower.includes('shooting');
                     const isBearish = cdlLower.includes('bearish') || cdlLower.includes('shooting') || cdlLower.includes('evening');
-                    
+
                     if (isBullish) {
                         cdlBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] uppercase font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-[0_0_8px_rgba(16,185,129,0.05)]">${activeCdl}</span>`;
                     } else if (isBearish) {
@@ -717,11 +876,11 @@
                 // --- Phase 5.2: Derivatives ---
                 const stockPcr = parseFloat(payload.stock_pcr || 1.0);
                 const maxPain = payload.max_pain_price ? parseFloat(payload.max_pain_price).toFixed(2) : "N/A";
-                
+
                 let pcrClass = 'text-slate-300';
                 if (stockPcr > 1.2) pcrClass = 'text-emerald-400 font-bold';
                 else if (stockPcr < 0.8) pcrClass = 'text-rose-400 font-bold';
-                
+
                 const pcrBadge = `<span class="${pcrClass}">${stockPcr.toFixed(2)}</span>`;
                 const maxPainBadge = `<span class="text-cyan-400 font-bold font-mono-custom bg-cyan-950/30 px-2 py-0.5 rounded border border-cyan-500/20">${maxPain}</span>`;
                 // --- Phase 6: Statistical Alpha ---
@@ -786,7 +945,7 @@
             let token = tokenOrSymbol;
             if (!window.latestGlobalState[token]) {
                 const searchStr = tokenOrSymbol.split('|').pop();
-                const foundKey = Object.keys(window.latestGlobalState).find(k => 
+                const foundKey = Object.keys(window.latestGlobalState).find(k =>
                     (window.latestGlobalState[k].symbol || "").split('|').pop() === searchStr
                 );
                 if (foundKey) {
@@ -797,10 +956,10 @@
             }
             const payload = window.latestGlobalState[token];
             const symbol = payload.symbol || token.split('|').pop();
-            
+
             // Store globally for the clipboard function
             window.currentViewingToken = token;
-            
+
             // Deep copy the structured payload if it exists, else fallback to raw
             let payloadCopy = {};
             if (payload.structured_payload) {
@@ -808,24 +967,25 @@
             } else {
                 payloadCopy = JSON.parse(JSON.stringify(payload));
             }
-            
+
             // Append User Position if it exists in memory
             try {
                 const allPos = JSON.parse(localStorage.getItem('user_positions')) || {};
-                if (allPos[token]) {
+                const normToken = normalizeSymbol(token);
+                if (allPos[normToken]) {
                     if (payloadCopy.user_context) {
-                        payloadCopy.user_context.position = allPos[token];
+                        payloadCopy.user_context.position = allPos[normToken];
                     } else {
-                        payloadCopy.user_position = allPos[token];
+                        payloadCopy.user_position = allPos[normToken];
                     }
                 }
             } catch (e) {
                 console.error("Failed to append user position:", e);
             }
-            
+
             document.getElementById('modal-title').innerHTML = `<span class="text-xl">🤖</span> AI Reasoning: ${symbol}`;
             document.getElementById('modal-code-block').innerText = JSON.stringify(payloadCopy, null, 2);
-                        switchModalTab('reasoning');
+            switchModalTab('reasoning');
             const catalystBlock = document.getElementById('catalyst-report-block');
             if (payloadCopy.latest_catalyst && payloadCopy.latest_catalyst.raw_news && payloadCopy.latest_catalyst.raw_news.length > 0) {
                 let catText = `Current Cached Raw Catalyst:\n`;
@@ -840,11 +1000,11 @@
             // Phase 8 Reset UI state & fetch existing report
             renderReasoningReport("Awaiting trigger...");
             document.getElementById('toggle-auto-analyze').checked = false;
-            if (window.autoAnalyzeIntervalId) { 
-                clearInterval(window.autoAnalyzeIntervalId); 
-                window.autoAnalyzeIntervalId = null; 
+            if (window.autoAnalyzeIntervalId) {
+                clearInterval(window.autoAnalyzeIntervalId);
+                window.autoAnalyzeIntervalId = null;
             }
-            
+
             fetch(`${apiBase}/api/reasoning/report/${symbol}`)
                 .then(r => r.json())
                 .then(data => {
@@ -856,7 +1016,7 @@
                             const d = await res.json();
                             if (d.report) renderReasoningReport(d.report);
                             document.getElementById('toggle-auto-analyze').checked = d.is_active;
-                            if(!d.is_active) { clearInterval(window.autoAnalyzeIntervalId); window.autoAnalyzeIntervalId=null; }
+                            if (!d.is_active) { clearInterval(window.autoAnalyzeIntervalId); window.autoAnalyzeIntervalId = null; }
                         }, 5000);
                     }
                 }).catch(e => console.error("Fetch report error", e));
@@ -866,14 +1026,14 @@
             ['reasoning', 'catalyst', 'telemetry'].forEach(t => {
                 document.getElementById(`tab-content-${t}`).classList.add('hidden');
                 document.getElementById(`tab-content-${t}`).classList.remove('flex');
-                
+
                 const btn = document.getElementById(`tab-btn-${t}`);
                 btn.className = "px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-t-lg bg-transparent text-slate-500 hover:text-slate-300 transition-colors";
             });
-            
+
             document.getElementById(`tab-content-${tabName}`).classList.remove('hidden');
             document.getElementById(`tab-content-${tabName}`).classList.add('flex');
-            
+
             const activeBtn = document.getElementById(`tab-btn-${tabName}`);
             activeBtn.className = "px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-t-lg bg-slate-800 text-indigo-400 border-t border-l border-r border-slate-700 transition-colors";
         }
@@ -885,22 +1045,22 @@
             const block = document.getElementById('catalyst-report-block');
             const modelSelect = document.getElementById('reasoning-model-select');
             const model = modelSelect ? modelSelect.value : 'gemini-2.5-flash';
-            
+
             btn.innerText = "⏳ Fetching...";
             btn.disabled = true;
             block.innerText = "Querying live API for news...";
-            
+
             try {
                 // Get symbol from latestGlobalState
                 const symbol = window.latestGlobalState[token]?.symbol || token;
-                
+
                 const res = await fetch(`${apiBase}/api/news/fetch/${symbol}`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({model: model})
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model: model })
                 });
                 const data = await res.json();
-                
+
                 if (data.status === 'success' && data.data) {
                     const newsData = data.data;
                     // CACHE IT LOCALLY SO IT DOESN'T VANISH ON REOPEN
@@ -911,7 +1071,7 @@
                         window.latestGlobalState[token].latest_catalyst = newsData;
                         window.latestGlobalState[token].structured_payload.latest_catalyst = newsData;
                     }
-                    
+
                     // Prettify output
                     let out = `--- LATEST RAW CATALYST ---\n`;
                     if (newsData.raw_news && newsData.raw_news.length > 0) {
@@ -935,7 +1095,7 @@
         function closeJsonModal() {
             document.getElementById('llm-modal').classList.add('hidden');
         }
-                function getUserIntent() {
+        function getUserIntent() {
             const action = document.getElementById('intent-action').value;
             if (action === "None") return null;
             const type = document.getElementById('intent-type').value;
@@ -947,21 +1107,21 @@
         function copyToClipboard() {
             const codeBlock = document.getElementById('modal-code-block').innerText;
             const currentPrompt = localStorage.getItem('llm_system_prompt') || DEFAULT_SYSTEM_PROMPT;
-            
+
             let statusText = '';
             if (window.currentViewingToken) {
                 try {
                     const allPos = JSON.parse(localStorage.getItem('user_positions')) || {};
-                    const myPos = allPos[window.currentViewingToken];
+                    const myPos = allPos[normalizeSymbol(window.currentViewingToken)];
                     if (myPos) {
-                    const action = myPos.direction === 'Long' ? 'Holding' : 'Short';
+                        const action = myPos.direction === 'Long' ? 'Holding' : 'Short';
                         statusText = `My Status: ${action} ${myPos.mode}, ${myPos.quantity} qty entered at ${myPos.entry_price}.\n\n`;
                     }
                 } catch (e) {
                     console.error("Failed to parse position for clipboard:", e);
                 }
             }
-            
+
             let intentText = '';
             const intent = getUserIntent();
             if (intent) {
@@ -975,7 +1135,7 @@
                 btn.innerText = 'Copied!';
                 btn.classList.replace('bg-indigo-600', 'bg-emerald-600');
                 btn.classList.replace('hover:bg-indigo-500', 'hover:bg-emerald-500');
-                
+
                 setTimeout(() => {
                     btn.innerText = originalText;
                     btn.classList.replace('bg-emerald-600', 'bg-indigo-600');
@@ -1007,23 +1167,27 @@
                 textArea.remove();
             }
         }
+        // --- Symbol Normalizer (must match backend _normalize_symbol) ---
+        function normalizeSymbol(s) {
+            return s.split('|').pop().split('-')[0];
+        }
         // --- Phase 8: Reasoning Engine Control ---
         window.autoAnalyzeIntervalId = null;
         async function triggerInstantAnalysis() {
             const token = window.currentViewingToken;
             if (!token) return;
-            
+
             const payload = window.latestGlobalState[token];
             const symbol = payload.symbol || token.split('|').pop();
             const model = document.getElementById('reasoning-model-select').value;
             const prompt = localStorage.getItem('llm_system_prompt') || DEFAULT_SYSTEM_PROMPT;
-            
+
             const allPos = JSON.parse(localStorage.getItem('user_positions')) || {};
-            const userPosition = allPos[token] || null;
-            
+            const userPosition = allPos[normalizeSymbol(token)] || null;
+
             const btn = document.getElementById('btn-instant-analyze');
             const reportBlock = document.getElementById('reasoning-report-block');
-            
+
             btn.disabled = true;
             btn.innerHTML = `<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Analyzing...`;
             reportBlock.innerText = "Querying Neuro-Symbolic LLM...";
@@ -1055,22 +1219,23 @@
             if (!token) return;
             const payload = window.latestGlobalState[token];
             const symbol = payload.symbol || token.split('|').pop();
-            
+
             const isChecked = document.getElementById('toggle-auto-analyze').checked;
             const intervalSecs = parseInt(document.getElementById('auto-analyze-interval').value) || 90;
             const model = document.getElementById('reasoning-model-select').value;
             const prompt = localStorage.getItem('llm_system_prompt') || DEFAULT_SYSTEM_PROMPT;
-            
+
             const allPos = JSON.parse(localStorage.getItem('user_positions')) || {};
-            const userPosition = allPos[token] || null;
-            
+            const normSym = normalizeSymbol(token);
+            const userPosition = allPos[normSym] || null;
+
             if (isChecked) {
                 fetch(`${apiBase}/api/reasoning/loop/start`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ symbol: symbol, interval: intervalSecs, model: model, prompt: prompt, user_position: userPosition })
                 });
-                
+
                 if (window.autoAnalyzeIntervalId) clearInterval(window.autoAnalyzeIntervalId);
                 window.autoAnalyzeIntervalId = setInterval(async () => {
                     if (!window.currentViewingToken) return;
@@ -1089,7 +1254,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ symbol: symbol })
                 });
-                
+
                 if (window.autoAnalyzeIntervalId) {
                     clearInterval(window.autoAnalyzeIntervalId);
                     window.autoAnalyzeIntervalId = null;
@@ -1123,17 +1288,17 @@
                 const data = await res.json();
                 const trayBody = document.getElementById('alert-tray-body');
                 trayBody.innerHTML = '';
-                
+
                 if (!data.alerts || data.alerts.length === 0) {
                     trayBody.innerHTML = `<div class="text-center text-xs text-slate-500 p-4">No alerts right now.</div>`;
                     return;
                 }
-                
+
                 data.alerts.forEach(alert => {
                     const isUnread = !alert.read;
                     const dot = isUnread ? `<div class="w-2 h-2 rounded-full bg-rose-500 mt-1"></div>` : '';
-                    const timeStr = new Date(alert.timestamp * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
-                    
+                    const timeStr = new Date(alert.timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
                     const el = document.createElement('div');
                     el.className = `p-3 rounded-md cursor-pointer transition-colors border ${isUnread ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : 'bg-slate-900/50 border-transparent hover:bg-slate-800'}`;
                     el.onclick = () => openAlertModal(alert.id, alert.symbol);
@@ -1159,7 +1324,7 @@
                 // Mark as read
                 await fetch(`${apiBase}/api/alerts/mark-read/${alertId}`, { method: 'POST' });
                 fetchUnreadCount(); // update badge
-                
+
                 // Lookup token from global state if we can
                 let token = null;
                 for (const t in window.latestGlobalState) {
@@ -1168,7 +1333,7 @@
                         token = t; break;
                     }
                 }
-                
+
                 if (token) {
                     openJsonModal(token); // This will fetch the latest report too!
                 } else {
@@ -1183,38 +1348,38 @@
         const btnScreener = document.getElementById('btn-screener');
         if (btnScreener) {
             btnScreener.addEventListener('click', async () => {
-            const loadingModal = document.getElementById('loading-modal');
-            const resultsModal = document.getElementById('results-modal');
-            const tbody = document.getElementById('results-tbody');
-            
-            loadingModal.classList.remove('hidden');
-            
-            try {
-                const response = await fetch(`${apiBase}/api/run-screener`, { method: 'POST' });
-                const result = await response.json();
-                
-                tbody.innerHTML = '';
-                if (result.status === 'success' && result.data) {
-                    result.data.forEach(item => {
-                        const tr = document.createElement('tr');
-                        tr.innerHTML = `
+                const loadingModal = document.getElementById('loading-modal');
+                const resultsModal = document.getElementById('results-modal');
+                const tbody = document.getElementById('results-tbody');
+
+                loadingModal.classList.remove('hidden');
+
+                try {
+                    const response = await fetch(`${apiBase}/api/run-screener`, { method: 'POST' });
+                    const result = await response.json();
+
+                    tbody.innerHTML = '';
+                    if (result.status === 'success' && result.data) {
+                        result.data.forEach(item => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
                             <td class="px-4 py-3 text-indigo-400 font-semibold">${item.symbol}</td>
                             <td class="px-4 py-3 text-right text-emerald-400 font-mono-custom">${parseFloat(item.rs).toFixed(2)}%</td>
                             <td class="px-4 py-3 text-right text-white font-mono-custom">${parseFloat(item.ivr).toFixed(2)}</td>
                         `;
-                        tbody.appendChild(tr);
-                    });
+                            tbody.appendChild(tr);
+                        });
+                    }
+
+                    loadingModal.classList.add('hidden');
+                    resultsModal.classList.remove('hidden');
+
+                } catch (error) {
+                    console.error("Screener failed:", error);
+                    loadingModal.classList.add('hidden');
+                    alert("Screener failed to execute. Check terminal logs.");
                 }
-                
-                loadingModal.classList.add('hidden');
-                resultsModal.classList.remove('hidden');
-                
-            } catch (error) {
-                console.error("Screener failed:", error);
-                loadingModal.classList.add('hidden');
-                alert("Screener failed to execute. Check terminal logs.");
-            }
-        });
+            });
         }
         function closeResultsModal() {
             document.getElementById('results-modal').classList.add('hidden');
@@ -1223,26 +1388,35 @@
         connect();
     </script>
     <!-- Loading Modal -->
-    <div id="loading-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div id="loading-modal"
+        class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
         <div class="bg-slate-900 border border-indigo-500/30 p-8 rounded-xl shadow-2xl flex flex-col items-center">
             <svg class="animate-spin h-12 w-12 text-indigo-500 mb-4" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                </path>
             </svg>
             <h2 class="text-xl font-bold text-white mb-2">Scanning Master F&O Universe...</h2>
             <p class="text-slate-400 text-sm">Please wait (approx. 45 seconds). Do not close this window.</p>
         </div>
     </div>
     <!-- Results Modal -->
-    <div id="results-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
-        <div class="bg-slate-900 border border-emerald-500/30 p-8 rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+    <div id="results-modal"
+        class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div
+            class="bg-slate-900 border border-emerald-500/30 p-8 rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-2xl font-bold text-emerald-400">Phase 0: Screener Results</h2>
                 <button onclick="closeResultsModal()" class="text-slate-400 hover:text-white transition-colors">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
                 </button>
             </div>
-            <p class="text-sm text-slate-300 mb-4">Watchlist updated successfully! Please restart the Live Engine terminal to begin streaming the new assets.</p>
+            <p class="text-sm text-slate-300 mb-4">Watchlist updated successfully! Please restart the Live Engine
+                terminal to begin streaming the new assets.</p>
             <div class="overflow-y-auto flex-1 border border-slate-800 rounded-lg">
                 <table class="min-w-full divide-y divide-slate-800 text-sm">
                     <thead class="bg-slate-950/50 sticky top-0">
@@ -1258,31 +1432,42 @@
                 </table>
             </div>
             <div class="mt-6 text-right">
-                <button onclick="closeResultsModal()" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded transition-colors border border-slate-600">Close</button>
+                <button onclick="closeResultsModal()"
+                    class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded transition-colors border border-slate-600">Close</button>
             </div>
         </div>
     </div>
     <!-- Ledger Execution Modal -->
-    <div id="ledger-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
-        <div class="bg-slate-900 border border-indigo-700 rounded-xl shadow-[0_0_20px_rgba(79,70,229,0.2)] p-6 max-w-sm w-full mx-4">
+    <div id="ledger-modal"
+        class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div
+            class="bg-slate-900 border border-indigo-700 rounded-xl shadow-[0_0_20px_rgba(79,70,229,0.2)] p-6 max-w-sm w-full mx-4">
             <h2 id="ledger-modal-title" class="text-lg font-bold text-white mb-4">Confirm Execution</h2>
             <div class="space-y-4">
                 <div>
                     <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Execution Price</label>
-                    <input type="number" id="ledger-modal-price" class="w-full bg-slate-950 text-white border border-slate-700 rounded px-3 py-2 font-mono-custom" step="0.05">
+                    <input type="number" id="ledger-modal-price"
+                        class="w-full bg-slate-950 text-white border border-slate-700 rounded px-3 py-2 font-mono-custom"
+                        step="0.05">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Quantity</label>
-                    <input type="number" id="ledger-modal-qty" class="w-full bg-slate-950 text-white border border-slate-700 rounded px-3 py-2 font-mono-custom" value="100">
+                    <input type="number" id="ledger-modal-qty"
+                        class="w-full bg-slate-950 text-white border border-slate-700 rounded px-3 py-2 font-mono-custom"
+                        value="100">
                 </div>
                 <div id="ledger-modal-charges-container" class="hidden">
                     <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Charges</label>
-                    <input type="number" id="ledger-modal-charges" class="w-full bg-slate-950 text-white border border-slate-700 rounded px-3 py-2 font-mono-custom" step="0.01" value="0.00">
+                    <input type="number" id="ledger-modal-charges"
+                        class="w-full bg-slate-950 text-white border border-slate-700 rounded px-3 py-2 font-mono-custom"
+                        step="0.01" value="0.00">
                 </div>
             </div>
             <div class="mt-6 flex justify-end gap-3">
-                <button onclick="closeLedgerModal()" class="px-4 py-2 text-sm font-bold text-slate-400 hover:text-white transition-colors">Cancel</button>
-                <button id="ledger-modal-confirm" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded font-bold shadow transition-colors">Confirm</button>
+                <button onclick="closeLedgerModal()"
+                    class="px-4 py-2 text-sm font-bold text-slate-400 hover:text-white transition-colors">Cancel</button>
+                <button id="ledger-modal-confirm"
+                    class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded font-bold shadow transition-colors">Confirm</button>
             </div>
         </div>
     </div>
@@ -1293,72 +1478,103 @@
     </script>
 
     <!-- Position Editor Modal -->
-    <div id="position-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div id="position-modal"
+        class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
         <div class="bg-slate-900 border border-emerald-500/30 p-6 rounded-xl shadow-2xl w-full max-w-sm flex flex-col">
             <div class="flex justify-between items-center mb-4">
-                <h2 id="pos-modal-title" class="text-lg font-bold text-white flex items-center gap-2">📝 Edit Position</h2>
+                <h2 id="pos-modal-title" class="text-lg font-bold text-white flex items-center gap-2">📝 Edit Position
+                </h2>
                 <button id="btn-close-pos" class="text-slate-400 hover:text-white transition-colors">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
                 </button>
             </div>
-            
+
             <input type="hidden" id="pos-token">
-            
+
             <div class="space-y-4 mt-2">
                 <div>
-                    <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Trade Mode</label>
-                    <select id="pos-mode" class="w-full bg-slate-950 border border-slate-700 text-slate-200 text-sm rounded p-2 focus:border-emerald-500 outline-none shadow-inner cursor-pointer">
+                    <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Trade
+                        Mode</label>
+                    <select id="pos-mode"
+                        class="w-full bg-slate-950 border border-slate-700 text-slate-200 text-sm rounded p-2 focus:border-emerald-500 outline-none shadow-inner cursor-pointer">
                         <option value="Delivery">Delivery / Swing</option>
                         <option value="Intraday">Intraday (MIS)</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Direction</label>
-                    <select id="pos-direction" class="w-full bg-slate-950 border border-slate-700 text-slate-200 text-sm rounded p-2 focus:border-emerald-500 outline-none shadow-inner cursor-pointer">
+                    <label
+                        class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Direction</label>
+                    <select id="pos-direction"
+                        class="w-full bg-slate-950 border border-slate-700 text-slate-200 text-sm rounded p-2 focus:border-emerald-500 outline-none shadow-inner cursor-pointer">
                         <option value="Long">Long (Bullish)</option>
                         <option value="Short">Short (Bearish)</option>
                     </select>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Quantity</label>
-                        <input type="number" id="pos-qty" placeholder="e.g. 100" class="w-full bg-slate-950 border border-slate-700 text-emerald-400 font-mono-custom font-bold text-sm rounded p-2 focus:border-emerald-500 outline-none shadow-inner">
+                        <label
+                            class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Quantity</label>
+                        <input type="number" id="pos-qty" placeholder="e.g. 100"
+                            class="w-full bg-slate-950 border border-slate-700 text-emerald-400 font-mono-custom font-bold text-sm rounded p-2 focus:border-emerald-500 outline-none shadow-inner">
                     </div>
                     <div>
-                        <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Entry Price (₹)</label>
-                        <input type="number" step="0.05" id="pos-price" placeholder="0.00" class="w-full bg-slate-950 border border-slate-700 text-emerald-400 font-mono-custom font-bold text-sm rounded p-2 focus:border-emerald-500 outline-none shadow-inner">
+                        <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Entry
+                            Price (₹)</label>
+                        <input type="number" step="0.05" id="pos-price" placeholder="0.00"
+                            class="w-full bg-slate-950 border border-slate-700 text-emerald-400 font-mono-custom font-bold text-sm rounded p-2 focus:border-emerald-500 outline-none shadow-inner">
                     </div>
                     <div>
-                        <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Target Price (₹)</label>
-                        <input type="number" step="0.05" id="pos-target" placeholder="Optional" class="w-full bg-slate-950 border border-slate-700 text-emerald-400 font-mono-custom font-bold text-sm rounded p-2 focus:border-emerald-500 outline-none shadow-inner">
+                        <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Target
+                            Price (₹)</label>
+                        <input type="number" step="0.05" id="pos-target" placeholder="Optional"
+                            class="w-full bg-slate-950 border border-slate-700 text-emerald-400 font-mono-custom font-bold text-sm rounded p-2 focus:border-emerald-500 outline-none shadow-inner">
                     </div>
                     <div>
-                        <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Stop Loss (₹)</label>
-                        <input type="number" step="0.05" id="pos-stoploss" placeholder="Optional" class="w-full bg-slate-950 border border-slate-700 text-emerald-400 font-mono-custom font-bold text-sm rounded p-2 focus:border-emerald-500 outline-none shadow-inner">
+                        <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Stop
+                            Loss (₹)</label>
+                        <input type="number" step="0.05" id="pos-stoploss" placeholder="Optional"
+                            class="w-full bg-slate-950 border border-slate-700 text-emerald-400 font-mono-custom font-bold text-sm rounded p-2 focus:border-emerald-500 outline-none shadow-inner">
                     </div>
                 </div>
             </div>
             <div class="mt-6 flex justify-between gap-3">
-                <button id="btn-clear-pos" class="w-1/3 bg-slate-800 hover:bg-rose-900/50 text-slate-400 hover:text-rose-400 border border-slate-700 hover:border-rose-500/50 text-sm font-bold py-2 rounded transition-colors shadow-sm">Clear</button>
-                <button id="btn-save-pos" class="w-2/3 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold py-2 rounded shadow-lg transition-colors shadow-emerald-500/20 border border-emerald-500/30">Save Position</button>
+                <button id="btn-clear-pos"
+                    class="w-1/3 bg-slate-800 hover:bg-rose-900/50 text-slate-400 hover:text-rose-400 border border-slate-700 hover:border-rose-500/50 text-sm font-bold py-2 rounded transition-colors shadow-sm">Clear</button>
+                <button id="btn-save-pos"
+                    class="w-2/3 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold py-2 rounded shadow-lg transition-colors shadow-emerald-500/20 border border-emerald-500/30">Save
+                    Position</button>
             </div>
         </div>
     </div>
     <!-- Modals -->
-    <div id="settings-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div id="settings-modal"
+        class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
         <div class="bg-slate-900 border border-slate-600 p-6 rounded-xl shadow-2xl w-full max-w-3xl flex flex-col">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-bold text-white flex items-center gap-2">⚙️ LLM Prompt Configuration</h2>
                 <button id="btn-close-settings" class="text-slate-400 hover:text-white transition-colors">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
                 </button>
             </div>
-            <p class="text-sm text-slate-400 mb-4">Configure the Master System Prompt that will be injected when copying telemetry JSON data.</p>
-            <textarea id="prompt-editor" class="w-full h-64 bg-slate-950 border border-slate-700 text-emerald-400 p-4 font-mono-custom text-sm rounded focus:outline-none focus:border-indigo-500 shadow-inner" spellcheck="false"></textarea>
-            
+            <p class="text-sm text-slate-400 mb-4">Configure the Master System Prompt that will be injected when copying
+                telemetry JSON data.</p>
+            <textarea id="prompt-editor"
+                class="w-full h-64 bg-slate-950 border border-slate-700 text-emerald-400 p-4 font-mono-custom text-sm rounded focus:outline-none focus:border-indigo-500 shadow-inner"
+                spellcheck="false"></textarea>
+
             <div class="mt-6 flex justify-between">
-                <button id="btn-reset-settings" class="bg-rose-900/50 hover:bg-rose-600 text-rose-300 hover:text-white font-bold py-2 px-6 rounded transition-colors border border-rose-700/50">Reset to Default</button>
-                <button id="btn-save-settings" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-6 rounded shadow-lg transition-colors shadow-emerald-500/20">Save Configuration</button>
+                <button id="btn-reset-settings"
+                    class="bg-rose-900/50 hover:bg-rose-600 text-rose-300 hover:text-white font-bold py-2 px-6 rounded transition-colors border border-rose-700/50">Reset
+                    to Default</button>
+                <button id="btn-save-settings"
+                    class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-6 rounded shadow-lg transition-colors shadow-emerald-500/20">Save
+                    Configuration</button>
             </div>
         </div>
     </div>
@@ -1407,7 +1623,7 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
   "Priority_Score": <int from 1 to 10>, // Set > 6 ONLY if a high-conviction asymmetric edge or critical position exit exists right now
   "Reason": "<string>" // CRITICAL: Exactly 1-2 dense sentences detailing the precise multi-block convergence (e.g., Whale Absorption vs. Macro Walls) that dictates this action.
 }`;
-        
+
         // Force update if the old prompt is still present or if it doesn't contain the new strictly JSON string check
         const currentStoredPrompt = localStorage.getItem('llm_system_prompt');
         if (currentStoredPrompt && currentStoredPrompt.includes('===ADVICE_SPLIT===')) {
@@ -1445,7 +1661,7 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
         });
         // Reset Configuration
         btnResetSettings.addEventListener('click', () => {
-            if(confirm("Are you sure you want to reset the prompt to its factory default?")) {
+            if (confirm("Are you sure you want to reset the prompt to its factory default?")) {
                 promptEditor.value = DEFAULT_SYSTEM_PROMPT;
                 localStorage.setItem('llm_system_prompt', DEFAULT_SYSTEM_PROMPT);
                 alert("Prompt Reset to Default!");
@@ -1458,29 +1674,29 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
         const posModal = document.getElementById('position-modal');
         const btnClosePos = document.getElementById('btn-close-pos');
         const posTitle = document.getElementById('pos-modal-title');
-        
+
         function openPositionModal(tokenOrSymbol) {
             let token = tokenOrSymbol;
             if (window.latestGlobalState && !window.latestGlobalState[token]) {
                 const searchStr = tokenOrSymbol.split('|').pop();
-                const foundKey = Object.keys(window.latestGlobalState).find(k => 
+                const foundKey = Object.keys(window.latestGlobalState).find(k =>
                     (window.latestGlobalState[k].symbol || "").split('|').pop() === searchStr
                 );
                 if (foundKey) token = foundKey;
             }
             const state = window.latestGlobalState && window.latestGlobalState[token] ? window.latestGlobalState[token] : null;
             const symbol = state ? state.symbol : `Token ${token}`;
-            
+
             posTitle.innerHTML = `📝 Edit Position: ${symbol}`;
             document.getElementById('pos-token').value = token;
-            
+
             // Extract AI recommended data if available
             let defaultDirection = 'Long';
             let defaultPrice = '';
-            
-            const liveReport = window.latestLiveReports ? window.latestLiveReports[symbol] : null;
+
+            const liveReport = window.latestLiveReports ? window.latestLiveReports[normalizeSymbol(symbol)] : null;
             const reportToParse = liveReport || (state ? state.latest_report : null);
-            
+
             if (reportToParse) {
                 const jsonMatch = reportToParse.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
                 if (jsonMatch) {
@@ -1492,14 +1708,15 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                             if (act.includes('short') || act.includes('sell')) defaultDirection = 'Short';
                             else if (act.includes('long') || act.includes('buy')) defaultDirection = 'Long';
                         }
-                    } catch(e) {}
+                    } catch (e) { }
                 }
             }
             // Load existing data if available
             const allPosStr = localStorage.getItem('user_positions');
             const allPos = allPosStr ? JSON.parse(allPosStr) : {};
-            const myPos = allPos[token];
-            
+            const posKey = normalizeSymbol(token);
+            const myPos = allPos[posKey];
+
             if (myPos) {
                 document.getElementById('pos-mode').value = myPos.mode || 'Intraday';
                 document.getElementById('pos-direction').value = myPos.direction || defaultDirection;
@@ -1515,14 +1732,14 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                 document.getElementById('pos-target').value = '';
                 document.getElementById('pos-stoploss').value = '';
             }
-            
+
             posModal.classList.remove('hidden');
         }
-        
+
         btnClosePos.addEventListener('click', () => {
             posModal.classList.add('hidden');
         });
-        
+
         document.getElementById('btn-save-pos').addEventListener('click', () => {
             const token = document.getElementById('pos-token').value;
             const qty = parseFloat(document.getElementById('pos-qty').value);
@@ -1533,10 +1750,11 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                 alert("Please enter valid positive numbers for Quantity and Price.");
                 return;
             }
-            
+
             const allPosStr = localStorage.getItem('user_positions');
             const allPos = allPosStr ? JSON.parse(allPosStr) : {};
-            const existingPos = allPos[token];
+            const posKey = normalizeSymbol(token);
+            const existingPos = allPos[posKey];
             const posData = {
                 mode: document.getElementById('pos-mode').value,
                 direction: document.getElementById('pos-direction').value,
@@ -1546,15 +1764,15 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                 stoploss: isNaN(stoplossVal) ? null : stoplossVal,
                 entry_timestamp: existingPos && existingPos.entry_timestamp ? existingPos.entry_timestamp : Math.floor(Date.now() / 1000)
             };
-            allPos[token] = posData;
+            allPos[posKey] = posData;
             localStorage.setItem('user_positions', JSON.stringify(allPos));
             posModal.classList.add('hidden');
-            console.log(`Position for Token ${token} saved.`);
+            console.log(`Position for ${posKey} saved.`);
             // Sync with backend positions registry
             fetch(`${apiBase}/api/reasoning/position/save`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ symbol: token, user_position: posData })
+                body: JSON.stringify({ symbol: posKey, user_position: posData })
             });
             // Hot-reload the backend loop if global auto-analyze is running
             if (document.getElementById('global-auto-analyze').checked) {
@@ -1562,24 +1780,25 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                 fetch(`${apiBase}/api/reasoning/loop/start`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ symbol: token, interval: parseInt(freq), user_position: posData })
+                    body: JSON.stringify({ symbol: posKey, interval: parseInt(freq), user_position: posData })
                 });
             }
         });
         document.getElementById('btn-clear-pos').addEventListener('click', () => {
             const token = document.getElementById('pos-token').value;
+            const posKey = normalizeSymbol(token);
             const allPos = JSON.parse(localStorage.getItem('user_positions')) || {};
-            if (allPos[token]) {
-                delete allPos[token];
+            if (allPos[posKey]) {
+                delete allPos[posKey];
                 localStorage.setItem('user_positions', JSON.stringify(allPos));
             }
             posModal.classList.add('hidden');
-            console.log(`Position for Token ${token} cleared.`);
+            console.log(`Position for ${posKey} cleared.`);
             // Sync with backend positions registry (clear)
             fetch(`${apiBase}/api/reasoning/position/save`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ symbol: token, user_position: null })
+                body: JSON.stringify({ symbol: posKey, user_position: null })
             });
             // Hot-reload the backend loop if global auto-analyze is running
             if (document.getElementById('global-auto-analyze').checked) {
@@ -1587,7 +1806,7 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                 fetch(`${apiBase}/api/reasoning/loop/start`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ symbol: token, interval: parseInt(freq), user_position: null })
+                    body: JSON.stringify({ symbol: posKey, interval: parseInt(freq), user_position: null })
                 });
             }
         });
@@ -1627,7 +1846,7 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                     });
             });
         }
-        
+
         // --- Phase 10: Watchlist Manager Logic ---
         const watchlistModal = document.getElementById('watchlist-modal');
         let currentWatchlist = [];
@@ -1690,13 +1909,13 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                 if (btnLiveAction) {
                     btnLiveAction.className = "px-4 py-1.5 text-xs font-bold rounded-md text-slate-400 hover:text-slate-200 transition-all border border-transparent";
                 }
-                
+
                 const targetTab = document.getElementById(`tab-${tabId}`);
                 if (targetTab) {
                     targetTab.classList.remove('hidden');
                     targetTab.classList.add('block');
                 }
-                
+
                 const targetBtn = document.getElementById(`tab-btn-${tabId}`);
                 if (targetBtn) {
                     targetBtn.className = "px-4 py-1.5 text-xs font-bold rounded-md bg-slate-800 text-white shadow transition-all border border-slate-700/50";
@@ -1713,21 +1932,21 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
         }
         let lastPlaybookStr = '';
         function renderDiscoveryCards(watchlist) {
-              try {
-                  const grid = document.getElementById('screener-cards');
-                  if (!grid) return;
-                  grid.innerHTML = '';
-                  
-                  if (!watchlist || !Array.isArray(watchlist)) {
-                      grid.innerHTML = `<div class="col-span-full p-4 bg-amber-900/50 text-amber-300 rounded border border-amber-700">Invalid watchlist data</div>`;
-                      return;
-                  }
-                  
-                  if (watchlist.length === 0) {
-                     grid.innerHTML = `<div class="col-span-full p-4 bg-amber-900/50 text-amber-300 rounded border border-amber-700">Watchlist is an empty array []</div>`;
-                     return;
+            try {
+                const grid = document.getElementById('screener-cards');
+                if (!grid) return;
+                grid.innerHTML = '';
+
+                if (!watchlist || !Array.isArray(watchlist)) {
+                    grid.innerHTML = `<div class="col-span-full p-4 bg-amber-900/50 text-amber-300 rounded border border-amber-700">Invalid watchlist data</div>`;
+                    return;
                 }
-                
+
+                if (watchlist.length === 0) {
+                    grid.innerHTML = `<div class="col-span-full p-4 bg-amber-900/50 text-amber-300 rounded border border-amber-700">Watchlist is an empty array []</div>`;
+                    return;
+                }
+
                 watchlist.forEach((item, idx) => {
                     try {
                         const card = document.createElement('div');
@@ -1735,7 +1954,7 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                         card.style.minHeight = "200px";
                         card.style.display = "flex";
                         card.className = "bg-slate-900 border border-slate-700/80 rounded-xl p-5 shadow-lg flex-col justify-between hover:border-indigo-500/50 transition-colors group relative overflow-hidden";
-                        
+
                         card.innerHTML = `
                             <div class="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
                             <div class="relative z-10">
@@ -1794,16 +2013,16 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
             try {
                 const res = await fetch(`${apiBase}/api/watchlist/add`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ token, symbol, exchange })
                 });
                 const data = await res.json();
-                if(res.ok) {
+                if (res.ok) {
                     alert(`Successfully added ${symbol} to Live Watchlist! The websocket stream will hot-load it.`);
                 } else {
                     alert("Error: " + data.message);
                 }
-            } catch(e) {
+            } catch (e) {
                 console.error(e);
                 alert("Failed to add to watchlist.");
             }
@@ -1817,7 +2036,7 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ items: currentWatchlist })
                 });
-                if(res.ok) {
+                if (res.ok) {
                     alert("Watchlist updated successfully! Data stream reinitialized.");
                     closeWatchlistModal();
                 } else {
@@ -1834,7 +2053,7 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
             const query = document.getElementById('watchlist-search').value;
             const resDiv = document.getElementById('watchlist-search-results');
             if (query.length < 2) { resDiv.innerHTML = ''; return; }
-            
+
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(async () => {
                 try {
@@ -1846,7 +2065,7 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                         div.className = "p-2 hover:bg-slate-700 cursor-pointer text-sm flex justify-between border-b border-slate-700";
                         div.innerHTML = `<span><span class="font-bold text-slate-200">${item.symbol}</span></span> <span class="text-xs text-slate-400">${item.exchange}:${item.token}</span>`;
                         div.onclick = () => {
-                            if(!currentWatchlist.find(x => x.token === item.token)) {
+                            if (!currentWatchlist.find(x => x.token === item.token)) {
                                 currentWatchlist.push(item);
                                 renderWatchlist();
                             }
@@ -1855,7 +2074,7 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                         };
                         resDiv.appendChild(div);
                     });
-                } catch(e) {
+                } catch (e) {
                     console.error("Search failed", e);
                 }
             }, 300);
@@ -1876,7 +2095,7 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                         if (document.activeElement !== document.getElementById('news-model-select')) {
                             document.getElementById('news-model-select').value = data.model;
                         }
-                        
+
                         const statusElem = document.getElementById('news-status-text');
                         if (data.is_active) {
                             const lastFetch = data.last_fetch_time > 0 ? new Date(data.last_fetch_time * 1000).toLocaleTimeString() : 'Never';
@@ -1899,16 +2118,16 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ model: model })
             })
-            .then(r => r.json())
-            .then(data => {
-                fetchNewsState();
-                setTimeout(() => { btn.innerHTML = origHtml; btn.disabled = false; }, 1000);
-            })
-            .catch(err => {
-                console.error(err);
-                btn.innerHTML = origHtml;
-                btn.disabled = false;
-            });
+                .then(r => r.json())
+                .then(data => {
+                    fetchNewsState();
+                    setTimeout(() => { btn.innerHTML = origHtml; btn.disabled = false; }, 1000);
+                })
+                .catch(err => {
+                    console.error(err);
+                    btn.innerHTML = origHtml;
+                    btn.disabled = false;
+                });
         }
         function toggleNewsAuto() {
             const isChecked = document.getElementById('toggle-news-auto').checked;
@@ -1948,8 +2167,8 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                 const model = modelSelect ? modelSelect.value : 'gemini-2.5-flash';
                 const res = await fetch(`${apiBase}/api/reasoning/playbook/generate`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({model: model})
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model: model })
                 });
                 if (res.ok) {
                     showToast("Playbook Generation Triggered", "The AI is compiling the multi-factor matrix in the background. Please wait a few seconds...");
@@ -1996,10 +2215,10 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
         function syncEODParquet() {
             const checkboxes = document.querySelectorAll('.parquet-sym-checkbox:checked');
             const symbols = Array.from(checkboxes).map(cb => cb.value);
-            
+
             const btn = document.getElementById('btn-sync-parquet');
             const status = document.getElementById('parquet-sync-status');
-            
+
             if (symbols.length === 0) {
                 status.innerHTML = `<span class="text-rose-400">Select at least one symbol.</span>`;
                 status.classList.remove('hidden');
@@ -2015,19 +2234,19 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ symbols: symbols })
             })
-            .then(r => r.json())
-            .then(data => {
-                btn.innerHTML = '💾 Force Sync EOD Parquet';
-                btn.disabled = false;
-                status.innerHTML = `<span class="text-emerald-400">Sync Complete. Check terminal logs.</span>`;
-                setTimeout(() => status.classList.add('hidden'), 5000);
-            })
-            .catch(err => {
-                console.error(err);
-                btn.innerHTML = '💾 Force Sync EOD Parquet';
-                btn.disabled = false;
-                status.innerHTML = `<span class="text-rose-400">Sync Failed.</span>`;
-            });
+                .then(r => r.json())
+                .then(data => {
+                    btn.innerHTML = '💾 Force Sync EOD Parquet';
+                    btn.disabled = false;
+                    status.innerHTML = `<span class="text-emerald-400">Sync Complete. Check terminal logs.</span>`;
+                    setTimeout(() => status.classList.add('hidden'), 5000);
+                })
+                .catch(err => {
+                    console.error(err);
+                    btn.innerHTML = '💾 Force Sync EOD Parquet';
+                    btn.disabled = false;
+                    status.innerHTML = `<span class="text-rose-400">Sync Failed.</span>`;
+                });
         }
         // Initialize News Engine
         document.addEventListener('DOMContentLoaded', () => {
@@ -2038,7 +2257,7 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
         function renderReasoningReport(reportText) {
             const el = document.getElementById('reasoning-report-block');
             if (!el) return;
-            
+
             let data = null;
             let cleanText = reportText.trim();
             if (cleanText.startsWith('```json')) cleanText = cleanText.substring(7);
@@ -2053,15 +2272,15 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                 el.innerText = reportText;
                 return;
             }
-            
+
             let html = ``;
             if (data.Reason) {
                 html += `<div class="mb-4 text-slate-300 font-mono-custom whitespace-pre-wrap">${data.Reason}</div>`;
             }
-                    
-                    const actionClass = data.Action === 'Short' ? 'bg-rose-900/40 text-rose-300 border-rose-700/50' : data.Action === 'Wait' || data.Action === 'Hold' ? 'bg-amber-900/40 text-amber-300 border-amber-700/50' : 'bg-emerald-900/40 text-emerald-300 border-emerald-700/50';
-                    // Build the beautiful UI card
-                    let actionHtml = `
+
+            const actionClass = data.Action === 'Short' ? 'bg-rose-900/40 text-rose-300 border-rose-700/50' : data.Action === 'Wait' || data.Action === 'Hold' ? 'bg-amber-900/40 text-amber-300 border-amber-700/50' : 'bg-emerald-900/40 text-emerald-300 border-emerald-700/50';
+            // Build the beautiful UI card
+            let actionHtml = `
                     <div class="bg-slate-900 border border-slate-700/80 rounded-xl p-4 shadow-lg relative overflow-hidden flex flex-col shrink-0">
                         <div class="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-bl-full -mr-4 -mt-4"></div>
                         <div class="relative z-10">
@@ -2095,126 +2314,186 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                             </div>
                         </div>
                     </div>`;
-                    const actionBlock = document.getElementById('reasoning-action-block');
-                    if (actionBlock) {
-                        actionBlock.innerHTML = actionHtml;
-                        actionBlock.classList.remove('hidden');
-                        actionBlock.classList.add('flex');
-                    }
+            const actionBlock = document.getElementById('reasoning-action-block');
+            if (actionBlock) {
+                actionBlock.innerHTML = actionHtml;
+                actionBlock.classList.remove('hidden');
+                actionBlock.classList.add('flex');
+            }
             el.innerHTML = html;
         }
     </script>
     <!-- Watchlist Manager Modal -->
-    <div id="watchlist-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
-        <div class="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[80vh]">
+    <div id="watchlist-modal"
+        class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div
+            class="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[80vh]">
             <div class="px-6 py-4 border-b border-slate-800 bg-slate-800/50 flex justify-between items-center">
                 <h2 class="text-lg font-bold text-white flex items-center gap-2">📋 Watchlist Manager</h2>
                 <button onclick="closeWatchlistModal()" class="text-slate-400 hover:text-white transition-colors">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
                 </button>
             </div>
-            
+
             <div class="p-6 overflow-y-auto flex-1">
                 <!-- Search Bar -->
                 <div class="mb-4 relative">
-                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Search to Add</label>
-                    <input type="text" id="watchlist-search" onkeyup="onWatchlistSearch()" placeholder="e.g. SAIL, TCS" class="w-full bg-slate-950 text-white text-sm border border-slate-700 rounded px-3 py-2 focus:outline-none focus:border-indigo-500">
-                    <div id="watchlist-search-results" class="absolute left-0 right-0 top-full mt-1 bg-slate-800 border border-slate-600 rounded shadow-lg max-h-96 overflow-y-auto z-10"></div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Search to
+                        Add</label>
+                    <input type="text" id="watchlist-search" onkeyup="onWatchlistSearch()" placeholder="e.g. SAIL, TCS"
+                        class="w-full bg-slate-950 text-white text-sm border border-slate-700 rounded px-3 py-2 focus:outline-none focus:border-indigo-500">
+                    <div id="watchlist-search-results"
+                        class="absolute left-0 right-0 top-full mt-1 bg-slate-800 border border-slate-600 rounded shadow-lg max-h-96 overflow-y-auto z-10">
+                    </div>
                 </div>
                 <!-- Current Items -->
                 <div>
-                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Active Symbols</label>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Active
+                        Symbols</label>
                     <ul id="watchlist-items" class="space-y-1"></ul>
                 </div>
             </div>
-            
+
             <div class="px-6 py-4 bg-slate-800/30 border-t border-slate-800 flex justify-end gap-3">
-                <button onclick="closeWatchlistModal()" class="px-4 py-2 text-sm font-bold text-slate-300 hover:text-white transition-colors">Cancel</button>
-                <button id="btn-save-watchlist" onclick="saveWatchlist()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded shadow-lg transition-colors">Save Changes</button>
+                <button onclick="closeWatchlistModal()"
+                    class="px-4 py-2 text-sm font-bold text-slate-300 hover:text-white transition-colors">Cancel</button>
+                <button id="btn-save-watchlist" onclick="saveWatchlist()"
+                    class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded shadow-lg transition-colors">Save
+                    Changes</button>
             </div>
         </div>
     </div>
-<script>
-// Live Action Global State
-window.dismissedLiveReports = {}; // { "RELIANCE": "report_hash_or_text" }
-function startLiveActionPolling() {
-    if (window.liveActionPollInterval) clearInterval(window.liveActionPollInterval);
-    pollLiveActionCards();
-    window.liveActionPollInterval = setInterval(pollLiveActionCards, 3000);
-}
-function stopLiveActionPolling() {
-    if (window.liveActionPollInterval) clearInterval(window.liveActionPollInterval);
-}
-async function pollLiveActionCards() {
-    if (document.getElementById('tab-live-action').classList.contains('hidden')) return;
-    try {
-        const res = await fetch(`${apiBase}/api/reasoning/all_reports`);
-        const data = await res.json();
-        if (data.status === 'success' && data.reports) {
-            window.latestLiveReports = data.reports;
-            renderLiveActionGrid(data.reports);
+    <script>
+        // Live Action Global State
+        window.dismissedLiveReports = {}; // { "RELIANCE": { dismissedAt: timestamp, text: "..." } }
+        function startLiveActionPolling() {
+            if (window.liveActionPollInterval) clearInterval(window.liveActionPollInterval);
+            pollLiveActionCards();
+            window.liveActionPollInterval = setInterval(pollLiveActionCards, 3000);
         }
-    } catch (e) {
-        console.error("Failed to poll live action reports", e);
-    }
-}
-function renderLiveActionGrid(reportsObj) {
-    const grid = document.getElementById('live-action-grid');
-    
-    let cardsData = [];
-    for (const [symbol, text] of Object.entries(reportsObj)) {
-        if (window.dismissedLiveReports[symbol] === text) continue; // Hidden by Accept
-        
-        let cleanText = text.trim();
-        if (cleanText.startsWith('```json')) cleanText = cleanText.substring(7);
-        else if (cleanText.startsWith('```')) cleanText = cleanText.substring(3);
-        if (cleanText.endsWith('```')) cleanText = cleanText.substring(0, cleanText.length - 3);
-        cleanText = cleanText.trim();
-        
-        try {
-            const actionData = JSON.parse(cleanText);
-            cardsData.push({ symbol, text, actionData });
-        } catch (e) {
-            // Not valid JSON, ignore
+        function stopLiveActionPolling() {
+            if (window.liveActionPollInterval) clearInterval(window.liveActionPollInterval);
         }
-    }
-    // Sort by Priority Score descending
-    cardsData.sort((a, b) => {
-        const scoreA = a.actionData.Priority_Score || 0;
-        const scoreB = b.actionData.Priority_Score || 0;
-        return scoreB - scoreA;
-    });
-    if (cardsData.length === 0) {
-        grid.innerHTML = `<div class="col-span-full text-center text-slate-500 py-12">No actionable setups detected yet. Turn on Auto-Analyze or hit Instant Analyze on a stock.</div>`;
-        return;
-    }
-    let html = '';
-    cardsData.forEach(card => {
-        const d = card.actionData;
-        const score = d.Priority_Score || 0;
-        const isHighPriority = score > 6;
-        const borderGlow = isHighPriority ? 'border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'border-slate-700/80';
-        
-        const actionClass = d.Action === 'Short' ? 'bg-rose-900/40 text-rose-300 border-rose-700/50' : 
-                           (d.Action === 'Wait' || d.Action === 'Hold' ? 'bg-amber-900/40 text-amber-300 border-amber-700/50' : 
-                           'bg-emerald-900/40 text-emerald-300 border-emerald-700/50');
-        // Escape text for onclick
-        const escapedText = card.text.replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\n/g, '\\n');
-        
-        const state = window.latestGlobalState && window.latestGlobalState[card.symbol];
-        let ltpText = '';
-        if (state && state.ltp) {
-            ltpText = `<span class="text-xs text-slate-300 font-mono ml-2 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">LTP: ${parseFloat(state.ltp).toFixed(2)}</span>`;
+        async function pollLiveActionCards() {
+            if (document.getElementById('tab-live-action').classList.contains('hidden')) return;
+            try {
+                const res = await fetch(`${apiBase}/api/reasoning/all_reports`);
+                const data = await res.json();
+                if (data.status === 'success' && data.reports) {
+                    window.latestLiveReports = data.reports;
+                    renderLiveActionGrid(data.reports, data.llm_trigger_count || 0);
+                }
+            } catch (e) {
+                console.error("Failed to poll live action reports", e);
+            }
         }
-        
-        html += `
+        function renderLiveActionGrid(reportsObj, triggerCount = 0) {
+            const grid = document.getElementById('live-action-grid');
+            const counterElement = document.getElementById('llm-trigger-counter');
+            if (counterElement) counterElement.innerText = triggerCount;
+
+            let cardsData = [];
+            const now = Date.now();
+            for (const [symbol, text] of Object.entries(reportsObj)) {
+                const dismissed = window.dismissedLiveReports[symbol];
+                // Auto-expire dismissals after 60s so cards reappear with fresh data
+                if (dismissed && (now - dismissed.dismissedAt) < 60000 && dismissed.text === text) continue;
+
+                let cleanText = text.trim();
+                if (cleanText.startsWith('```json')) cleanText = cleanText.substring(7);
+                else if (cleanText.startsWith('```')) cleanText = cleanText.substring(3);
+                if (cleanText.endsWith('```')) cleanText = cleanText.substring(0, cleanText.length - 3);
+                cleanText = cleanText.trim();
+
+                try {
+                    const actionData = JSON.parse(cleanText);
+                    cardsData.push({ symbol, text, actionData });
+                } catch (e) {
+                    // Not valid JSON, ignore
+                }
+            }
+            // Sort by Priority Score descending
+            cardsData.sort((a, b) => {
+                const scoreA = a.actionData.Priority_Score || 0;
+                const scoreB = b.actionData.Priority_Score || 0;
+                return scoreB - scoreA;
+            });
+            if (cardsData.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center text-slate-500 py-12">No actionable setups detected yet. Turn on Auto-Analyze or hit Instant Analyze on a stock.</div>`;
+                return;
+            }
+            let html = '';
+            cardsData.forEach(card => {
+                const d = card.actionData;
+                const score = d.Priority_Score || 0;
+                const isHighPriority = score > 6;
+                const borderGlow = isHighPriority ? 'border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'border-slate-700/80';
+
+                let rejectionBadge = '';
+                let isSuppressed = false;
+                if ((d.math_rejection && d.math_rejection !== "UNKNOWN") || d.llm_authorized === false) {
+                    isSuppressed = true;
+                    const reason = d.math_rejection && d.math_rejection !== "UNKNOWN" ? d.math_rejection : (d.Reason || "Gatekeeper suppressed");
+                    rejectionBadge = `<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-amber-900/20 text-amber-500 border border-amber-700/50" title="Reason: ${reason}">GATEKEEPER SUPPRESSED</span>`;
+                }
+
+                let pendingIndicator = '';
+                if (d.Status_Tag === "PENDING_LLM" && !isSuppressed) {
+                    pendingIndicator = `
+            <div class="flex items-center gap-1.5 ml-1 bg-slate-800/80 px-2 py-0.5 rounded border border-rose-500/30" title="LLM Analysis Triggered. Waiting for result.">
+                <span class="relative flex h-2 w-2">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                </span>
+                <span class="text-[9px] text-rose-400 font-bold uppercase tracking-wider">LLM Analyze Pending</span>
+            </div>`;
+                } else if (d.Status_Tag === "LLM_ANALYZED") {
+                    pendingIndicator = `
+            <div class="flex items-center gap-1.5 ml-1 bg-slate-800/80 px-2 py-0.5 rounded border border-emerald-500/30" title="LLM Analysis Complete.">
+                <span class="relative flex h-2 w-2">
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span class="text-[9px] text-emerald-400 font-bold uppercase tracking-wider">Analyzed</span>
+            </div>`;
+                } else if (d.Is_Math_Setup && !isSuppressed && !d.Status_Tag) {
+                    pendingIndicator = `
+            <div class="flex items-center gap-1.5 ml-1 bg-slate-800/80 px-2 py-0.5 rounded border border-blue-500/30" title="Math Setup Received.">
+                <span class="text-[9px] text-blue-400 font-bold uppercase tracking-wider">Math Only</span>
+            </div>`;
+                }
+
+                const actionStr = (d.Action || '').toUpperCase();
+                const actionClass = actionStr === 'SHORT' ? 'bg-rose-900/40 text-rose-300 border-rose-700/50' :
+                    (actionStr === 'WAIT' || actionStr === 'HOLD' ? 'bg-amber-900/40 text-amber-300 border-amber-700/50' :
+                        'bg-emerald-900/40 text-emerald-300 border-emerald-700/50');
+                // Escape text for onclick
+                const escapedText = card.text.replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\n/g, '\\n');
+
+                const state = window.latestGlobalState && window.latestGlobalState[card.symbol];
+                let ltpText = '';
+                if (state && state.ltp) {
+                    ltpText = `<span class="text-xs text-slate-300 font-mono ml-2 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">LTP: ${parseFloat(state.ltp).toFixed(2)}</span>`;
+                }
+
+                let timeText = '';
+                if (d.Generated_Time && d.Generated_Time !== "UNKNOWN") {
+                    timeText = `<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-slate-800 text-slate-400 border border-slate-700 flex items-center gap-1" title="Time Generated"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>${d.Generated_Time}</span>`;
+                }
+
+                html += `
         <div class="bg-slate-900 border rounded-xl p-4 relative overflow-hidden flex flex-col shrink-0 ${borderGlow} transition-all">
             <div class="flex justify-between items-start mb-3">
                 <div class="flex flex-wrap items-center gap-1.5">
                     <h3 class="text-xl font-bold text-white tracking-tight mr-1">${card.symbol.split('|').pop()}</h3>
                     ${ltpText}
+                    ${timeText}
                     <span class="px-2 py-0.5 text-xs font-bold rounded ${isHighPriority ? 'bg-emerald-900/60 text-emerald-400 border border-emerald-700' : 'bg-slate-800 text-slate-400 border border-slate-700'}">Pri: ${score}</span>
                     <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-indigo-900/40 text-indigo-300 border border-indigo-700">Conf: ${d.Confidence_Score || '-'}</span>
+                    ${rejectionBadge}
+                    ${pendingIndicator}
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="px-2 py-0.5 text-xs font-bold rounded ${actionClass} border uppercase">${d.Action || 'N/A'}</span>
@@ -2252,177 +2531,242 @@ function renderLiveActionGrid(reportsObj) {
             </div>
         </div>
         `;
-    });
-    grid.innerHTML = html;
-}
-function showLiveAnalysisModal(text) {
-    let cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    alert("AI Analysis:\\n\\n" + cleanText);
-}
-async function acceptLiveActionCard(symbol, text) {
-    try {
-        let cleanText = text.trim();
-        if (cleanText.startsWith('```json')) cleanText = cleanText.substring(7);
-        else if (cleanText.startsWith('```')) cleanText = cleanText.substring(3);
-        if (cleanText.endsWith('```')) cleanText = cleanText.substring(0, cleanText.length - 3);
-        cleanText = cleanText.trim();
-        
-        let data = {};
-        try {
-            data = JSON.parse(cleanText);
-        } catch (parseErr) {
-            console.warn(`Fallback triggered: Failed to parse LLM JSON for ${symbol}. Assuming Wait action.`, parseErr);
-            data = { Action: "Wait", Reason: "Fallback: " + cleanText, Confidence_Score: 0 };
+            });
+            grid.innerHTML = html;
         }
-        
-        const action = data.Action ? data.Action.toLowerCase() : "wait";
-        const reason = data.Reason || data.Action || "Manual action accepted from UI.";
-        const confidence = data.Confidence_Score || 5;
+        function showLiveAnalysisModal(text) {
+            let cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+            alert("AI Analysis:\\n\\n" + cleanText);
+        }
+        async function acceptLiveActionCard(symbol, text) {
+            try {
+                let cleanText = text.trim();
+                if (cleanText.startsWith('```json')) cleanText = cleanText.substring(7);
+                else if (cleanText.startsWith('```')) cleanText = cleanText.substring(3);
+                if (cleanText.endsWith('```')) cleanText = cleanText.substring(0, cleanText.length - 3);
+                cleanText = cleanText.trim();
 
-        if (action === "long" || action === "short") {
-            const targetPrice = data.Entry_Target_Price || "";
-            document.getElementById('ledger-modal-title').innerText = `Confirm ${action.toUpperCase()} for ${symbol}`;
-            document.getElementById('ledger-modal-price').value = targetPrice;
-            document.getElementById('ledger-modal-qty').value = "100";
-            document.getElementById('ledger-modal-charges-container').classList.add('hidden');
-            document.getElementById('ledger-modal').classList.remove('hidden');
-            
-            document.getElementById('ledger-modal-confirm').onclick = async () => {
-                const executedPrice = parseFloat(document.getElementById('ledger-modal-price').value);
-                const executedQty = parseInt(document.getElementById('ledger-modal-qty').value);
-                closeLedgerModal();
-                if (isNaN(executedPrice) || isNaN(executedQty)) return;
-                
-                await fetch("/api/ledger/open", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        symbol: symbol,
-                        direction: action === "long" ? "Long" : "Short",
-                        entry_price: executedPrice,
-                        entry_qty: executedQty,
-                        confidence: confidence,
-                        reason: reason,
-                        target: data.Exit_Target_Price ? String(data.Exit_Target_Price) : null,
-                        stoploss: data.Stoploss ? String(data.Stoploss) : null
-                    })
-                });
-                
-                const allPos = JSON.parse(localStorage.getItem('user_positions')) || {};
-                allPos[symbol] = {
-                    entry_price: executedPrice,
-                    quantity: executedQty,
-                    entry_timestamp: Math.floor(Date.now() / 1000),
-                    direction: action === "long" ? "Long" : "Short"
-                };
-                localStorage.setItem('user_positions', JSON.stringify(allPos));
-                fetch('/api/reasoning/position/save', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ symbol: symbol, user_position: allPos[symbol] })
-                });
+                let data = {};
+                try {
+                    data = JSON.parse(cleanText);
+                } catch (parseErr) {
+                    console.warn(`Fallback triggered: Failed to parse LLM JSON for ${symbol}. Assuming Wait action.`, parseErr);
+                    data = { Action: "Wait", Reason: "Fallback: " + cleanText, Confidence_Score: 0 };
+                }
+
+                const action = data.Action ? data.Action.toLowerCase() : "wait";
+                const reason = data.Reason || data.Action || "Manual action accepted from UI.";
+                const confidence = data.Confidence_Score || 5;
+
+                if (action === "long" || action === "short") {
+                    const targetPrice = data.Entry_Target_Price || "";
+                    document.getElementById('ledger-modal-title').innerText = `Confirm ${action.toUpperCase()} for ${symbol}`;
+                    document.getElementById('ledger-modal-price').value = targetPrice;
+                    document.getElementById('ledger-modal-qty').value = "100";
+                    document.getElementById('ledger-modal-charges-container').classList.add('hidden');
+                    document.getElementById('ledger-modal').classList.remove('hidden');
+
+                    document.getElementById('ledger-modal-confirm').onclick = async () => {
+                        const executedPrice = parseFloat(document.getElementById('ledger-modal-price').value);
+                        const executedQty = parseInt(document.getElementById('ledger-modal-qty').value);
+                        closeLedgerModal();
+                        if (isNaN(executedPrice) || isNaN(executedQty)) return;
+
+                        await fetch("/api/ledger/open", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                symbol: symbol,
+                                direction: action === "long" ? "Long" : "Short",
+                                entry_price: executedPrice,
+                                entry_qty: executedQty,
+                                confidence: confidence,
+                                reason: reason,
+                                target: data.Exit_Target_Price ? String(data.Exit_Target_Price) : null,
+                                stoploss: data.Stoploss ? String(data.Stoploss) : null
+                            })
+                        });
+
+                        const normSym = normalizeSymbol(symbol);
+                        const allPos = JSON.parse(localStorage.getItem('user_positions')) || {};
+                        allPos[normSym] = {
+                            entry_price: executedPrice,
+                            quantity: executedQty,
+                            entry_timestamp: Math.floor(Date.now() / 1000),
+                            direction: action === "long" ? "Long" : "Short"
+                        };
+                        localStorage.setItem('user_positions', JSON.stringify(allPos));
+                        fetch(`${apiBase}/api/reasoning/position/save`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ symbol: normSym, user_position: allPos[normSym] })
+                        });
+                        pollLiveActionCards();
+                    };
+
+                } else if (action === "hold") {
+                    await fetch("/api/ledger/manage", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            symbol: symbol,
+                            action: "Hold",
+                            reason: reason,
+                            target: data.Exit_Target_Price ? String(data.Exit_Target_Price) : null,
+                            stoploss: data.Stoploss ? String(data.Stoploss) : null
+                        })
+                    });
+
+                } else if (action === "close") {
+                    document.getElementById('ledger-modal-title').innerText = `Confirm CLOSE for ${symbol}`;
+                    document.getElementById('ledger-modal-price').value = "";
+                    document.getElementById('ledger-modal-qty').value = "100";
+                    document.getElementById('ledger-modal-charges').value = "0.00";
+                    document.getElementById('ledger-modal-charges-container').classList.remove('hidden');
+                    document.getElementById('ledger-modal').classList.remove('hidden');
+
+                    document.getElementById('ledger-modal-confirm').onclick = async () => {
+                        const executedPrice = parseFloat(document.getElementById('ledger-modal-price').value);
+                        const executedQty = parseInt(document.getElementById('ledger-modal-qty').value);
+                        const charges = parseFloat(document.getElementById('ledger-modal-charges').value) || 0.0;
+                        closeLedgerModal();
+                        if (isNaN(executedPrice) || isNaN(executedQty)) return;
+
+                        await fetch("/api/ledger/close", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                symbol: symbol,
+                                exit_price: executedPrice,
+                                exit_qty: executedQty,
+                                reason: reason,
+                                charges: charges
+                            })
+                        });
+
+                        const normSym = normalizeSymbol(symbol);
+                        const allPos = JSON.parse(localStorage.getItem('user_positions')) || {};
+                        delete allPos[normSym];
+                        localStorage.setItem('user_positions', JSON.stringify(allPos));
+                        fetch(`${apiBase}/api/reasoning/position/save`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ symbol: normSym, user_position: null })
+                        });
+                        pollLiveActionCards();
+                    };
+                }
+
+                window.dismissedLiveReports[symbol] = { dismissedAt: Date.now(), text: text };
                 pollLiveActionCards();
-            };
-            
-        } else if (action === "hold") {
-            await fetch("/api/ledger/manage", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    symbol: symbol,
-                    action: "Hold",
-                    reason: reason,
-                    target: data.Exit_Target_Price ? String(data.Exit_Target_Price) : null,
-                    stoploss: data.Stoploss ? String(data.Stoploss) : null
-                })
-            });
-            
-        } else if (action === "close") {
-            document.getElementById('ledger-modal-title').innerText = `Confirm CLOSE for ${symbol}`;
-            document.getElementById('ledger-modal-price').value = "";
-            document.getElementById('ledger-modal-qty').value = "100";
-            document.getElementById('ledger-modal-charges').value = "0.00";
-            document.getElementById('ledger-modal-charges-container').classList.remove('hidden');
-            document.getElementById('ledger-modal').classList.remove('hidden');
-            
-            document.getElementById('ledger-modal-confirm').onclick = async () => {
-                const executedPrice = parseFloat(document.getElementById('ledger-modal-price').value);
-                const executedQty = parseInt(document.getElementById('ledger-modal-qty').value);
-                const charges = parseFloat(document.getElementById('ledger-modal-charges').value) || 0.0;
-                closeLedgerModal();
-                if (isNaN(executedPrice) || isNaN(executedQty)) return;
-                
-                await fetch("/api/ledger/close", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        symbol: symbol,
-                        exit_price: executedPrice,
-                        exit_qty: executedQty,
-                        reason: reason,
-                        charges: charges
-                    })
-                });
-                
-                const allPos = JSON.parse(localStorage.getItem('user_positions')) || {};
-                delete allPos[symbol];
-                localStorage.setItem('user_positions', JSON.stringify(allPos));
-                fetch('/api/reasoning/position/save', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ symbol: symbol, user_position: null })
-                });
-                pollLiveActionCards();
-            };
+
+            } catch (e) {
+                console.error("Error parsing action card JSON", e);
+                alert("Failed to parse LLM reasoning payload. Raw text:\\n" + text);
+            }
         }
-        
-        window.dismissedLiveReports[symbol] = text;
-        pollLiveActionCards();
-        
-    } catch (e) {
-        console.error("Error parsing action card JSON", e);
-        alert("Failed to parse LLM reasoning payload. Raw text:\\n" + text);
-    }
-}
-function dismissActionCard(symbol, text) {
-    window.dismissedLiveReports[symbol] = text;
-    pollLiveActionCards();
-}
-function openLiveSettingsModal(symbol) {
-    const freq = prompt(`Enter Auto-Analyze frequency in seconds for ${symbol}:`, "60");
-    if (freq) {
-        const allPos = JSON.parse(localStorage.getItem('user_positions')) || {};
-        const userPosition = allPos[symbol] || null;
-        fetch(`${apiBase}/api/reasoning/loop/start`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ symbol: symbol, interval: parseInt(freq), user_position: userPosition })
+        function dismissActionCard(symbol, text) {
+            window.dismissedLiveReports[symbol] = { dismissedAt: Date.now(), text: text };
+            pollLiveActionCards();
+        }
+        function openLiveSettingsModal(symbol) {
+            const freq = prompt(`Enter Auto-Analyze frequency in seconds for ${symbol}:`, "60");
+            if (freq) {
+                const normSym = normalizeSymbol(symbol);
+                const allPos = JSON.parse(localStorage.getItem('user_positions')) || {};
+                const userPosition = allPos[normSym] || null;
+                fetch(`${apiBase}/api/reasoning/loop/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symbol: normSym, interval: parseInt(freq), user_position: userPosition })
+                });
+                alert(`Started auto-analyze for ${symbol} every ${freq} seconds.`);
+            }
+        }
+        function toggleGlobalAutoAnalyze() {
+            const isChecked = document.getElementById('global-auto-analyze').checked;
+            const freq = document.getElementById('global-analyze-interval').value;
+            const symbols = window.globalWatchlistSymbols || Object.keys(window.latestGlobalState || {});
+            const allPos = JSON.parse(localStorage.getItem('user_positions')) || {};
+
+            // Persist global state
+            localStorage.setItem('global_auto_analyze', isChecked);
+            localStorage.setItem('global_analyze_interval', freq);
+
+            // Visually sync the individual modal toggle if it's currently showing
+            if (window.currentViewingToken) {
+                const modalToggle = document.getElementById('toggle-auto-analyze');
+                if (modalToggle) modalToggle.checked = isChecked;
+            }
+
+            // Visually sync all individual matrix toggles
+            document.querySelectorAll('input[id^="auto-analyze-"]').forEach(el => {
+                el.checked = isChecked;
+            });
+
+            symbols.forEach(sym => {
+                const normSym = normalizeSymbol(sym);
+                if (isChecked) {
+                    fetch(`${apiBase}/api/reasoning/loop/start`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ symbol: normSym, interval: parseInt(freq), user_position: allPos[normSym] || null })
+                    });
+                } else {
+                    fetch(`${apiBase}/api/reasoning/loop/stop`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ symbol: normSym })
+                    });
+                }
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const isGlobalActive = localStorage.getItem('global_auto_analyze') !== 'false';
+            const globalFreq = localStorage.getItem('global_analyze_interval') || '90';
+
+            const globalToggle = document.getElementById('global-auto-analyze');
+            if (globalToggle) globalToggle.checked = isGlobalActive;
+
+            const globalInterval = document.getElementById('global-analyze-interval');
+            if (globalInterval) globalInterval.value = globalFreq;
+
+            // Sync positions to backend on load in case the server restarted
+            // Normalize keys in localStorage so stale compound keys get cleaned up
+            const rawPos = JSON.parse(localStorage.getItem('user_positions') || '{}');
+            const allPos = {};
+            for (const [k, v] of Object.entries(rawPos)) {
+                allPos[normalizeSymbol(k)] = v;
+            }
+            localStorage.setItem('user_positions', JSON.stringify(allPos));
+            if (Object.keys(allPos).length > 0) {
+                fetch(`${apiBase}/api/reasoning/position/sync_all`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ positions: allPos })
+                }).catch(err => console.error("Failed to sync positions on load:", err));
+            }
+
+            // If global auto-analyze was active before reload, trigger it
+            if (isGlobalActive) {
+                // Retry until WebSocket has delivered data
+                let retryCount = 0;
+                const retryInterval = setInterval(() => {
+                    retryCount++;
+                    const syms = Object.keys(window.latestGlobalState || {});
+                    if (syms.length > 0) {
+                        clearInterval(retryInterval);
+                        toggleGlobalAutoAnalyze();
+                    } else if (retryCount > 30) { // Give up after 30 seconds
+                        clearInterval(retryInterval);
+                        console.warn("Global auto-analyze: gave up waiting for WebSocket data");
+                    }
+                }, 1000);
+            }
         });
-        alert(`Started auto-analyze for ${symbol} every ${freq} seconds.`);
-    }
-}
-function toggleGlobalAutoAnalyze() {
-    const isChecked = document.getElementById('global-auto-analyze').checked;
-    const freq = document.getElementById('global-analyze-interval').value;
-    const symbols = window.globalWatchlistSymbols || Object.keys(window.latestGlobalState || {});
-    const allPos = JSON.parse(localStorage.getItem('user_positions')) || {};
-    
-    symbols.forEach(sym => {
-        if (isChecked) {
-            fetch(`${apiBase}/api/reasoning/loop/start`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ symbol: sym, interval: parseInt(freq), user_position: allPos[sym] || null })
-            });
-        } else {
-            fetch(`${apiBase}/api/reasoning/loop/stop`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ symbol: sym })
-            });
-        }
-    });
-}
-</script>
+
+    </script>
 </body>
+
 </html>

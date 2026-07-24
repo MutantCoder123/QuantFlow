@@ -37,7 +37,8 @@ class RollingStateEngine:
                 for df_key in ['ltf_df', 'htf_df']:
                     df = token_data.get(df_key)
                     if df is not None and not df.empty:
-                        df['timestamp'] = pd.to_datetime(df['timestamp'], utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+                        # Timestamps from historical_engine are already naive local datetimes.
+                        df['timestamp'] = pd.to_datetime(df['timestamp'])
                         df.sort_values('timestamp', inplace=True)
                         df.reset_index(drop=True, inplace=True)
                 
@@ -85,6 +86,11 @@ class RollingStateEngine:
                 data = json.load(f)
                 
             self.phantom_candles = data.get('phantom_candles', {})
+            for token, phantom in self.phantom_candles.items():
+                if phantom and 'timestamp' in phantom:
+                    if isinstance(phantom['timestamp'], str):
+                        phantom['timestamp'] = pd.to_datetime(phantom['timestamp'])
+                        
             RollingStateEngine.live_options_state = data.get('live_options_state', {})
             RollingStateEngine.daily_metrics_cache = data.get('daily_metrics_cache', {})
             
@@ -95,7 +101,8 @@ class RollingStateEngine:
                     if records:
                         df = pd.DataFrame(records)
                         if 'timestamp' in df.columns:
-                            df['timestamp'] = pd.to_datetime(df['timestamp'], utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+                            # Timestamps were serialized as naive local strings (e.g. "2026-06-16 09:15:00")
+                            df['timestamp'] = pd.to_datetime(df['timestamp'])
                         self.dfs[token][df_key] = df
                         
             logger.info("Hydrated state from cache. Engine Anti-Cold Start successful.")

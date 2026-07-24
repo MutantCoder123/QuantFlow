@@ -308,8 +308,11 @@ class NewsEngine:
             return
 
         try:
-            # Keys for Nifty 50 and Nifty Bank
-            keys = "NSE_INDEX|Nifty 50,NSE_INDEX|Nifty Bank"
+            import scrip_master_engine
+            # Upstox doesn't return news for index keys, so we use heavyweight proxy stocks for macro context
+            proxy_symbols = ['RELIANCE', 'HDFCBANK', 'ICICIBANK', 'INFY', 'TCS', 'SBIN', 'ITC', 'LT', 'AXISBANK', 'KOTAKBANK']
+            keys = ",".join([scrip_master_engine.get_instrument_key(sym) for sym in proxy_symbols if scrip_master_engine.get_instrument_key(sym)])
+            
             response = await asyncio.to_thread(
                 news_api.get_news,
                 category="instrument_keys",

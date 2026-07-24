@@ -27,8 +27,9 @@ class PreMarketScreener:
                 logger.debug(f"Failed on {symbol}: Missing historical dataframe.")
                 return None
                 
-            # 2. Calculate Math Scoring Engine (Soft Constraints)
-            score = 0
+            # 2. Calculate Math Scoring Engine (V2 - Directionally Aware)
+            magnitude_score = 0
+            net_polarity = 0.0  # Positive = Bullish, Negative = Bearish
             news_summary = "No fresh news."
             
             if len(stock_df) >= 26:
@@ -36,68 +37,68 @@ class PreMarketScreener:
                 vol_20ma = stock_df['volume'].rolling(20).mean().iloc[-1]
                 if vol_20ma > 0:
                     vol_shock = (live_volume / vol_20ma) * 35
-                    score += min(vol_shock, 35)
+                    magnitude_score += min(vol_shock, 35)
                     
-                # Trend Strength (35%): Strong momentum in EITHER direction (Bullish or Bearish)
+                # Trend Strength (35%)
                 price = stock_df['close'].iloc[-1]
                 ema21 = stock_df['close'].ewm(span=21, adjust=False).mean().iloc[-1]
-                if abs(price - ema21) / ema21 > 0.005:  # 0.5% away from EMA21
-                    score += 15
+                trend_dist = (price - ema21) / ema21
+                if abs(trend_dist) > 0.005:  # 0.5% away from EMA21
+                    magnitude_score += 15
+                    net_polarity += trend_dist * 100
 
                 ema12 = stock_df['close'].ewm(span=12, adjust=False).mean().iloc[-1]
                 ema26 = stock_df['close'].ewm(span=26, adjust=False).mean().iloc[-1]
-                if abs(ema12 - ema26) / price > 0.002:  # Strong MACD divergence (bullish or bearish)
-                    score += 20
+                macd_dist = (ema12 - ema26) / price
+                if abs(macd_dist) > 0.002:  # Strong MACD divergence
+                    magnitude_score += 20
+                    net_polarity += macd_dist * 1000
                     
-            # News Presence (30%)
+            # 3. News Sentiment Scoring (30%)
             if symbol in catalyst_cache:
-                score += 30
-                news_summary = catalyst_cache[symbol]
+                news_data = catalyst_cache[symbol]
                 
+                if isinstance(news_data, dict):
+                    news_summary = news_data.get('summary', 'Fresh news available.')
+                    sentiment = news_data.get('sentiment', 'NEUTRAL')
+                    impact = news_data.get('impact', 'LOW')
+                    
+                    impact_multiplier = {'HIGH': 30, 'MEDIUM': 15, 'LOW': 5}.get(impact, 5)
+                    magnitude_score += impact_multiplier
+                    
+                    if sentiment == 'POSITIVE':
+                        net_polarity += impact_multiplier
+                    elif sentiment == 'NEGATIVE':
+                        net_polarity -= impact_multiplier
+                else:
+                    # Fallback for plain string cache
+                    news_summary = str(news_data)
+                    magnitude_score += 15
+                
+            # 4. Relative Strength Outlier Multiplier (25%)
             comp_rs = MathEngine.calc_relative_strength(stock_df, nifty_df)
-            
-            # Relative Strength Outlier Multiplier (25%)
-            # Reward massive outperformance or massive underperformance vs the Nifty 50
             if abs(comp_rs) >= 5.0:
-                score += 25
+                magnitude_score += 25
+                net_polarity += comp_rs
                 
-            # 3. Fetch Option Chain
-            ivr = 50.0
-            spot_price = stock_df['close'].iloc[-1] if not stock_df.empty else 0
-            if spot_price > 0:
-                try:
-                    from scrip_master_engine import get_option_chain_tokens
-                    chain_tokens = await get_option_chain_tokens(symbol, spot_price, num_strikes=4)
-                    if chain_tokens:
-                        nfo_tokens = [str(t['token']) for t in chain_tokens]
-                        response = await asyncio.to_thread(self.smart_connect.getMarketData, mode="FULL", exchangeTokens={"NFO": nfo_tokens})
-                        
-                        if response and response.get("status"):
-                            data = response.get('data', {})
-                            fetched_data = data.get('fetched', [])
-                            metrics = OptionsAnalyzer._calculate_greeks_and_chain(chain_tokens, fetched_data, spot_price)
-                            
-                            if metrics:
-                                current_iv = metrics.get("atm_iv", 0.0)
-                                state = OptionsAnalyzer.stock_derivatives_state.get(token, {})
-                                iv_high = state.get("iv_high", current_iv)
-                                iv_low = state.get("iv_low", current_iv)
-                                
-                                if iv_high != iv_low:
-                                    ivr = ((current_iv - iv_low) / (iv_high - iv_low)) * 100
-                                else:
-                                    ivr = 0.0
-                except Exception as e:
-                    logger.warning(f"Option Chain fetch failed for {token}: {e}")
+            directional_bias = "LONG" if net_polarity > 0 else "SHORT"
+            
+            # 5. Extract Structural Levels
+            prev_day_high = round(float(stock_df['high'].iloc[-1]), 2) if not stock_df.empty else 0.0
+            prev_day_low = round(float(stock_df['low'].iloc[-1]), 2) if not stock_df.empty else 0.0
+            camarilla = MathEngine.calc_camarilla_pivots(stock_df)
                 
             return {
                 "token": token,
                 "symbol": symbol,
                 "exchange": exchange,
                 "rs": comp_rs,
-                "ivr": ivr,
-                "score": score,
-                "news": news_summary
+                "score": magnitude_score,
+                "directional_bias": directional_bias,
+                "news": news_summary,
+                "prev_day_high": prev_day_high,
+                "prev_day_low": prev_day_low,
+                "camarilla": camarilla
             }
         except Exception as e:
             logger.error(f"Failed on {metadata.get('symbol', token)}: [{type(e).__name__}] {e}")

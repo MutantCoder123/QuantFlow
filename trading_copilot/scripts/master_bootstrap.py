@@ -338,39 +338,112 @@ async def process_symbol_completely(session, headers, rate_limiter, ikey, symbol
         
     return updates
 
+def is_eod_truly_filled(df):
+    """Returns boolean mask of rows with genuinely computed EOD data (not defaults)."""
+    return (
+        (df.get('EOD_IV', pd.Series(dtype=float)).fillna(0) != 0) |
+        (df.get('EOD_PCR', pd.Series(dtype=float)).fillna(0) != 0) |
+        (df.get('Total_OI', pd.Series(dtype=float)).fillna(0) != 0) |
+        (df.get('EOD_MAX_PAIN', pd.Series(dtype=float)).fillna(0) != 0)
+    )
+
 def get_missing_trading_days_and_completion(symbol, full_trading_days):
-    """Returns (is_completed, missing_days)"""
+    """Returns (is_completed, eod_missing_days, needs_ohlcv_sync)"""
     parquet_path = os.path.join(_BASE_DIR, 'data', f"{symbol}_1D.parquet")
     if not os.path.exists(parquet_path):
-        return False, full_trading_days
+        return False, full_trading_days, True
         
     try:
         df = pd.read_parquet(parquet_path)
-        if 'EOD_IV' not in df.columns:
-            return False, full_trading_days
-            
-        valid_df = df[df['EOD_IV'].notna()]
-        
-        # If we have 52 weeks of valid EOD data (approx 250 days), mark as completed
-        if len(valid_df) >= 250:
-            return True, []
-            
         date_col = 'Date' if 'Date' in df.columns else 'timestamp'
         if date_col not in df.columns:
-            return False, full_trading_days
+            return False, full_trading_days, True
             
         df['DateStr'] = pd.to_datetime(df[date_col]).dt.strftime('%Y-%m-%d')
-        valid_df = df[df['EOD_IV'].notna()]
-        completed_dates = set(valid_df['DateStr'].tolist())
-        missing_days = [d for d in full_trading_days if d not in completed_dates]
+        existing_dates = set(df['DateStr'].tolist())
         
-        if len(missing_days) == 0:
-            return True, []
+        # 1. Check OHLCV freshness
+        ohlcv_missing = [d for d in full_trading_days if d not in existing_dates]
+        needs_ohlcv_sync = len(ohlcv_missing) > 0
+        
+        # 2. Check EOD freshness with CORRECTED validity
+        if 'EOD_IV' not in df.columns:
+            eod_missing = list(full_trading_days)
+        else:
+            truly_valid_mask = is_eod_truly_filled(df)
+            completed_eod_dates = set(df[truly_valid_mask]['DateStr'].tolist())
+            eod_missing = [d for d in full_trading_days if d not in completed_eod_dates]
             
-        return False, missing_days
+        is_completed = len(eod_missing) == 0 and not needs_ohlcv_sync
+        return is_completed, eod_missing, needs_ohlcv_sync
     except Exception as e:
         print(f"[{symbol}] Error reading parquet: {e}")
-        return False, full_trading_days
+        return False, full_trading_days, True
+
+async def sync_ohlcv_to_today(session, headers, rate_limiter, symbol, ikey, full_trading_days):
+    """Fetch missing OHLCV candles and append to the parquet file."""
+    parquet_path = os.path.join(_BASE_DIR, 'data', f"{symbol}_1D.parquet")
+    
+    if os.path.exists(parquet_path):
+        df = pd.read_parquet(parquet_path)
+        date_col = 'Date' if 'Date' in df.columns else 'timestamp'
+        df['DateStr'] = pd.to_datetime(df[date_col]).dt.strftime('%Y-%m-%d')
+        existing_dates = set(df['DateStr'].tolist())
+    else:
+        df = pd.DataFrame()
+        existing_dates = set()
+        
+    missing_dates = [d for d in full_trading_days if d not in existing_dates]
+    if not missing_dates:
+        return 0
+        
+    from_date = min(missing_dates)
+    to_date = max(missing_dates)
+    
+    enc_ikey = urllib.parse.quote(ikey)
+    url = f"https://api.upstox.com/v2/historical-candle/{enc_ikey}/day/{to_date}/{from_date}"
+    data = await fetch_with_rate_limit(session, url, headers, rate_limiter)
+    
+    if not data or not data.get('data', {}).get('candles'):
+        return 0
+        
+    candles = data['data']['candles']
+    new_rows = []
+    for c in candles:
+        date_str = c[0][:10]
+        if date_str not in existing_dates:
+            new_rows.append({
+                'Date': date_str,
+                'Open': float(c[1]),
+                'High': float(c[2]),
+                'Low': float(c[3]),
+                'Close': float(c[4]),
+                'Volume': float(c[5]),
+                'EOD_PCR': 0.0,
+                'EOD_MAX_PAIN': 0.0,
+                'EOD_IV': np.nan,
+                'Total_OI': 0.0
+            })
+            
+    if new_rows:
+        new_df = pd.DataFrame(new_rows)
+        rename_map = {'timestamp': 'Date', 'open': 'Open', 'high': 'High', 'low': 'Low', 'close': 'Close', 'volume': 'Volume'}
+        df.rename(columns=rename_map, inplace=True, errors='ignore')
+        if 'oi' in df.columns:
+            df.drop(columns=['oi'], inplace=True)
+        if 'DateStr' in df.columns:
+            df.drop(columns=['DateStr'], inplace=True)
+            
+        for col in ['EOD_PCR', 'EOD_MAX_PAIN', 'EOD_IV', 'Total_OI']:
+            if col not in df.columns:
+                df[col] = np.nan if col == 'EOD_IV' else 0.0
+                
+        combined = pd.concat([df, new_df], ignore_index=True)
+        combined['Date'] = pd.to_datetime(combined['Date'])
+        combined = combined.drop_duplicates(subset=['Date']).sort_values('Date').reset_index(drop=True)
+        combined.to_parquet(parquet_path, index=False)
+        
+    return len(new_rows)
 
 async def main(dry_run=False):
     token_path = os.path.join(_BASE_DIR, 'upstox_token.json')
@@ -408,7 +481,8 @@ async def main(dry_run=False):
     
     print("Fetching Trading Days...")
     async with aiohttp.ClientSession() as session:
-        trading_days = await get_trading_days(session, headers, rate_limiter, days=260)
+        # Limit to 250 trading days max
+        trading_days = await get_trading_days(session, headers, rate_limiter, days=250)
         if not trading_days:
             sys.exit(1)
             
@@ -419,29 +493,38 @@ async def main(dry_run=False):
         for token, meta in fno_dict.items():
             symbol = meta['symbol'].split('-')[0].upper()
             if symbol in watchlist:
-                is_completed, missing_days = get_missing_trading_days_and_completion(symbol, trading_days)
+                is_completed, eod_missing, needs_ohlcv = get_missing_trading_days_and_completion(symbol, trading_days)
                 if is_completed:
-                    print(f"Skipping {symbol} (already completed >= 250 days)")
+                    print(f"Skipping {symbol} (fully synced to {max(trading_days)})")
                     completed_symbols.append(symbol)
                     continue
                 
-                fno_items.append((token, meta, missing_days))
+                fno_items.append((token, meta, eod_missing, needs_ohlcv))
                 
         print(f"Filtered to {len(fno_items)} F&O stocks matching watchlist requiring updates.")
         if dry_run:
             fno_items = fno_items[:2]
             print(f"[DRY RUN] Limited to {len(fno_items)} symbols.")
             
-        print(f"Starting Deep Bootstrap for {len(fno_items)} symbols...")
-        
-        for token, meta, missing_days in tqdm(fno_items, desc="Symbols Processed"):
+        # PASS 1: OHLCV Sync (fast)
+        print(f"\n--- Pass 1: OHLCV Price Sync ---")
+        for token, meta, eod_missing, needs_ohlcv in fno_items:
+            if needs_ohlcv:
+                symbol = meta['symbol'].split('-')[0].upper()
+                ikey = scrip_master_engine.get_instrument_key(symbol)
+                count = await sync_ohlcv_to_today(session, headers, rate_limiter, symbol, ikey, trading_days)
+                print(f"  [{symbol}] Synced {count} new OHLCV days")
+                
+        # PASS 2: EOD Derivatives Backfill (slow)
+        print(f"\n--- Pass 2: EOD Derivatives Backfill ---")
+        for token, meta, eod_missing, needs_ohlcv in tqdm(fno_items, desc="Symbols Processed"):
+            if not eod_missing:
+                continue
             symbol = meta['symbol'].split('-')[0].upper()
-            
-            # Robustly fetch the true Instrument Key (ISIN or Upstox formatted token)
             ikey = scrip_master_engine.get_instrument_key(symbol)
             
-            print(f"\n[{symbol}] Processing {len(missing_days)} missing days...")
-            updates = await process_symbol_completely(session, headers, rate_limiter, ikey, symbol, missing_days)
+            print(f"\n[{symbol}] Processing {len(eod_missing)} missing days for derivatives...")
+            updates = await process_symbol_completely(session, headers, rate_limiter, ikey, symbol, eod_missing)
             if updates:
                 await asyncio.to_thread(update_parquet, symbol, updates)
 

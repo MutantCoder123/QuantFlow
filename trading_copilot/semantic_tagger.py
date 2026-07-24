@@ -11,7 +11,8 @@ class SemanticTagger:
         payload = {}
         
         ltp = float(flat.get("ltp") or 1.0)
-        market_state = flat.get("market_state", "LIVE")
+        from pipeline_guard import is_market_open
+        market_state = "LIVE" if is_market_open() else "CLOSED"
         
         # MARKET STATE GUARD (Flaw 10)
         # If market is closed, zero out live microstructure to prevent phantom signals
