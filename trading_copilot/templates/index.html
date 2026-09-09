@@ -638,38 +638,44 @@
                     breadthElem.className = adRatio >= 1.0 ? 'text-2xl font-bold font-mono-custom text-emerald-400' : 'text-2xl font-bold font-mono-custom text-rose-400';
                 }
 
-                // MOCK DATA FALLBACK FOR GLOBAL MARKET CONTEXT
-                if (!payload.global_market_context) {
-                    payload.global_market_context = {
-                        summary: "Global markets are showing strong resilience with cooling inflation data out of the US and steady domestic inflows in Indian markets. FII selling pressure seems to have absorbed. Key focus remains on upcoming Fed commentary and RBI policy alignment.",
-                        sentiment: "BULLISH",
-                        timestamp: Math.floor(Date.now() / 1000)
-                    };
-                }
-
-                // 5. Update Global Market Context
-                if (payload.global_market_context) {
+                // 5. Update Global Market Context -- render truthfully, never fabricate.
+                // Previously a hardcoded BULLISH narrative filled this panel whenever the
+                // real context was absent (news_feed not running, GEMINI_API_KEY missing,
+                // or simply the first ~30 minutes of a session before the macro news loop
+                // completes its first cycle) -- stamped with the current timestamp, making
+                // it indistinguishable from a genuine Gemini-generated macro read.
+                {
                     const ctx = payload.global_market_context;
                     const badge = document.getElementById('macro-sentiment-badge');
                     const summary = document.getElementById('macro-summary');
                     const timeElem = document.getElementById('macro-time');
 
-                    if (summary) summary.innerText = ctx.summary || "No summary available.";
-                    if (badge) badge.innerText = ctx.sentiment || "NEUTRAL";
-
-                    if (ctx.timestamp && timeElem) {
-                        timeElem.innerText = "Updated: " + new Date(ctx.timestamp * 1000).toLocaleTimeString();
+                    if (!ctx) {
+                        if (summary) summary.textContent =
+                            'Macro context unavailable — news_feed (:8003) has not reported yet.';
+                        if (badge) {
+                            badge.textContent = 'UNAVAILABLE';
+                            badge.className = 'px-2 py-0.5 text-[10px] font-bold rounded border ' +
+                                              'bg-slate-800 text-slate-500 border-slate-700';
+                        }
+                        if (timeElem) timeElem.textContent = '';
+                    } else {
+                        if (summary) summary.textContent = ctx.summary || 'No summary available.';
+                        if (badge) badge.textContent = ctx.sentiment || 'NEUTRAL';
+                        if (ctx.timestamp && timeElem) {
+                            timeElem.textContent = 'Updated: ' +
+                                new Date(ctx.timestamp * 1000).toLocaleTimeString();
+                        }
+                        let bgClass = 'bg-slate-800', textClass = 'text-slate-400', borderClass = 'border-slate-700';
+                        if (ctx.sentiment === 'BULLISH') {
+                            bgClass = 'bg-emerald-500/20'; textClass = 'text-emerald-400'; borderClass = 'border-emerald-500/30';
+                        } else if (ctx.sentiment === 'BEARISH') {
+                            bgClass = 'bg-rose-500/20'; textClass = 'text-rose-400'; borderClass = 'border-rose-500/30';
+                        } else if (ctx.sentiment === 'MIXED') {
+                            bgClass = 'bg-purple-500/20'; textClass = 'text-purple-400'; borderClass = 'border-purple-500/30';
+                        }
+                        if (badge) badge.className = `px-2 py-0.5 text-[10px] font-bold rounded border ${bgClass} ${textClass} ${borderClass}`;
                     }
-
-                    let bgClass = 'bg-slate-800', textClass = 'text-slate-400', borderClass = 'border-slate-700';
-                    if (ctx.sentiment === 'BULLISH') {
-                        bgClass = 'bg-emerald-500/20'; textClass = 'text-emerald-400'; borderClass = 'border-emerald-500/30';
-                    } else if (ctx.sentiment === 'BEARISH') {
-                        bgClass = 'bg-rose-500/20'; textClass = 'text-rose-400'; borderClass = 'border-rose-500/30';
-                    } else if (ctx.sentiment === 'MIXED') {
-                        bgClass = 'bg-purple-500/20'; textClass = 'text-purple-400'; borderClass = 'border-purple-500/30';
-                    }
-                    if (badge) badge.className = `px-2 py-0.5 text-[10px] font-bold rounded border ${bgClass} ${textClass} ${borderClass}`;
                 }
 
                 // 6. Update AI Intraday Playbook
