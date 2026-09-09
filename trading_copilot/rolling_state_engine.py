@@ -466,6 +466,15 @@ class RollingStateEngine:
             final_payload['high_probability_setup'] = True
 
         final_payload['prev_close'] = prev_close
+
+        # Fixes A-5: MTFFeatureExtractor was defined but never called, so
+        # fractal_alignment/volatility_state/elasticity_risk/kinetic_divergence
+        # were permanently pinned to their SemanticTagger defaults -- making
+        # PRE_BREAKOUT_SQUEEZE and MEAN_REVERSION_IMMINENT unreachable regimes.
+        from mtf_extractor import MTFFeatureExtractor
+        final_payload.update(
+            MTFFeatureExtractor.extract_all(final_payload, final_payload['ltp']))
+
         # 4. Update Terminal State Dict
         TerminalDashboard.update_state(token, final_payload)
 
