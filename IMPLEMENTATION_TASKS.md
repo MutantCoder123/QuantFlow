@@ -16,8 +16,8 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done & committed · `[!]
 - [x] **0.2** Centralise path resolution (fixes A-9) — commit `7e239ca`
 - [x] **0.3** Correct VTT volume accounting (fixes A-2, A-3 guard) — commit `35acf4f`
 - [x] **0.4** Single session-boundary reset (fixes A-3) — commit `e617706`
-- [ ] **0.5** Fix SignalLedger crash on held positions (fixes A-8)
-- [ ] **0.6** Remove the fabricated macro narrative (fixes A-1)
+- [x] **0.5** Fix SignalLedger crash on held positions (fixes A-8) — commit `1954274`
+- [x] **0.6** Remove the fabricated macro narrative (fixes A-1) — commit `5492c2c`
 - [ ] **0.7** Expose alert endpoints (fixes A-11, B-28)
 - [ ] **0.8** Isolate per-symbol failures (fixes A-13, D-4)
 - [ ] **0.9** Correct whale-CVD polarity check (fixes A-6)
@@ -29,7 +29,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done & committed · `[!]
 See [CHANGE_SPECSHEET.md](CHANGE_SPECSHEET.md#unplanned-security-incident) for
 full detail and the still-open question for the user.
 
-**Phase 0 status:** in progress — 4/11 tasks done
+**Phase 0 status:** in progress — 6/11 tasks done
 
 ---
 

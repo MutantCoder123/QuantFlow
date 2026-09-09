@@ -172,6 +172,69 @@ keeps `last_reset_date` purely as a diagnostic field.
 
 ---
 
+### Task 0.5 — Fix SignalLedger crash on held positions
+**Commit:** `1954274` | **Fixes:** drawbacks §A-8
+
+| | |
+|---|---|
+| Files modified | `signal_ledger.py` |
+| Test | `tests/test_signal_ledger.py` (2 tests) |
+
+**What was broken:** `build_structured_payload()` deliberately sets `execution_geometry` and
+`expectancy_matrix` to `None` (not absent) while a position is held, to hide new-entry suggestions during
+an active trade. `math_setup.get("execution_geometry", {})` returns the *stored* `None` in that case — the
+default only applies when the key is missing — so the chained `.get("padded_stop")` raised
+`AttributeError: 'NoneType' object has no attribute 'get'`. Reproduced directly before the fix.
+
+Because `record_signal()` is only reached on `CLOSE_EXISTING`/`REVERSE_POSITION` verdicts — which by
+definition require an existing position — this meant **every position-management signal was silently
+dropped**, and the exception was swallowed by `analyze_stock`'s outer handler, surfacing to the operator
+only as a generic `"Error generating report: ..."`.
+
+**Fix:** `geo = math_setup.get("execution_geometry") or {}` / `exp = math_setup.get("expectancy_matrix") or
+{}`, computed once before building the record. Also changed `implied_probability`'s default from `0.0` to
+`None` — consistent with `improved_architecture_and_features.md` §4.2 (unknown should read as unknown, not
+as a specific wrong number).
+
+**Verified:** both tests pass — one exercising the previously-crashing null-geometry path, one confirming
+real geometry is still captured correctly (regression guard against over-correcting to "always empty").
+
+---
+
+### Task 0.6 — Remove the fabricated macro narrative
+**Commit:** `5492c2c` | **Fixes:** drawbacks §A-1
+
+| | |
+|---|---|
+| Files modified | `trading_copilot/templates/index.html` |
+
+**What was broken:** whenever `payload.global_market_context` was falsy — `news_feed.py` not running,
+`GEMINI_API_KEY` missing, the Upstox news call failing, or simply the first ~30 minutes of every session
+before `_macro_news_polling_loop` completes its first cycle — the WebSocket handler substituted a hardcoded
+object: a fixed BULLISH narrative ("Global markets are showing strong resilience...") stamped with
+`Math.floor(Date.now() / 1000)`, i.e. the *current* time. Rendered with a green sentiment badge and an
+"Updated: <now>" label, it was indistinguishable from a genuine Gemini-generated read. Every session
+therefore began by showing the operator a fabricated, systematically bullish directional thesis.
+
+**Fix:** deleted the mock-substitution block entirely. The render logic now branches explicitly: when
+`ctx` is absent, the badge reads `UNAVAILABLE` (slate/grey), the summary states the specific reason
+("Macro context unavailable — news_feed (:8003) has not reported yet."), and no timestamp is shown. Also
+switched `innerText` → `textContent` for these three fields, closing the incidental XSS sink on
+LLM/news-derived text in this one panel (broader `innerHTML` cleanup across the rest of the file is
+tracked separately in the plan, not attempted here).
+
+**Verified:**
+- Grep sweep confirms no fabricated-data pattern (`mock`, `fabricat`, `hardcode`) remains in the file,
+  aside from the two explanatory code comments describing the fix itself.
+- Static content check: the fabricated narrative string is gone; the `UNAVAILABLE` badge text is present.
+- All 4 inline `<script>` blocks in `index.html` (including the modified 46,056-character block) pass
+  `node --check` — genuine JS syntax verification via Node 22.14.0, not visual inspection.
+- **Not performed:** an actual browser load (starting `main.py` without `news_feed.py` and observing the
+  rendered panel). No browser automation tool is available in this environment (Playwright MCP was
+  disconnected at session start). This is disclosed rather than claimed.
+
+---
+
 ### Unplanned: security incident
 
 **Commits:** `27b1c93` (fix) — surfaced between Tasks 0.4 and 0.5
