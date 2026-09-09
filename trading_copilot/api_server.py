@@ -121,8 +121,9 @@ async def get_dashboard():
 @app.post("/api/run-screener")
 async def run_screener(): return await proxy_post(8001, "/api/run-screener")
 
-@app.post("/api/map-option-tokens")
-async def map_option_tokens(): return await proxy_post(8001, "/api/map-option-tokens")
+# /api/map-option-tokens was removed (A-11): it proxied to a route that only
+# ever existed on the dead Angel One smart_api_feed.py, never on the live
+# upstox_feed.py (port 8001) -- the call always errored.
 
 class InstantAnalyzeRequest(BaseModel):
     model: str = "gemini-2.5-flash"
@@ -216,10 +217,25 @@ async def debug_toggles():
 @app.get("/api/reasoning/all_reports")
 async def get_all_reports():
     return {
-        "status": "success", 
+        "status": "success",
         "reports": ReasoningEngine.latest_reports,
         "llm_trigger_count": getattr(ReasoningEngine, "llm_trigger_count", 0)
     }
+
+@app.get("/api/alerts/unread")
+async def alerts_unread():
+    return {"count": sum(1 for a in ReasoningEngine.global_alerts if not a.get("read"))}
+
+@app.get("/api/alerts/history")
+async def alerts_history():
+    return {"status": "success", "alerts": ReasoningEngine.global_alerts}
+
+@app.post("/api/alerts/mark-read/{alert_id}")
+async def alerts_mark_read(alert_id: int):
+    for a in ReasoningEngine.global_alerts:
+        if a.get("id") == alert_id:
+            a["read"] = True
+    return {"status": "success"}
 @app.get("/api/reasoning/report/{symbol}")
 async def get_latest_report(symbol: str):
     norm = ReasoningEngine._normalize_symbol(symbol)

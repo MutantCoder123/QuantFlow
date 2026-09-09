@@ -124,9 +124,6 @@
                         <button id="btn-edit-watchlist" onclick="openWatchlistModal()"
                             class="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] uppercase font-bold py-1 px-3 rounded shadow transition-colors border border-emerald-400/30">📋
                             Edit Watchlist</button>
-                        <button id="btn-map-tokens"
-                            class="bg-purple-600 hover:bg-purple-500 text-white text-[10px] uppercase font-bold py-1 px-3 rounded shadow transition-colors border border-purple-400/30">🔗
-                            Map Option Tokens</button>
                     </div>
                     <span id="macro-date" class="text-xs text-slate-500 font-mono-custom">Date: N/A</span>
                 </div>
@@ -1816,42 +1813,9 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                 });
             }
         });
-        // Phase 5.5: Map Option Tokens Logic
-        const btnMapTokens = document.getElementById('btn-map-tokens');
-        if (btnMapTokens) {
-            btnMapTokens.addEventListener('click', () => {
-                const originalText = btnMapTokens.innerText;
-                btnMapTokens.innerText = "Mapping Tokens (Please Wait...)";
-                btnMapTokens.disabled = true;
-                btnMapTokens.classList.add('opacity-50', 'cursor-not-allowed');
-                fetch(`${apiBase}/api/map-option-tokens`, { method: 'POST' })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.status === 'success') {
-                            // Flash brief success notification
-                            const alertBox = document.createElement('div');
-                            alertBox.className = 'fixed top-4 right-4 bg-purple-600 text-white px-4 py-2 rounded shadow-lg z-50 font-bold text-sm transition-opacity duration-500';
-                            alertBox.innerText = "Live Option Tokens Injected into Data Stream.";
-                            document.body.appendChild(alertBox);
-                            setTimeout(() => {
-                                alertBox.style.opacity = '0';
-                                setTimeout(() => alertBox.remove(), 500);
-                            }, 3000);
-                        } else {
-                            alert("Mapping failed: " + data.message);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error mapping tokens:', error);
-                        alert('An error occurred while mapping option tokens.');
-                    })
-                    .finally(() => {
-                        btnMapTokens.innerText = originalText;
-                        btnMapTokens.disabled = false;
-                        btnMapTokens.classList.remove('opacity-50', 'cursor-not-allowed');
-                    });
-            });
-        }
+        // Map Option Tokens control removed (A-11): it proxied to a route
+        // that only ever existed on the dead Angel One smart_api_feed.py and
+        // always errored against the live upstox_feed.py on port 8001.
 
         // --- Phase 10: Watchlist Manager Logic ---
         const watchlistModal = document.getElementById('watchlist-modal');
