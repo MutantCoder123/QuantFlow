@@ -1,0 +1,22 @@
+aiohttp
+fastapi
+google-genai
+numpy
+pandas
+pandas-ta
+pyarrow
+pyotp
+python-dotenv
+pytz
+scipy
+TA-Lib
+upstox-python
+uvicorn
+websockets
+
+# Test + config tooling
+pytest
+pytest-asyncio
+PyYAML
+freezegun
+httpx

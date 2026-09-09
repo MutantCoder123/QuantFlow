@@ -1,0 +1,80 @@
+# QuantFlow Implementation — Task Tracker
+
+**Plan:** [docs/superpowers/plans/2026-09-09-quantflow-remediation-and-measurability.md](docs/superpowers/plans/2026-09-09-quantflow-remediation-and-measurability.md)
+**Specsheet:** [CHANGE_SPECSHEET.md](CHANGE_SPECSHEET.md)
+**Branch:** `feat/measurability`
+
+Legend: `[ ]` not started · `[~]` in progress · `[x]` done & committed · `[!]` blocked · `[-]` deliberately skipped
+
+---
+
+## Phase 0 — Foundation & P0 Correctness
+
+> Exit criteria: `pytest` green; no fabricated values reach the UI; volume accounting correct; all paths resolve.
+
+- [ ] **0.1** Test infrastructure and branch
+- [ ] **0.2** Centralise path resolution (fixes A-9)
+- [ ] **0.3** Correct VTT volume accounting (fixes A-2, A-3 guard)
+- [ ] **0.4** Single session-boundary reset (fixes A-3)
+- [ ] **0.5** Fix SignalLedger crash on held positions (fixes A-8)
+- [ ] **0.6** Remove the fabricated macro narrative (fixes A-1)
+- [ ] **0.7** Expose alert endpoints (fixes A-11, B-28)
+- [ ] **0.8** Isolate per-symbol failures (fixes A-13, D-4)
+- [ ] **0.9** Correct whale-CVD polarity check (fixes A-6)
+- [ ] **0.10** Clamp LLM prices server-side (fixes A-10)
+- [ ] **0.11** Security and documentation hygiene (fixes E-1, E-2, E-3, B-21, B-29, E-8)
+
+**Phase 0 status:** not started
+
+---
+
+## Phase 1 — Record Everything  *(not started)*
+
+- [ ] **1.1** TickRecorder
+- [ ] **1.2** Wire TickRecorder into ingest
+- [ ] **1.3** FeatureLog
+- [ ] **1.4** Wire FeatureLog into the gatekeeper loop
+- [ ] **1.5** Bar-accurate outcome labelling + pending recovery (fixes C-3)
+
+## Phase 2 — Purity, Config, Single-Writer  *(not started)*
+
+- [ ] **2.1** PolicyConfig (102 thresholds → YAML)
+- [ ] **2.2** Split read from write via `advance_state` (fixes A-4)
+- [ ] **2.3** Wire MTFFeatureExtractor (fixes A-5)
+- [ ] **2.4** Queue-based single-writer ingest
+- [ ] **2.5** Stream supervision and staleness (fixes A-12)
+- [ ] **2.6** Retire performance hotspots (fixes D-1, D-2, D-3)
+- [ ] **2.7** Session-anchored resampling (fixes C-4)
+
+## Phase 3 — Risk, Horizon, Cost  *(not started)*
+
+- [ ] **3.1** Cost model
+- [ ] **3.2** Cluster map
+- [ ] **3.3** Position sizing and exposure limits
+- [ ] **3.4** Unify the horizon
+- [ ] **3.5** Tags + values; renormalise composite (fixes C-1)
+
+## Phase 4 — Measurement  *(not started)*
+
+- [ ] **4.1** Shadow-mode both-arm logging
+- [ ] **4.2** Report `None` until calibrated
+- [ ] **4.3** Fit the calibration 🔒 DATA-GATED
+- [ ] **4.4** Reliability view
+
+## Phase 5 — Operator Surfaces  *(not started)*
+
+- [ ] **5.1** Attention ranking
+- [ ] **5.2** Provenance panel
+- [ ] **5.3** Exposure view
+- [ ] **5.4** Replay runner
+- [ ] **5.5** Fix screener, close discovery loop (fixes A-15)
+- [ ] **5.6** Session review + dead-code removal
+
+---
+
+## Deliberate gaps (from plan self-review)
+
+- [-] **A-7** playbook blocks event loop — folded into Task 5.5 (disable Discovery button rather than patch a feature being rewritten)
+- [-] **A-14** parquet duplicate rows — verified `dupes: 0`; defect is in the code path, not the data
+- [-] **C-2** wrong 5-year Value Area — nothing acts on those levels today; fix before they are wired in
+- [-] **D-5** cross-process transport — re-measure after Phase 2 removes the 2 Hz semantic pipeline
