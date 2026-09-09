@@ -21,11 +21,14 @@ ensure_dirs()
 
 app = FastAPI(title="AlgoTrade Live Web Portal")
 
+# Scoped to localhost: this server binds to 127.0.0.1 (below) and holds no
+# authentication, so an open "*" origin let any page loaded in the same
+# browser make authenticated-looking requests against it (E-1/E-2).
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://127.0.0.1:8000", "http://localhost:8000"],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
@@ -470,5 +473,8 @@ async def start_api_server():
         except Exception as e:
             logger.error(f"Failed to load playbook state: {e}")
             
-    config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="warning", ws_ping_interval=None)
+    # 0.0.0.0 exposed this unauthenticated API to the whole LAN (E-1). If LAN
+    # access is genuinely wanted, keep 0.0.0.0 but add a shared-secret header
+    # dependency first — do not leave it open.
+    config = uvicorn.Config(app, host="127.0.0.1", port=8000, log_level="warning", ws_ping_interval=None)
     await uvicorn.Server(config).serve()

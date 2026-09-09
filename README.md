@@ -193,10 +193,11 @@ pip install fastapi uvicorn aiohttp pandas numpy pandas_ta scipy google-genai up
 Create a `.env` file in the project root:
 
 ```env
-UPSTOX_API_KEY=your_api_key
-UPSTOX_API_SECRET=your_api_secret
-UPSTOX_REDIRECT_URI=your_redirect_uri
-UPSTOX_PIN=your_pin
+UPSTOX_CLIENT_ID=your_upstox_client_id
+UPSTOX_CLIENT_SECRET=your_upstox_client_secret
+UPSTOX_REDIRECT_URI=http://localhost:8000/callback
+UPSTOX_MOBILE_NO=your_upstox_mobile_number
+UPSTOX_PIN=your_6_digit_pin
 UPSTOX_TOTP_KEY=your_totp_secret
 GEMINI_API_KEY=your_gemini_api_key
 ```
