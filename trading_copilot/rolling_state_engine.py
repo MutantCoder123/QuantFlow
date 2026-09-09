@@ -377,6 +377,15 @@ class RollingStateEngine:
         final_payload['whale_cvd_ema_1h'] = micro.get('whale_cvd_ema_1h', 0.0)
         final_payload['whale_cvd_slope'] = micro.get('whale_cvd_slope', 0.0)
 
+        # Average daily volume -- denominator for the A-6 whale-flip check,
+        # which normalises an adverse move against ADV so the same absolute
+        # share count means something comparable across a thinly-traded name
+        # and a heavily-traded one. 1500 bars = 20 sessions x 75 5-min bars.
+        if target_df is not None and len(target_df) >= 1500:
+            final_payload['adv_shares'] = float(target_df['volume'].tail(1500).sum() / 20.0)
+        else:
+            final_payload['adv_shares'] = 0.0
+
         # 20d and 5d Advanced calculations
         vp_20d = MathEngine.calc_volume_profile_high_fidelity(temp_df, bins=100)
         final_payload.update(vp_20d)

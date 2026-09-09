@@ -149,7 +149,17 @@ class SavePositionRequest(BaseModel):
 @app.post("/api/reasoning/position/save")
 async def save_position_api(req: SavePositionRequest):
     norm = ReasoningEngine._normalize_symbol(req.symbol)
-    ReasoningEngine.user_positions[norm] = req.user_position
+    pos = dict(req.user_position) if req.user_position else req.user_position
+
+    # Backfill the whale-CVD baseline used by the A-6 adverse-flip check so a
+    # position saved without one doesn't silently compare against 0.0 forever.
+    if pos and "whale_cvd_at_entry" not in pos:
+        for key, state in local_active_states.items():
+            if key.split('|')[-1].split('-')[0] == norm:
+                pos["whale_cvd_at_entry"] = state.get("whale_cvd_ema_1h", 0.0)
+                break
+
+    ReasoningEngine.user_positions[norm] = pos
     return {"status": "success"}
 
 class SyncPositionsRequest(BaseModel):
