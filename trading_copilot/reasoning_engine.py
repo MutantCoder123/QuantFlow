@@ -74,6 +74,26 @@ def clamp_risk_parameters(risk_params: dict, geo: dict, atr15: float, bias: str)
             "final_target": round(target, 2)}, None
 
 
+def _classify_decision(math_setup: dict, gatekeeper_res: dict) -> str:
+    """PROPOSED | REJECTED_<reason> | GATED_<reason> — feeds FeatureLog (1.4)."""
+    if math_setup.get("setup_rejected", True):
+        return f"REJECTED_{math_setup.get('rejection_reason', 'UNKNOWN')}"
+    elif gatekeeper_res.get("llm_authorized"):
+        return "PROPOSED"
+    else:
+        return f"GATED_{gatekeeper_res.get('math_rejection', 'UNKNOWN')}"
+
+
+def _numeric_features(payload: dict) -> dict:
+    """Flatten a payload to its numeric fields only, for FeatureLog (1.4).
+
+    bool is excluded even though it's an int subclass — True/False is not a
+    feature value.
+    """
+    return {k: float(v) for k, v in payload.items()
+            if isinstance(v, (int, float)) and not isinstance(v, bool)}
+
+
 class ReasoningEngine:
     # Throttle concurrent API calls to avoid rate limit bans (Increased for Tier 1)
     llm_semaphore = asyncio.Semaphore(15)
@@ -507,7 +527,19 @@ class ReasoningEngine:
         
         from signal_ledger import SignalLedger
         asyncio.create_task(SignalLedger.start_outcome_resolver())
-        
+
+        from journal.feature_log import FeatureLog, FeatureRecord
+        from paths import FEATURES_DIR
+        feature_log = FeatureLog(FEATURES_DIR)
+        cls._feature_log = feature_log
+
+        async def _feature_flush():
+            while True:
+                await asyncio.sleep(60)
+                await asyncio.to_thread(feature_log.flush)
+
+        asyncio.create_task(_feature_flush())
+
         while True:
             for symbol, payload in list(TerminalDashboard.active_states.items()):
                 token = payload.get('token') or symbol
@@ -535,6 +567,24 @@ class ReasoningEngine:
                         ltp=ltp
                     )
                     
+                    # ---- Log a feature vector for THIS symbol/tick, whether
+                    # it gets proposed, rejected, or gated — before the
+                    # debounce `continue` below, so a debounced-out tick is
+                    # still recorded (Task 1.4). ----
+                    math_setup_fl = structured.get("math_setup", {}) or {}
+                    regime_meta_fl = structured.get("market_regime", {}) or {}
+                    feature_log.write(FeatureRecord(
+                        ts=int(time.time()),
+                        symbol=norm_sym,
+                        config_version=getattr(cls, "_config_version", 0),
+                        features=_numeric_features(payload),
+                        staleness={"microstructure": float(payload.get("data_age_s", 0.0))},
+                        regime=regime_meta_fl.get("current_regime", "UNKNOWN"),
+                        session_phase=regime_meta_fl.get("session_phase", "UNKNOWN"),
+                        composite=math_setup_fl.get("composite_score"),
+                        decision=_classify_decision(math_setup_fl, gatekeeper_res),
+                    ))
+
                     has_pos = bool(current_pos)
                     current_advice = {
                         "action": gatekeeper_res.get("Action", ""),
