@@ -1,0 +1,127 @@
+{
+  "macro_weather": "Neutral with pockets of strong bullish momentum, particularly in high relative strength sectors. The prevalence of top-scored LONG candidates suggests underlying buying interest in specific themes, even as the broader global context remains nuanced without explicit directional cues.",
+  "watchlist": [
+    {
+      "symbol": "YESBANK",
+      "rationale": "The Math Engine assigns a perfect score of 100 and a strong LONG bias, reinforced by its positive Relative Strength (RS 27.6) and the presence of 'Fresh news available'. This indicates a robust technical setup with potential fundamental tailwinds, suggesting a high-conviction upside move.",
+      "strategy": "Initiate LONG if price sustains above Camarilla H3, confirming upward momentum. Monitor for volume confirmation.",
+      "entry": 23.19,
+      "target": 24.0,
+      "stoploss": 22.85,
+      "confidence": "High",
+      "risk": "Medium",
+      "token": "11915",
+      "exchange": "NSE"
+    },
+    {
+      "symbol": "ADANIPORTS",
+      "rationale": "With a perfect math score of 100 and exceptional Relative Strength (RS 32.94), ADANIPORTS is a high-conviction LONG candidate. The 'Fresh news available' likely acts as a catalyst, supporting the strong technical outperformance identified by the Math Engine.",
+      "strategy": "Enter LONG position if price holds above Camarilla H3, anticipating a breakout towards previous day's high and extended targets.",
+      "entry": 1797.74,
+      "target": 1836.18,
+      "stoploss": 1776.46,
+      "confidence": "High",
+      "risk": "Medium",
+      "token": "15083",
+      "exchange": "NSE"
+    },
+    {
+      "symbol": "NBCC",
+      "rationale": "A perfect score of 100 from the Math Engine, combined with a healthy Relative Strength (RS 24.5) and 'Fresh news available', signals a strong LONG conviction. The technical setup indicates a potential for continued upward momentum.",
+      "strategy": "Look for a LONG entry above Camarilla H3, with confirmation of sustained buying pressure, targeting a move towards new short-term highs.",
+      "entry": 106.01,
+      "target": 108.88,
+      "stoploss": 104.31,
+      "confidence": "High",
+      "risk": "Medium",
+      "token": "31415",
+      "exchange": "NSE"
+    },
+    {
+      "symbol": "ANGELONE",
+      "rationale": "The Math Engine's perfect score of 100, bolstered by an outstanding Relative Strength (RS 41.25) and 'Fresh news available', strongly indicates a high-conviction LONG bias. This stock demonstrates significant market leadership and technical strength.",
+      "strategy": "Initiate LONG upon a decisive move and hold above Camarilla H3, aiming for continued relative outperformance and a push towards higher levels.",
+      "entry": 343.69,
+      "target": 356.15,
+      "stoploss": 335.31,
+      "confidence": "High",
+      "risk": "Medium",
+      "token": "324",
+      "exchange": "NSE"
+    },
+    {
+      "symbol": "IDFCFIRSTB",
+      "rationale": "Despite a moderate Relative Strength (RS 24.81), the Math Engine's perfect score (100) and 'Fresh news available' underpin a strong LONG conviction. This suggests specific positive factors or a robust technical breakout setup that the engine has identified.",
+      "strategy": "Consider a LONG entry if price consolidates above Camarilla H3, confirming bullish sentiment for a rally towards previous resistance levels.",
+      "entry": 73.32,
+      "target": 77.39,
+      "stoploss": 72.58,
+      "confidence": "High",
+      "risk": "Medium",
+      "token": "11184",
+      "exchange": "NSE"
+    },
+    {
+      "symbol": "NMDC",
+      "rationale": "The Math Engine assigns a high score of 97.04 and a LONG bias, despite a lower Relative Strength (RS 8.0). This, coupled with 'Fresh news available', suggests the engine has detected specific catalysts or an accumulation phase that could lead to an upward move.",
+      "strategy": "Await confirmation of strength above Camarilla H3. Enter LONG if the price action signals a breakout from recent consolidation.",
+      "entry": 91.39,
+      "target": 92.89,
+      "stoploss": 90.47,
+      "confidence": "High",
+      "risk": "Medium",
+      "token": "15332",
+      "exchange": "NSE"
+    },
+    {
+      "symbol": "ADANIENT",
+      "rationale": "A very high Relative Strength (RS 60.93) coupled with a strong Math Engine score of 95.20 and 'Fresh news available' makes ADANIENT a compelling LONG. This indicates strong underlying momentum and market leadership, pointing to further upside potential.",
+      "strategy": "Enter LONG on a confirmed break and hold above Camarilla H3, targeting continued bullish momentum.",
+      "entry": 2928.52,
+      "target": 3001.62,
+      "stoploss": 2889.08,
+      "confidence": "High",
+      "risk": "Medium",
+      "token": "25",
+      "exchange": "NSE"
+    },
+    {
+      "symbol": "360ONE",
+      "rationale": "The Math Engine's high score of 95 and a LONG bias, along with positive Relative Strength (RS 13.47) and no specific negative news, points to inherent technical strength. The engine likely identifies a robust price structure conducive to an upward continuation.",
+      "strategy": "Initiate LONG position if price shows sustained strength above Camarilla H3, aiming for a retest of previous highs.",
+      "entry": 1108.08,
+      "target": 1146.05,
+      "stoploss": 1085.52,
+      "confidence": "High",
+      "risk": "Medium",
+      "token": "13061",
+      "exchange": "NSE"
+    },
+    {
+      "symbol": "KOTAKBANK",
+      "rationale": "A high Math Engine score of 95 and a LONG bias are indicated despite a lower Relative Strength (RS 8.94) and 'No fresh news'. This suggests the quantitative model has identified a potential turning point or significant buying interest at current levels.",
+      "strategy": "Await confirmation of a bullish price action above Camarilla H3. Enter LONG with strict stop-loss, anticipating a bounce or reversal.",
+      "entry": 397.57,
+      "target": 408.55,
+      "stoploss": 389.13,
+      "confidence": "High",
+      "risk": "Medium",
+      "token": "1922",
+      "exchange": "NSE"
+    },
+    {
+      "symbol": "MCX",
+      "rationale": "Despite a moderate Relative Strength (RS 12.07), the Math Engine assigns a high score of 95 with a clear SHORT bias. This indicates significant technical weakness being detected, potentially due to selling pressure or inability to hold key support levels, even in the absence of explicit negative news.",
+      "strategy": "Initiate SHORT position if price breaks and sustains below Camarilla L3, confirming bearish momentum for a move towards lower support levels.",
+      "entry": 2831.88,
+      "target": 2782.1,
+      "stoploss": 2874.12,
+      "confidence": "High",
+      "risk": "Medium",
+      "token": "31181",
+      "exchange": "NSE"
+    }
+  ],
+  "generated_at": "2026-06-16T00:10:11.253838",
+  "session_date": "2026-06-16"
+}

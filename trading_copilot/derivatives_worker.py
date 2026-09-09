@@ -12,17 +12,19 @@ from scipy.stats import norm
 
 logger = logging.getLogger(__name__)
 
-# Base directory for data
-_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR = os.path.join(_BASE_DIR, 'data')
+# Paths come from the single source of truth. Previously _BASE_DIR resolved to
+# AlgoTrade/ so DATA_DIR pointed at a directory that does not exist, and
+# get_historical_iv() always returned (999.0, 0.0) -- silently degrading IV Rank
+# onto its macro_baselines fallback.
+from paths import CACHE_DIR, DATA_DIR, MACRO_BASELINES_PATH, WATCHLIST_PATH, parquet_path
 
 def get_historical_iv(symbol: str):
     """
     Reads the trailing 252 trading days from the 1D Parquet file.
     Returns iv_low, iv_high. If no data, returns (999.0, 0.0)
     """
-    file_path = os.path.join(DATA_DIR, f"{symbol}_1D.parquet")
-    if not os.path.exists(file_path):
+    file_path = parquet_path(symbol)
+    if not file_path.exists():
         return 999.0, 0.0
         
     try:
@@ -60,9 +62,8 @@ def calculate_ivr(symbol: str, live_iv: float):
         # Fallback to macro baselines
         import json
         try:
-            baselines_path = os.path.join(os.path.dirname(__file__), 'data', 'macro_baselines.json')
-            if os.path.exists(baselines_path):
-                with open(baselines_path, 'r') as f:
+            if MACRO_BASELINES_PATH.exists():
+                with open(MACRO_BASELINES_PATH, 'r') as f:
                     data = json.load(f)
                     stock_macro = data.get(symbol, {})
                     vol = stock_macro.get("volatility_edge_52w", {})
@@ -218,9 +219,8 @@ async def derivatives_poller_loop(api_client, watchlist_tokens: list, upstox_eq_
             active_watchlist = []
             try:
                 import csv
-                watchlist_file = os.path.join(_BASE_DIR, 'trading_copilot', 'watchlist.csv')
-                if os.path.exists(watchlist_file):
-                    with open(watchlist_file, mode='r') as f:
+                if WATCHLIST_PATH.exists():
+                    with open(WATCHLIST_PATH, mode='r') as f:
                         active_watchlist = list(csv.DictReader(f))
             except Exception as e:
                 logger.error(f"Could not read watchlist.csv: {e}")
@@ -276,8 +276,8 @@ async def derivatives_poller_loop(api_client, watchlist_tokens: list, upstox_eq_
                 await asyncio.sleep(1.0)
                 
             import json
-            os.makedirs('scratch', exist_ok=True)
-            with open('scratch/derivatives_debug.json', 'w') as f:
+            CACHE_DIR.mkdir(parents=True, exist_ok=True)
+            with open(CACHE_DIR / 'derivatives_debug.json', 'w') as f:
                 json.dump(debug_dump, f, indent=2)
                 
         except Exception as e:

@@ -8,8 +8,9 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pathlib import Path
-_BASE_DIR = Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-STATE_FILE = _BASE_DIR / 'data' / 'institutional_flow.json'
+from paths import BASE_DIR as _BASE_DIR, INSTITUTIONAL_FLOW_PATH, TOKEN_PATH, ensure_dirs
+ensure_dirs()
+STATE_FILE = INSTITUTIONAL_FLOW_PATH
 import upstox_client
 from upstox_client.api.market_api import MarketApi
 
@@ -109,7 +110,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     import json
     import upstox_client
-    with open(os.path.join(_BASE_DIR, 'upstox_token.json')) as f:
+    with open(TOKEN_PATH) as f:
         token = json.load(f)['access_token']
         
     conf = upstox_client.Configuration()

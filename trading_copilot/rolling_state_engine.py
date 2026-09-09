@@ -7,6 +7,7 @@ import numpy as np
 import json
 from technical_engine import MathEngine
 from diagnostic_ui import TerminalDashboard
+from paths import CACHE_STATE_PATH, DATA_DIR, MACRO_BASELINES_PATH
 from derivatives_engine import OptionsAnalyzer
 from macro_eod_engine import InstitutionalFlowTracker as LegacyTracker
 try:
@@ -28,7 +29,7 @@ class RollingStateEngine:
         self.phantom_candles = {}
         
         # Hydration (Anti-Cold Start)
-        self.cache_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'cache_state.json')
+        self.cache_file = str(CACHE_STATE_PATH)
         hydrated = self._hydrate_from_cache()
         
         if not hydrated:
@@ -114,7 +115,9 @@ class RollingStateEngine:
     def _load_parquet_metrics(self):
         import os
         import pandas as pd
-        data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data')
+        # Previously dirname(dirname(__file__))/data -> AlgoTrade/data, which does
+        # not exist, so this method silently loaded nothing for every symbol.
+        data_dir = str(DATA_DIR)
         
         # Default Nifty Macro state
         self.daily_metrics_cache['Nifty 50'] = {'pcr': 1.0, 'max_pain': 0.0, 'atm_iv': 0.0}
@@ -313,10 +316,9 @@ class RollingStateEngine:
                         final_payload['market_state'] = "CLOSED"
                         
                     # Load Macro Baselines
-                    baselines_path = os.path.join(os.path.dirname(__file__), 'data', 'macro_baselines.json')
                     baselines = {}
-                    if os.path.exists(baselines_path):
-                        with open(baselines_path, 'r') as f:
+                    if MACRO_BASELINES_PATH.exists():
+                        with open(MACRO_BASELINES_PATH, 'r') as f:
                             baselines = json.load(f)
                     
                     stock_macro = baselines.get(parent_symbol, {})

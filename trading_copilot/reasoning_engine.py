@@ -654,8 +654,8 @@ class ReasoningEngine:
             TerminalDashboard.dashboard_intraday_plays = playbook_json
             
             try:
-                playbook_path = os.path.join("trading_copilot", "playbook_state.json")
-                with open(playbook_path, "w") as f:
+                from paths import PLAYBOOK_PATH
+                with open(PLAYBOOK_PATH, "w") as f:
                     json.dump(playbook_json, f, indent=2)
             except Exception as e:
                 logger.error(f"Failed to save playbook to disk: {e}")

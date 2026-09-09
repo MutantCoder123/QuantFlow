@@ -5,6 +5,8 @@ import asyncio
 import logging
 from datetime import datetime, timedelta
 
+from paths import SIGNALS_DIR
+
 logger = logging.getLogger(__name__)
 
 class SignalLedger:
@@ -14,9 +16,8 @@ class SignalLedger:
     def _get_log_file(cls, date_str=None):
         if not date_str:
             date_str = datetime.now().strftime("%Y-%m-%d")
-        log_dir = os.path.join(os.path.dirname(__file__), "data", "signals")
-        os.makedirs(log_dir, exist_ok=True)
-        return os.path.join(log_dir, f"signal_log_{date_str}.jsonl")
+        SIGNALS_DIR.mkdir(parents=True, exist_ok=True)
+        return str(SIGNALS_DIR / f"signal_log_{date_str}.jsonl")
 
     @classmethod
     def _append_to_log(cls, record, date_str=None):
@@ -163,7 +164,7 @@ class SignalLedger:
 
     @classmethod
     def load_all_signals(cls, last_n_days=30) -> list:
-        log_dir = os.path.join(os.path.dirname(__file__), "data", "signals")
+        log_dir = str(SIGNALS_DIR)
         if not os.path.exists(log_dir):
             return []
             

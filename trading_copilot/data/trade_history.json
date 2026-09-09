@@ -1,0 +1,444 @@
+{
+    "SAIL": [
+        {
+            "trade_id": "TRD-SAIL-1781159018",
+            "symbol": "SAIL",
+            "direction": "Long",
+            "status": "CLOSED",
+            "realized_pnl": 59.99999999999659,
+            "entry": {
+                "timestamp": 1781159018,
+                "datetime": "2026-06-11T11:53:38.210994",
+                "executed_price": 180.81,
+                "executed_quantity": 300,
+                "llm_confidence": 7,
+                "llm_reason": "Strong 'HIDDEN_BULLISH_ABSORPTION' indicates artificial liquidity sweeps for institutional accumulation, supported by positive 5-year alpha. Initiate long near current price targeting mean reversion within 2-6 hours, acknowledging high options premium."
+            },
+            "management_log": [],
+            "exits": [
+                {
+                    "timestamp": 1781159625,
+                    "datetime": "2026-06-11T12:03:45.734900",
+                    "executed_price": 181.01,
+                    "executed_quantity": 300,
+                    "llm_reason": "Aggressive selling and negative whale CVD (Block 1), compounded by 90th percentile IV (Block 2), indicate immediate distribution against a minimal positive PnL in a long position, necessitating a proactive exit despite macro bullishness."
+                }
+            ]
+        },
+        {
+            "trade_id": "TRD-SAIL-1781855517",
+            "symbol": "SAIL",
+            "direction": "Short",
+            "status": "CLOSED",
+            "realized_pnl": 59.41000000001591,
+            "entry": {
+                "timestamp": 1781855517,
+                "datetime": "2026-06-19T13:21:57.843707",
+                "executed_price": 179.93,
+                "executed_quantity": 1000,
+                "llm_confidence": 10,
+                "llm_reason": "The Math Engine's high-expectancy SHORT proposal is strongly reinforced by microstructure's confirmed bearish momentum and severe structural weakness driving price to test the 20-day Value Area Low from below. Although a 'Bullish Doji' provides a minor contradiction, the dominant RANGE_BOUND_CHOP regime and overwhelming bearish confluence suggest an imminent breakdown through this key structural level. Derivatives are neutral, posing no conflict.",
+                "llm_target": "178.26",
+                "llm_stoploss": "180.91"
+            },
+            "management_log": [],
+            "exits": [
+                {
+                    "timestamp": 1781863114,
+                    "datetime": "2026-06-19T15:28:34.264714",
+                    "executed_price": 179.76,
+                    "executed_quantity": 1000,
+                    "llm_reason": "Local Gatekeeper active. LLM analysis suppressed.",
+                    "charges": 110.59
+                }
+            ]
+        }
+    ],
+    "IDEA": [
+        {
+            "trade_id": "TRD-IDEA-1781247601",
+            "symbol": "IDEA",
+            "direction": "Short",
+            "status": "OPEN",
+            "realized_pnl": 0.0,
+            "entry": {
+                "timestamp": 1781247601,
+                "datetime": "2026-06-12T12:30:01.968809",
+                "executed_price": 14.93,
+                "executed_quantity": 2000,
+                "llm_confidence": 8,
+                "llm_reason": "Hidden Bearish Distribution and Aggressive Selling, reinforced by negative whale CVD and a significant Max Pain divergence pulling towards 14.0, positions LTP near the 5-year Value Area High, signaling a high-conviction short setup.",
+                "llm_target": "14",
+                "llm_stoploss": "16.1"
+            },
+            "management_log": [],
+            "exits": []
+        }
+    ],
+    "NSE_EQ|IDFCFIRSTB": [
+        {
+            "trade_id": "TRD-NSE_EQ|IDFCFIRSTB-1781589276",
+            "symbol": "NSE_EQ|IDFCFIRSTB",
+            "direction": "Long",
+            "status": "OPEN",
+            "realized_pnl": 0.0,
+            "entry": {
+                "timestamp": 1781589276,
+                "datetime": "2026-06-16T11:24:36.515491",
+                "executed_price": 77.72,
+                "executed_quantity": 2000,
+                "llm_confidence": 10,
+                "llm_reason": "Local Gatekeeper authorized LLM, but toggle is OFF.",
+                "llm_target": "78.25",
+                "llm_stoploss": "77.5"
+            },
+            "management_log": [],
+            "exits": []
+        }
+    ],
+    "NSE_EQ|KOTAKBANK": [
+        {
+            "trade_id": "TRD-NSE_EQ|KOTAKBANK-1781598088",
+            "symbol": "NSE_EQ|KOTAKBANK",
+            "direction": "Long",
+            "status": "OPEN",
+            "realized_pnl": 0.0,
+            "entry": {
+                "timestamp": 1781598088,
+                "datetime": "2026-06-16T13:51:28.537489",
+                "executed_price": 407.5,
+                "executed_quantity": 2000,
+                "llm_confidence": 10,
+                "llm_reason": "Local Gatekeeper active. LLM analysis suppressed.",
+                "llm_target": "409.32",
+                "llm_stoploss": "406.72"
+            },
+            "management_log": [],
+            "exits": []
+        }
+    ],
+    "NMDC": [
+        {
+            "trade_id": "TRD-NMDC-1781768219",
+            "symbol": "NMDC",
+            "direction": "Short",
+            "status": "CLOSED",
+            "realized_pnl": -16.109999999994088,
+            "entry": {
+                "timestamp": 1781768219,
+                "datetime": "2026-06-18T13:06:59.085702",
+                "executed_price": 88.37,
+                "executed_quantity": 800,
+                "llm_confidence": 10,
+                "llm_reason": "The Math Engine's strong short bias and high statistical edge are supported by local structural severe weakness and the asset testing a key value area high, aligning with a mean-reversion short in the RANGE_BOUND_CHOP regime. Dominant derivatives confirm normal pricing consistent with chop, and the target is strategically placed just above critical double-bottom support. While global sentiment is bullish, the absence of specific negative catalysts for this symbol and robust local qualitative confluence override this minor headwind.",
+                "llm_target": "87.93",
+                "llm_stoploss": "88.55"
+            },
+            "management_log": [],
+            "exits": [
+                {
+                    "timestamp": 1781770538,
+                    "datetime": "2026-06-18T13:45:38.917178",
+                    "executed_price": 88.3,
+                    "executed_quantity": 800,
+                    "llm_reason": "The math's weak short bias is fundamentally contradicted by a strongly bullish global market context and immediate structural signals, including an inverse head & shoulders pattern and a bullish doji. Microstructure indicates equilibrium chop and suppressed flow, failing to validate directional momentum. Given the prior ABORT decision at similar levels and the absence of valid execution geometry, maintaining the existing short position carries an unacceptable risk, necessitating an immediate close.",
+                    "charges": 72.11
+                }
+            ]
+        }
+    ],
+    "SCI": [
+        {
+            "trade_id": "TRD-SCI-1781768845",
+            "symbol": "SCI",
+            "direction": "Long",
+            "status": "OPEN",
+            "realized_pnl": 0.0,
+            "entry": {
+                "timestamp": 1781768845,
+                "datetime": "2026-06-18T13:17:25.613077",
+                "executed_price": 313.9,
+                "executed_quantity": 500,
+                "llm_confidence": 10,
+                "llm_reason": "The Math Engine's strong LONG proposal is qualitatively supported by bullish global sentiment, strong 5-day alpha, and a moderate bid imbalance in microstructure. While the active RANGE_BOUND_CHOP regime and LUNCH_CHOP phase suggest caution regarding an expansive target and potential mean reversion, derivatives markets are stable, and the proposed entry is a strategic pullback. The compelling statistical edge from the Math Engine, combined with directional qualitative confluence, outweighs the regime's cautionary signals for the directional bias.",
+                "llm_target": "317.31",
+                "llm_stoploss": "313.28"
+            },
+            "management_log": [],
+            "exits": []
+        },
+        {
+            "trade_id": "TRD-SCI-1781774034",
+            "symbol": "SCI",
+            "direction": "Long",
+            "status": "OPEN",
+            "realized_pnl": 0.0,
+            "entry": {
+                "timestamp": 1781774034,
+                "datetime": "2026-06-18T14:43:54.609623",
+                "executed_price": 309.65,
+                "executed_quantity": 500,
+                "llm_confidence": 10,
+                "llm_reason": "The Math Engine's LONG bias is supported by significant qualitative confluence from hidden bullish absorption in microstructure and robust structural edge, with price testing a double-bottom POC from above, reinforced by a bullish global context. While the RANGE_BOUND_CHOP regime and neutral derivatives matrix suggest caution and historical win rates are low, the strong structural validation for the stop and entry provides sufficient qualitative edge. Therefore, the proposal survives scrutiny, but a limit order is prudent given the Power Hour session phase and chop regime.",
+                "llm_target": "312.32",
+                "llm_stoploss": "308.41"
+            },
+            "management_log": [],
+            "exits": []
+        }
+    ],
+    "TATAPOWER": [
+        {
+            "trade_id": "TRD-TATAPOWER-1781769592",
+            "symbol": "TATAPOWER",
+            "direction": "Short",
+            "status": "OPEN",
+            "realized_pnl": 0.0,
+            "entry": {
+                "timestamp": 1781769592,
+                "datetime": "2026-06-18T13:29:52.737240",
+                "executed_price": 402.15,
+                "executed_quantity": 300,
+                "llm_confidence": 10,
+                "llm_reason": "The Math Engine's SHORT proposal is strongly corroborated by the `local_structural_edge_20d`, identifying a double top and value area high (402.12) as imminent resistance with severe momentum weakness, aligning perfectly with the calculated entry. While the `global_market_context` is bullish, the `RANGE_BOUND_CHOP` regime and normal `derivatives_matrix_52w` support an intraday reversal from confirmed structural boundaries. This robust confluence of technical signals at a precise structural level overrides the general macro sentiment for a tactical intraday short.",
+                "llm_target": "400.55",
+                "llm_stoploss": "402.75"
+            },
+            "management_log": [],
+            "exits": []
+        },
+        {
+            "trade_id": "TRD-TATAPOWER-1781849794",
+            "symbol": "TATAPOWER",
+            "direction": "Short",
+            "status": "CLOSED",
+            "realized_pnl": -1242.87,
+            "entry": {
+                "timestamp": 1781849794,
+                "datetime": "2026-06-19T11:46:34.407612",
+                "executed_price": 400.65,
+                "executed_quantity": 500,
+                "llm_confidence": 10,
+                "llm_reason": "The Math Engine's SHORT proposal is strongly supported by local structural weakness, including a double-bottom breakdown and severe 5-day alpha decline, with the target anchored precisely at the Camarilla H4 pivot within the prevailing RANGE_BOUND_CHOP regime. While the global market sentiment is bullish, the robust statistical edge and specific structural alignment validate this intraday range-fade setup, overriding broader macro contradictions. The entry requires a pullback to trigger the short, consistent with a limit order strategy.",
+                "llm_target": "397.84",
+                "llm_stoploss": "401.39"
+            },
+            "management_log": [],
+            "exits": [
+                {
+                    "timestamp": 1781863078,
+                    "datetime": "2026-06-19T15:27:58.719643",
+                    "executed_price": 402.9,
+                    "executed_quantity": 500,
+                    "llm_reason": "Local Gatekeeper active. LLM analysis suppressed.",
+                    "charges": 117.87
+                }
+            ]
+        }
+    ],
+    "OLAELEC": [
+        {
+            "trade_id": "TRD-OLAELEC-1781771164",
+            "symbol": "OLAELEC",
+            "direction": "Short",
+            "status": "OPEN",
+            "realized_pnl": 0.0,
+            "entry": {
+                "timestamp": 1781771164,
+                "datetime": "2026-06-18T13:56:04.721231",
+                "executed_price": 42.46,
+                "executed_quantity": 1000,
+                "llm_confidence": 10,
+                "llm_reason": "The Math Engine's SHORT proposal is strongly confirmed by the '3_local_structural_edge_20d' block, indicating 'SEVERE_WEAKNESS' and 'TEST_IMMINENT' at a critical 'rolling_20d_value_area_low' being tested from below. While `global_market_context` shows overall bullish sentiment, the significant intraday structural breakdown signals and confirmed momentum, coupled with a strong statistical edge, override the macro for this specific 'RANGE_BOUND_CHOP' setup during 'POWER_HOUR'.",
+                "llm_target": "42.02",
+                "llm_stoploss": "42.57"
+            },
+            "management_log": [],
+            "exits": []
+        }
+    ],
+    "ADANIENSOL": [
+        {
+            "trade_id": "TRD-ADANIENSOL-1781771361",
+            "symbol": "ADANIENSOL",
+            "direction": "Short",
+            "status": "OPEN",
+            "realized_pnl": 0.0,
+            "entry": {
+                "timestamp": 1781771361,
+                "datetime": "2026-06-18T13:59:21.032317",
+                "executed_price": 1498.0,
+                "executed_quantity": 100,
+                "llm_confidence": 10,
+                "llm_reason": "The Math Engine's robust short proposal is strongly affirmed by local structural confluence, including severe 5-day momentum weakness and favorable stop/target placement relative to Camarilla pivots and historical double bottom support. While the global market context is broadly bullish, it's not explicitly catastrophic to negate a tactical range short, particularly given the neutral derivatives pricing and the model's acceptable performance in the prevailing RANGE_BOUND_CHOP regime. The trade's strong statistical edge and well-defined structural geometry mitigate the macro headwind for this specific intraday opportunity.",
+                "llm_target": "1487.8",
+                "llm_stoploss": "1509.05"
+            },
+            "management_log": [],
+            "exits": []
+        }
+    ],
+    "IDFCFIRSTB": [
+        {
+            "trade_id": "TRD-IDFCFIRSTB-1781772506",
+            "symbol": "IDFCFIRSTB",
+            "direction": "Long",
+            "status": "OPEN",
+            "realized_pnl": 0.0,
+            "entry": {
+                "timestamp": 1781772506,
+                "datetime": "2026-06-18T14:18:26.020355",
+                "executed_price": 77.48,
+                "executed_quantity": 1000,
+                "llm_confidence": 10,
+                "llm_reason": "The Math Engine's LONG proposal is generally supported by the dominant normal derivatives pricing and a strong bullish global market context, alongside hidden bullish absorption and strong alpha despite suppressed volume in a RANGE_BOUND_CHOP regime. However, the initial mathematical stop (77.37) is too tight, sitting directly above a critical double bottom level (77.34), risking a whipsaw stop-out during potential range probes. An adjustment to widen the stop below this structural support is necessary to align with realistic price action in a range-bound market, improving trade resilience.",
+                "llm_target": "77.8",
+                "llm_stoploss": "77.32"
+            },
+            "management_log": [],
+            "exits": []
+        }
+    ],
+    "NBCC": [
+        {
+            "trade_id": "TRD-NBCC-1781774507",
+            "symbol": "NBCC",
+            "direction": "Short",
+            "status": "OPEN",
+            "realized_pnl": 0.0,
+            "entry": {
+                "timestamp": 1781774507,
+                "datetime": "2026-06-18T14:51:47.241834",
+                "executed_price": 109.93,
+                "executed_quantity": 1000,
+                "llm_confidence": 10,
+                "llm_reason": "The TREND_EXPANSION regime prioritizes microstructure, which strongly confirms bearish momentum and volume shock. This is further validated by a confirmed Head & Shoulders pattern and an imminent test of resistance from below. While the global market context is broadly bullish, the highly compelling intraday technical and order flow confluence, coupled with a strong mathematical edge, overrides the general macro sentiment for this specific short opportunity.",
+                "llm_target": "108.25",
+                "llm_stoploss": "110.41"
+            },
+            "management_log": [],
+            "exits": []
+        }
+    ],
+    "KOTAKBANK": [
+        {
+            "trade_id": "TRD-KOTAKBANK-1781774644",
+            "symbol": "KOTAKBANK",
+            "direction": "Long",
+            "status": "OPEN",
+            "realized_pnl": 0.0,
+            "entry": {
+                "timestamp": 1781774644,
+                "datetime": "2026-06-18T14:54:04.867103",
+                "executed_price": 402.9,
+                "executed_quantity": 200,
+                "llm_confidence": 10,
+                "llm_reason": "Despite the market operating in a RANGE_BOUND_CHOP regime with historically lower directional accuracy, the mathematical LONG proposal is strongly corroborated by overwhelmingly bullish macro catalysts, positive global sentiment, and robust local structural confluence. The entry aligns with a tested rolling PoC from below, indicating structural support, while derivatives remain neutral, confirming target viability. Therefore, the strong qualitative alignment overrides regime-specific caution.",
+                "llm_target": "403.94",
+                "llm_stoploss": "401.65"
+            },
+            "management_log": [],
+            "exits": []
+        }
+    ],
+    "BHEL": [
+        {
+            "trade_id": "TRD-BHEL-1781774703",
+            "symbol": "BHEL",
+            "direction": "Short",
+            "status": "OPEN",
+            "realized_pnl": 0.0,
+            "entry": {
+                "timestamp": 1781774703,
+                "datetime": "2026-06-18T14:55:03.506238",
+                "executed_price": 404.65,
+                "executed_quantity": 500,
+                "llm_confidence": 10,
+                "llm_reason": "Microstructure and local structural edge provide strong confluence for the Math Engine's SHORT proposal, with confirmed bearish momentum and target validation near Camarilla H4. While the global market context is broadly bullish, the absence of asset-specific counter-catalysts and the current TREND_EXPANSION regime suggest local price action is dominant, justifying execution.",
+                "llm_target": "384.22",
+                "llm_stoploss": "407.19"
+            },
+            "management_log": [],
+            "exits": []
+        },
+        {
+            "trade_id": "TRD-BHEL-1781855621",
+            "symbol": "BHEL",
+            "direction": "Short",
+            "status": "OPEN",
+            "realized_pnl": 0.0,
+            "entry": {
+                "timestamp": 1781855621,
+                "datetime": "2026-06-19T13:23:41.399826",
+                "executed_price": 414.65,
+                "executed_quantity": 500,
+                "llm_confidence": 10,
+                "llm_reason": "The Math Engine's high-edge SHORT proposal is strongly reinforced by MOMENTUM_CONFIRMED_BEARISH microstructure and SEVERE_WEAKNESS momentum confluence, coinciding with a TEST_IMMINENT state at the rolling_20d_value_area_high, signifying key resistance. Despite a minor 'Bullish Doji' and neutral derivatives pricing within the RANGE_BOUND_CHOP regime, the confluence of structural resistance and confirmed bearish flow provides overwhelming qualitative support. The POWER_HOUR session and historical regime performance justify immediate execution with increased conviction.",
+                "llm_target": "406.28",
+                "llm_stoploss": "419.04"
+            },
+            "management_log": [],
+            "exits": []
+        }
+    ],
+    "YESBANK": [
+        {
+            "trade_id": "TRD-YESBANK-1781855096",
+            "symbol": "YESBANK",
+            "direction": "Short",
+            "status": "CLOSED",
+            "realized_pnl": -341.8899999999858,
+            "entry": {
+                "timestamp": 1781855096,
+                "datetime": "2026-06-19T13:14:56.318835",
+                "executed_price": 25.35,
+                "executed_quantity": 5000,
+                "llm_confidence": 10,
+                "llm_reason": "The quantitative engine proposes a high probability SHORT, which aligns with the RANGE_BOUND_CHOP regime's mean-reversion tendencies and historical performance. While a Bullish Doji presents a minor qualitative contradiction, this is superseded by the dominant regime's characteristics and the strong MODERATE_WEAKNESS momentum confluence. The padded_stop is strategically placed just below the TEST_IMMINENT rolling_20d_value_area_high, providing structural support for the setup.",
+                "llm_target": "25.09",
+                "llm_stoploss": "25.54"
+            },
+            "management_log": [],
+            "exits": [
+                {
+                    "timestamp": 1781863193,
+                    "datetime": "2026-06-19T15:29:53.136321",
+                    "executed_price": 25.4,
+                    "executed_quantity": 5000,
+                    "llm_reason": "Local Gatekeeper active. LLM analysis suppressed.",
+                    "charges": 91.89
+                }
+            ]
+        }
+    ],
+    "ANGELONE": [
+        {
+            "trade_id": "TRD-ANGELONE-1781855672",
+            "symbol": "ANGELONE",
+            "direction": "Long",
+            "status": "CLOSED",
+            "realized_pnl": 73290.43,
+            "entry": {
+                "timestamp": 1781855672,
+                "datetime": "2026-06-19T13:24:32.617491",
+                "executed_price": 353.2,
+                "executed_quantity": 500,
+                "llm_confidence": 7,
+                "llm_reason": "The Math Engine's LONG proposal is confirmed by robust qualitative confluence within the historically favorable RANGE_BOUND_CHOP regime. Microstructure exhibits bullish absorption and momentum, while structural edge highlights a double bottom at the rolling POC, providing strong support for the mathematical entry. This, combined with neutral derivatives and high statistical expectancy, warrants immediate execution.",
+                "llm_target": "355.77",
+                "llm_stoploss": "350.07"
+            },
+            "management_log": [],
+            "exits": [
+                {
+                    "timestamp": 1781863220,
+                    "datetime": "2026-06-19T15:30:20.397177",
+                    "executed_price": 500.0,
+                    "executed_quantity": 500,
+                    "llm_reason": "Local Gatekeeper active. LLM analysis suppressed.",
+                    "charges": 109.57
+                }
+            ]
+        }
+    ]
+}

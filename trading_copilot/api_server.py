@@ -15,6 +15,9 @@ from diagnostic_ui import TerminalDashboard
 from config import load_watchlist_from_csv
 from reasoning_engine import ReasoningEngine
 from history_manager import HistoryManager
+from paths import INSTITUTIONAL_FLOW_PATH, PLAYBOOK_PATH, WATCHLIST_PATH, ensure_dirs
+
+ensure_dirs()
 
 app = FastAPI(title="AlgoTrade Live Web Portal")
 
@@ -26,7 +29,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-watchlist_path = os.path.join(os.path.dirname(__file__), "watchlist.csv")
+watchlist_path = str(WATCHLIST_PATH)
 watchlist = load_watchlist_from_csv(watchlist_path)
 
 local_active_states = {}
@@ -53,7 +56,7 @@ async def poll_upstox():
 async def poll_nse():
     global local_macro_state, local_stock_derivatives_state, local_fii_dii_state
     import os, json
-    flow_file = os.path.join(os.path.dirname(__file__), 'data', 'institutional_flow.json')
+    flow_file = INSTITUTIONAL_FLOW_PATH
     while True:
         try:
             if os.path.exists(flow_file):
@@ -430,8 +433,10 @@ def close_ledger_trade(req: LedgerCloseRequest):
 async def start_api_server():
     logger.info("Starting Web API Server (Port 8000)...")
     import os, json
-    playbook_path = os.path.join("trading_copilot", "playbook_state.json")
-    if os.path.exists(playbook_path):
+    # Was a CWD-relative literal: correct only when launched from the repo root,
+    # silently a no-op when launched from trading_copilot/ (as start_all.bat did).
+    playbook_path = PLAYBOOK_PATH
+    if playbook_path.exists():
         try:
             with open(playbook_path, "r") as f:
                 TerminalDashboard.dashboard_intraday_plays = json.load(f)

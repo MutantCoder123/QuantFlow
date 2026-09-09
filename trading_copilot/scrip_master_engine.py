@@ -8,13 +8,15 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-CACHE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cache", "UpstoxMaster.csv.gz")
+from paths import CACHE_DIR, SCRIP_MASTER_PATH
+
+CACHE_FILE = str(SCRIP_MASTER_PATH)
 MASTER_URL = "https://assets.upstox.com/market-quote/instruments/exchange/complete.csv.gz"
 
 _scrip_df = None
 
 async def download_scrip_master():
-    os.makedirs(os.path.join(os.path.dirname(os.path.abspath(__file__)), "cache"), exist_ok=True)
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
     download_needed = True
     
     if os.path.exists(CACHE_FILE):

@@ -23,7 +23,9 @@ except ImportError:
     from pipeline_guard import is_market_open, PRODUCTION_LIVE
 
 from dotenv import load_dotenv
-load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.env'))
+from paths import REPO_ROOT, TOKEN_PATH, WATCHLIST_PATH, DATA_DIR, ensure_dirs
+ensure_dirs()
+load_dotenv(REPO_ROOT / '.env')
 
 import pyotp
 import requests
@@ -50,9 +52,7 @@ class UpstoxAuthenticator:
         self.pin = os.getenv("UPSTOX_PIN")
         self.totp_key = os.getenv("UPSTOX_TOTP_KEY")
         # Support both the root dir and the trading_copilot dir
-        root_token = Path("upstox_token.json")
-        copilot_token = Path(__file__).parent.parent / "upstox_token.json"
-        self.token_file = copilot_token if copilot_token.exists() else root_token
+        self.token_file = TOKEN_PATH
     
     def _is_token_valid(self):
         if not self.token_file.exists():
@@ -340,7 +340,7 @@ class UpstoxStreamManager:
     async def _mock_feed_loop(self, indices, equities, options):
         """Simulates incoming Upstox protobuf ticks using a static mock file."""
         import os, json, time, random
-        mock_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'mock_ticks.json')
+        mock_file = str(DATA_DIR / 'mock_ticks.json')
         
         if not os.path.exists(mock_file):
             logger.error(f"Safe Testing Mode Active, but {mock_file} not found. Cannot mock ticks.")
@@ -487,7 +487,7 @@ async def start_upstox_service():
     # Load Watchlist
     WATCHLIST = {}
     try:
-        csv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "watchlist.csv")
+        csv_path = str(WATCHLIST_PATH)
         if os.path.exists(csv_path):
             with open(csv_path, mode='r') as file:
                 reader = csv.DictReader(file)

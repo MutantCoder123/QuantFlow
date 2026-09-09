@@ -11,9 +11,10 @@ import upstox_client
 logger = logging.getLogger(__name__)
 
 # Base directory for data
-_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR = os.path.join(_BASE_DIR, 'data')
-os.makedirs(DATA_DIR, exist_ok=True)
+from paths import BASE_DIR as _BASE_DIR_PATH, DATA_DIR as _DATA_DIR_PATH, ensure_dirs
+_BASE_DIR = str(_BASE_DIR_PATH)
+DATA_DIR = str(_DATA_DIR_PATH)
+ensure_dirs()
 
 def _get_api_clients():
     token_file = os.path.join(_BASE_DIR, "upstox_token.json")
