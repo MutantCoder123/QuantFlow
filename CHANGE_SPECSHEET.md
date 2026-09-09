@@ -235,6 +235,79 @@ tracked separately in the plan, not attempted here).
 
 ---
 
+### Task 0.7 — Expose alert endpoints
+**Commit:** `711dc25` | **Fixes:** drawbacks §A-11, §B-28
+
+| | |
+|---|---|
+| Files modified | `api_server.py`, `templates/index.html` |
+| Test | `tests/test_alert_endpoints.py` (5 tests) |
+
+**What was broken:** the UI polled `GET /api/alerts/unread`, `GET /api/alerts/history`, and
+`POST /api/alerts/mark-read/{id}` — none of which existed on the server (verified: `api_server.py` had 28
+routes, none matching). `ReasoningEngine.global_alerts` was faithfully populated on every actionable
+verdict (capped at 50) but never exposed. The failure was silent: FastAPI's 404 → `data.count` undefined →
+`undefined > 0` is `false` → badge stays hidden. The operator saw a permanently empty alert tray and
+reasonably concluded there were no alerts.
+
+Separately, `/api/map-option-tokens` proxied to port 8001, but that route only ever existed on the dead
+Angel One `smart_api_feed.py` — the live `upstox_feed.py` never defined it, so the call always errored.
+
+**Fix:** added the three alert routes (`unread` sums unread flags; `history` returns the list; `mark-read`
+flips the flag for a matching id, no-op on unknown id). Removed `/api/map-option-tokens` and its "Map
+Option Tokens" button + click handler from `index.html` rather than fixing it, since the feature it
+targeted no longer exists.
+
+**Verified:** all 5 tests pass, including one confirming `mark-read` on an unknown id returns success
+rather than erroring, and one confirming `/api/map-option-tokens` now correctly 404s. All 4 inline
+`<script>` blocks in `index.html` still pass `node --check` after the removal; grep confirms zero
+remaining references to `btn-map-tokens` or `map-option-tokens`.
+
+---
+
+### Task 0.8 — Isolate per-symbol failures in the calculation loop
+**Commit:** `1bdcac8` | **Fixes:** drawbacks §A-13, §D-4
+
+| | |
+|---|---|
+| Files modified | `rolling_state_engine.py` |
+| Test | `tests/test_loop_isolation.py` (3 tests) |
+
+**What was broken:** `calculate_technicals_loop`'s single `try` opened immediately after `while True:` and
+its `except` closed immediately before the trailing `await asyncio.sleep(1.5)` — wrapping the **entire**
+per-cycle `for` loop over all 27 symbols. Only the `MathEngine.generate_signal_payload` call had its own
+narrower inner try/except (which already correctly `continue`d past a MathEngine failure on just that
+symbol). The ~130 lines *after* that inner block — building the remaining `final_payload` fields (macro
+baselines, FII/DII, microstructure, market breadth, news, confluence checks) and calling
+`TerminalDashboard.update_state` — had **no protection at all**. An exception anywhere in that stretch
+propagated to the outer `except`, aborting every symbol after the failing one for that entire 1.5-second
+cycle. A deterministic fault (bad data for one symbol) would starve the rest indefinitely while the log
+showed one repeating line.
+
+**Test-writing correction (documented for the record):** the first draft of the test injected the fault
+into `MathEngine.generate_signal_payload` — which the test itself proved was the *wrong* location: it
+passed even before any fix existed, because that call was already isolated by its own inner
+try/except. Rewrote the fault injection to target `TerminalDashboard.update_state` (in the previously
+*unprotected* stretch), which correctly reproduced the real defect — confirmed by a `git stash` round trip
+showing the corrected tests fail with `AttributeError: no run_one_cycle` against the pre-fix code and pass
+after.
+
+**Fix:** split the method into three:
+- `calculate_technicals_loop` — thin driver, unchanged public entry point, calls `run_one_cycle()` then
+  sleeps.
+- `run_one_cycle` — iterates all symbols with a **per-symbol** try/except; tracks consecutive failures per
+  token in `self._failures` (initialised in `__init__`), logging only at the 1st/10th/100th occurrence
+  rather than every 1.5 s; clears the counter on success; yields `await asyncio.sleep(0)` between symbols
+  so the `/state` endpoint is not starved for an entire batch (D-4).
+- `_compute_symbol(self, token, phantom)` — the moved per-symbol body, logic unchanged, mechanically
+  dedented and with its three loop-scoped `continue` statements converted to `return` (verified: an
+  `assert "continue" not in dedented_src` in the transformation script would have caught any missed one —
+  none were).
+
+**Verified:** all 3 tests pass; full suite green (24 tests total at this point).
+
+---
+
 ### Unplanned: security incident
 
 **Commits:** `27b1c93` (fix) — surfaced between Tasks 0.4 and 0.5

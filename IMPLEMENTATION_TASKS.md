@@ -18,8 +18,8 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done & committed · `[!]
 - [x] **0.4** Single session-boundary reset (fixes A-3) — commit `e617706`
 - [x] **0.5** Fix SignalLedger crash on held positions (fixes A-8) — commit `1954274`
 - [x] **0.6** Remove the fabricated macro narrative (fixes A-1) — commit `5492c2c`
-- [ ] **0.7** Expose alert endpoints (fixes A-11, B-28)
-- [ ] **0.8** Isolate per-symbol failures (fixes A-13, D-4)
+- [x] **0.7** Expose alert endpoints (fixes A-11, B-28) — commit `711dc25`
+- [x] **0.8** Isolate per-symbol failures (fixes A-13, D-4) — commit `1bdcac8`
 - [ ] **0.9** Correct whale-CVD polarity check (fixes A-6)
 - [ ] **0.10** Clamp LLM prices server-side (fixes A-10)
 - [ ] **0.11** Security and documentation hygiene (fixes E-1, E-2, E-3, B-21, B-29, E-8)
@@ -29,7 +29,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done & committed · `[!]
 See [CHANGE_SPECSHEET.md](CHANGE_SPECSHEET.md#unplanned-security-incident) for
 full detail and the still-open question for the user.
 
-**Phase 0 status:** in progress — 6/11 tasks done
+**Phase 0 status:** in progress — 8/11 tasks done
 
 ---
 
