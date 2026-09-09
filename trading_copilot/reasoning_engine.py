@@ -11,6 +11,69 @@ from diagnostic_ui import TerminalDashboard
 
 logger = logging.getLogger(__name__)
 
+
+def clamp_risk_parameters(risk_params: dict, geo: dict, atr15: float, bias: str):
+    """Enforce the adjustment bounds the prompt states but cannot guarantee (A-10).
+
+    The prompt tells the LLM it may only nudge risk_parameters within small
+    bounds around the deterministic math geometry, but nothing previously
+    enforced that — a hallucinated stop or target reached the UI as an
+    actionable price. This clamps every field to the stated bounds and
+    rejects an internally inconsistent geometry outright.
+
+    Returns (clamped_params, error). On error (or when risk_params is empty/
+    missing), the deterministic geometry is returned unchanged so the
+    operator never sees a hallucinated price.
+    """
+    fallback = {"final_entry": geo["calculated_entry"],
+                "final_stop": geo["padded_stop"],
+                "final_target": geo["calculated_target"]}
+    if not risk_params:
+        return fallback, None
+
+    def _f(key, default):
+        try:
+            v = float(risk_params.get(key))
+            return v if v > 0 else default
+        except (TypeError, ValueError):
+            return default
+
+    entry_raw = _f("final_entry", geo["calculated_entry"])
+    stop_raw = _f("final_stop", geo["padded_stop"])
+    target_raw = _f("final_target", geo["calculated_target"])
+
+    lo_e, hi_e = geo["calculated_entry"] * 0.997, geo["calculated_entry"] * 1.003
+    entry = min(max(entry_raw, lo_e), hi_e)
+
+    # Reject on the RAW stop/target against the (already-bounded) entry, not
+    # on the post-clamp values: the stop's own ATR band sits entirely below
+    # the entry's clamp band in every normal configuration, so checking
+    # ordering after clamping the stop makes this branch unreachable — a
+    # stop hallucinated on the wrong side of the position would silently
+    # clamp into a plausible-looking (but never-intended) number instead of
+    # being rejected. Checking the raw value here is what actually catches
+    # "stop above entry for a long" while still tolerating an entry nudge
+    # that legitimately needed reining in.
+    if bias == "LONG":
+        ordered = stop_raw < entry < target_raw
+    else:
+        ordered = target_raw < entry < stop_raw
+    if not ordered:
+        return fallback, "LLM_GEOMETRY_REJECTED"
+
+    lo_s, hi_s = sorted((geo["padded_stop"] - 1.0 * atr15,
+                         geo["padded_stop"] + 0.5 * atr15))
+    stop = min(max(stop_raw, lo_s), hi_s)
+
+    if bias == "LONG":
+        target = max(target_raw, geo["calculated_target"] - 0.5 * atr15)
+    else:
+        target = min(target_raw, geo["calculated_target"] + 0.5 * atr15)
+
+    return {"final_entry": round(entry, 2), "final_stop": round(stop, 2),
+            "final_target": round(target, 2)}, None
+
+
 class ReasoningEngine:
     # Throttle concurrent API calls to avoid rate limit bans (Increased for Tier 1)
     llm_semaphore = asyncio.Semaphore(15)
@@ -351,7 +414,20 @@ class ReasoningEngine:
                     calc_priority = min(10, int(abs(composite_score) * 20))
                     calc_confidence = min(10, int(stat_edge * 33)) if stat_edge > 0 else 0
                     
-                    risk_params = ticket.get("risk_parameters") or {}
+                    geo_src = (math_setup.get("execution_geometry") or {})
+                    geo_err = None
+                    if geo_src:
+                        atr15 = float(payload_copy.get("atr_15m")
+                                      or payload_copy.get("ltp", 100.0) * 0.005)
+                        risk_params, geo_err = clamp_risk_parameters(
+                            ticket.get("risk_parameters") or {}, geo_src, atr15,
+                            math_setup.get("directional_bias", "LONG"))
+                    else:
+                        # No deterministic geometry to clamp against (e.g. a
+                        # CLOSE/HOLD ticket) — never pass the raw LLM numbers
+                        # through unvalidated.
+                        risk_params = {"final_entry": 0.0, "final_stop": 0.0,
+                                       "final_target": 0.0}
                     ui_data = {
                         "Action": ui_action,
                         "Reason": ticket.get("institutional_rationale", verdict),
@@ -362,6 +438,7 @@ class ReasoningEngine:
                         "Priority_Score": calc_priority,
                         "Status_Tag": "LLM_ANALYZED",
                         "llm_authorized": True,
+                        "geometry_override": geo_err,
                         "Generated_Time": payload_copy.get("current_time", "UNKNOWN")
                     }
                     cls.latest_reports[cls._normalize_symbol(symbol)] = json.dumps(ui_data, indent=2)
