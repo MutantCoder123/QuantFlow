@@ -39,7 +39,7 @@ class ConvictionScorer:
         except Exception:
             return base
 
-    def score_setup(self, semantic_payload: dict, flat_telemetry: dict) -> dict:
+    def score_setup(self, semantic_payload: dict, flat_telemetry: dict, advance_state: bool = False) -> dict:
         market_regime = semantic_payload.get("market_regime", {})
         regime = market_regime.get("current_regime", "TRANSITIONAL_DRIFT")
         session_phase = market_regime.get("session_phase", "UNKNOWN")
@@ -153,19 +153,24 @@ class ConvictionScorer:
         elif composite <= -0.15:
             candidate_bias = "SHORT"
             
-        if candidate_bias in ["LONG", "SHORT"] and self.previous_bias in ["LONG", "SHORT"] and candidate_bias != self.previous_bias:
-            self.polarity_flips_today += 1
-            
-        if self.polarity_flips_today >= 3:
-            composite *= 0.5  # Apply 50% penalty to the composite score
-            self.polarity_flips_today = 0  # Reset
-            # Re-evaluate candidate bias after penalty
-            if composite >= 0.15: candidate_bias = "LONG"
-            elif composite <= -0.15: candidate_bias = "SHORT"
-            else: candidate_bias = "NEUTRAL"
+        # These three blocks mutate scorer state (polarity_flips_today,
+        # previous_bias) that the whipsaw shield depends on across calls.
+        # Only the authoritative decision loop may advance it -- a
+        # display-only caller running at a different cadence must not (A-4).
+        if advance_state:
+            if candidate_bias in ["LONG", "SHORT"] and self.previous_bias in ["LONG", "SHORT"] and candidate_bias != self.previous_bias:
+                self.polarity_flips_today += 1
 
-        if candidate_bias != "NEUTRAL":
-            self.previous_bias = candidate_bias
+            if self.polarity_flips_today >= 3:
+                composite *= 0.5  # Apply 50% penalty to the composite score
+                self.polarity_flips_today = 0  # Reset
+                # Re-evaluate candidate bias after penalty
+                if composite >= 0.15: candidate_bias = "LONG"
+                elif composite <= -0.15: candidate_bias = "SHORT"
+                else: candidate_bias = "NEUTRAL"
+
+            if candidate_bias != "NEUTRAL":
+                self.previous_bias = candidate_bias
 
         composite = round(composite, 2)
         bias = candidate_bias

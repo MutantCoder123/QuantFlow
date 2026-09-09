@@ -138,7 +138,8 @@ class ReasoningEngine:
         return None
 
     @classmethod
-    def build_structured_payload(cls, symbol: str, payload: dict, user_position: dict = None, user_intent: dict = None) -> dict:
+    def build_structured_payload(cls, symbol: str, payload: dict, user_position: dict = None,
+                                 user_intent: dict = None, *, advance_state: bool = False) -> dict:
         from mtf_extractor import sanitize_for_json
         from semantic_tagger import SemanticTagger
         import time
@@ -161,13 +162,14 @@ class ReasoningEngine:
         # Inject Regime
         from regime_manager import RegimeManagerRegistry
         manager = RegimeManagerRegistry.get_or_create(symbol)
-        regime_metadata = manager.determine_regime(tactical_payload)
+        regime_metadata = (manager.determine_regime(tactical_payload) if advance_state
+                           else manager.peek_regime())
         tactical_payload["market_regime"] = regime_metadata
-        
+
         # Inject Conviction Score & Math Setup
         from conviction_scorer import ConvictionScorerRegistry
         scorer = ConvictionScorerRegistry.get_or_create(symbol)
-        math_setup = scorer.score_setup(tactical_payload, payload)
+        math_setup = scorer.score_setup(tactical_payload, payload, advance_state=advance_state)
         tactical_payload["math_setup"] = math_setup
             
         if user_position:
@@ -557,7 +559,14 @@ class ReasoningEngine:
                     current_pos = {}
                 try:
                     # ---- NEW: Run Math Engine FIRST for every symbol ----
-                    structured = cls.build_structured_payload(sym, payload, current_pos)
+                    # This is the ONE authoritative decision loop -- the only
+                    # call site permitted to advance regime/whipsaw state
+                    # (A-4). Every other caller (the 2Hz display refresh in
+                    # api_server.py, and the on-demand /api/reasoning/instant
+                    # endpoint via analyze_stock's own build_structured_payload
+                    # call) reads with the default advance_state=False.
+                    structured = cls.build_structured_payload(sym, payload, current_pos,
+                                                              advance_state=True)
                     
                     # ---- Pass structured payload to Gatekeeper V2 ----
                     gatekeeper_res = IntradayGatekeeper.evaluate(
