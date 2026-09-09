@@ -4,13 +4,22 @@ from collections import deque
 import numpy as np
 
 class MicrostructureEngine:
+    # Every per-token accumulator is declared here, and every one of them is
+    # cleared by roll_session_if_needed(). Declaring them lazily via hasattr()
+    # is how vol_profile_state and whale_cvd_history came to be omitted from
+    # the daily reset in the first place.
     cvd_state = {}
     vol_profile_state = {}
-    
+
     # Institutional Order Flow States
     session_vwap_state = {}
     whale_cvd_state = {}
     whale_cvd_history = {}
+
+    # Tick-level bookkeeping
+    last_vtt_state = {}
+    last_bba_state = {}
+    session_date = {}
 
     @classmethod
     def update_volume_profile(cls, token, ltp, volume):
@@ -136,18 +145,21 @@ class MicrostructureEngine:
         token = tick_dict.get('token')
         ltp = tick_dict.get('price', 0.0)
         vol = tick_dict.get('volume', 0.0)
-        if not hasattr(cls, 'last_vtt_state'):
-            cls.last_vtt_state = {}
-            
-        prev_vol = cls.last_vtt_state.get(token, vol)
-        tick_vol = max(0, vol - prev_vol)
-        
-        # Guard against VTT anomalies (e.g. WebSocket reconnections)
-        if prev_vol > 100000 and tick_vol > (prev_vol * 0.5):
-            import logging
-            logging.getLogger(__name__).warning(f"VTT anomaly for {token}: tick_vol={tick_vol}. Clamping.")
-            tick_vol = 0
-            
+        # `vol` is Upstox `vtt` -- volume traded TODAY, a cumulative counter.
+        # Difference it here, in exactly one place, and publish the delta as
+        # `tick_volume` so no other subsystem has to re-derive it.
+        #
+        # The previous guard discarded any increment exceeding 50% of the
+        # cumulative-so-far. That condition is routinely true in the first ~30
+        # minutes of a session, so it silently destroyed genuine opening-range
+        # volume -- precisely the spikes TIME_ADJUSTED_SHOCK exists to detect.
+        # A counter going *backwards* is the real anomaly (reconnect/rollover).
+        prev_vol = cls.last_vtt_state.get(token)
+        if prev_vol is None or vol < prev_vol:
+            tick_vol = 0.0          # establish/re-establish baseline
+        else:
+            tick_vol = float(vol - prev_vol)
+
         cls.last_vtt_state[token] = vol
         
         obi = cls.calc_obi(bids, asks)
@@ -155,9 +167,6 @@ class MicrostructureEngine:
         best_bid_price = bids[0].get('price', 0) if bids else 0
         best_ask_price = asks[0].get('price', float('inf')) if asks else float('inf')
         
-        if not hasattr(cls, 'last_bba_state'):
-            cls.last_bba_state = {}
-            
         if token not in cls.last_bba_state:
             cls.last_bba_state[token] = {'bid': 0.0, 'ask': float('inf')}
             
@@ -198,6 +207,7 @@ class MicrostructureEngine:
         return {
             "obi": round(obi, 4),
             "cvd": cvd,
+            "tick_volume": tick_vol,
             "poc_price": poc,
             "poc_distance_pct": round(poc_distance_pct, 4),
             "session_vwap": session_vwap,

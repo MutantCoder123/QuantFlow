@@ -186,60 +186,58 @@ class RollingStateEngine:
             return
             
         boundary_ts = tick_ts.floor('5min')
-        
-        phantom = self.phantom_candles.get(token)
+
+        # Microstructure runs FIRST because it owns VTT differencing. The
+        # phantom candle then consumes micro_state['tick_volume'] rather than
+        # the raw cumulative counter, so the two can never disagree again.
+        from microstructure_engine import MicrostructureEngine
+
+        prev_phantom = self.phantom_candles.get(token)
+        prev_micro = prev_phantom.get('microstructure', {}) if prev_phantom else {}
+
+        micro_state = MicrostructureEngine.generate_microstructure_payload({
+            'token': token,
+            'price': price,
+            'volume': volume,
+            'bids': bids,
+            'asks': asks,
+        })
+        if not bids or not asks:
+            # Carry the last known OBI when this tick was an LTP/volume update
+            # without any orderbook payload.
+            micro_state['obi'] = prev_micro.get('obi', 0.0)
+
+        tick_volume = micro_state['tick_volume']
+
+        phantom = prev_phantom
         if not phantom or phantom['timestamp'] < boundary_ts:
-            # Boundary Cross! Commit old phantom to static DF
+            # Boundary cross: commit the completed phantom to the static frame.
+            # The extra 'microstructure' key is dropped by pandas on assignment,
+            # which is intended -- ltf_df holds OHLCV+oi only.
             if phantom:
                 target_df = self.dfs[token].get('ltf_df')
                 if target_df is not None:
-                    # Append phantom to dataframe (only happens once every 5 mins!)
-                    idx = len(target_df)
-                    target_df.loc[idx] = phantom
-                    
-            # Save old microstructure
-            old_micro = phantom.get('microstructure', {}) if phantom else {}
-            
-            # Initialize new phantom
+                    target_df.loc[len(target_df)] = phantom
+
             phantom = {
                 'timestamp': boundary_ts,
                 'open': price,
                 'high': price,
                 'low': price,
                 'close': price,
-                'volume': volume,
+                'volume': tick_volume,
                 'oi': oi,
-                'microstructure': old_micro
+                'microstructure': micro_state,
             }
             self.phantom_candles[token] = phantom
         else:
-            # Update existing phantom in O(1)
+            # O(1) in-place update of the unfinished bar.
             phantom['high'] = max(phantom['high'], price)
             phantom['low'] = min(phantom['low'], price)
             phantom['close'] = price
-            phantom['volume'] += volume
+            phantom['volume'] += tick_volume
             phantom['oi'] = oi
-        
-        from microstructure_engine import MicrostructureEngine
-        # Always run MicrostructureEngine to update volume and POC
-        # Even if bids/asks are empty, volume still needs to be accounted for in CVD and POC
-        tick_dict = {
-            'token': token,
-            'price': price,
-            'volume': volume,
-            'bids': bids,
-            'asks': asks
-        }
-        
-        # We need to maintain the previous OBI if bids/asks are empty in this tick
-        old_micro = phantom.get('microstructure', {})
-        micro_state = MicrostructureEngine.generate_microstructure_payload(tick_dict)
-        
-        if not bids or not asks:
-            # Carry over last known OBI if this tick was just an LTP/Volume update without orderbook data
-            micro_state['obi'] = old_micro.get('obi', 0.0)
-            
-        phantom['microstructure'] = micro_state
+            phantom['microstructure'] = micro_state
 
     async def calculate_technicals_loop(self):
         """
