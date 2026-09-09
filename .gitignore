@@ -5,6 +5,10 @@ env/
 venv/
 ENV/
 
+# Secrets / credentials
+upstox_token.json
+trading_copilot/upstox_token.json
+
 # Python cache/compilation
 __pycache__/
 *.py[cod]
