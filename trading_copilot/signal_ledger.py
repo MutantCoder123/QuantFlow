@@ -36,6 +36,16 @@ class SignalLedger:
 
         bias = "LONG" if "LONG" in execution_ticket.get("action_directive", "").upper() else "SHORT"
 
+        # build_structured_payload() deliberately sets these to None (not
+        # absent) while a position is held, to hide new-entry geometry during
+        # an active trade. `.get(key, default)` only applies the default when
+        # the key is missing, so `math_setup.get("execution_geometry", {})`
+        # returns the stored None and the chained .get() raised AttributeError
+        # -- meaning CLOSE_EXISTING / REVERSE_POSITION signals were silently
+        # never recorded.
+        geo = math_setup.get("execution_geometry") or {}
+        exp = math_setup.get("expectancy_matrix") or {}
+
         record = {
             "signal_id": signal_id,
             "symbol": symbol,
@@ -47,13 +57,13 @@ class SignalLedger:
                 "regime": market_regime.get("current_regime", "UNKNOWN"),
                 "session_phase": market_regime.get("session_phase", "UNKNOWN"),
                 "composite_score": math_setup.get("composite_score", 0.0),
-                "implied_probability": math_setup.get("expectancy_matrix", {}).get("implied_probability", 0.0),
+                "implied_probability": exp.get("implied_probability"),
                 "verdict": execution_ticket.get("verdict", "UNKNOWN"),
                 "action_directive": execution_ticket.get("action_directive", "UNKNOWN"),
                 "bias": bias,
-                "padded_stop": math_setup.get("execution_geometry", {}).get("padded_stop", 0.0),
-                "calculated_target": math_setup.get("execution_geometry", {}).get("calculated_target", 0.0),
-                "calculated_entry": math_setup.get("execution_geometry", {}).get("calculated_entry", 0.0)
+                "padded_stop": geo.get("padded_stop", 0.0),
+                "calculated_target": geo.get("calculated_target", 0.0),
+                "calculated_entry": geo.get("calculated_entry", 0.0)
             },
             "outcome": {
                 "status": "PENDING",
