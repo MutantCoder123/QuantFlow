@@ -494,6 +494,100 @@ again with a freshly-issued token, the blanket `add -A` picked it up. It was com
 > Pure addition, no behaviour change. Appends tick/feature-vector capture so the dataset starts
 > accumulating immediately; nothing in Phase 0's decision logic is touched.
 
+### Task 1.1 — TickRecorder
+
+**Files:** `trading_copilot/journal/tick_recorder.py`, `trading_copilot/journal/__init__.py` (new). Commit
+`c821e19`.
+
+Append-only tick capture: buffers `(token, ts_ms, ltp, vtt, oi, bid1, ask1, bid_qty, ask_qty)` tuples and
+flushes to date-partitioned, zstd-compressed parquet under `paths.TICKS_DIR`, either explicitly or once
+`flush_n` rows accumulate. Pure addition, not yet wired into the live ingest path (Task 1.2). 3/3 tests pass.
+
+### Task 1.2 — Wire TickRecorder into ingest
+
+**Files:** `trading_copilot/rolling_state_engine.py`, `trading_copilot/data_services/upstox_feed.py`,
+`tests/test_recorder_wiring.py` (new). Commit `ab74978`.
+
+`RollingStateEngine.__init__` now attaches a `TickRecorder(TICKS_DIR)`; a class-level `recorder = None`
+default keeps every existing `__new__`-bypass test fixture in the suite working without touching disk (none
+of them set a recorder). `process_tick` records every tick — including options ticks and ticks with no
+order book — before any branching, so the recorded stream is faithful to what the feed actually sent, not
+just what happens to reach the phantom-candle path. `upstox_feed.start_upstox_service` gained a
+`tick_flush_worker` flushing the buffer to disk every 30s off the event loop thread.
+
+**Deviation from the plan:** the plan's own end-to-end verification (kill the feed for two minutes during
+market hours, inspect the parquet output) needs a live market session — not reproducible in this
+environment. Substituted `tests/test_recorder_wiring.py`, which locks in that every tick reaching
+`process_tick` is forwarded to the attached recorder with the correct fields, that a missing order book
+records zeros rather than crashing, and that an engine with no recorder attached still works. 3/3 tests pass.
+
+### Task 1.3 — FeatureLog
+
+**Files:** `trading_copilot/journal/feature_log.py` (new). Commit `ec4dd3f`.
+
+`FeatureRecord` flattens an arbitrary `features` dict into `f_<name>` columns and a `staleness` dict into
+`stale_<name>` columns; `FeatureLog` buffers and flushes the same way `TickRecorder` does. Heterogeneous
+feature sets across writes are handled by pandas' union-of-columns behaviour (missing → NaN) — tested
+explicitly, since the feature set the composite scorer emits will grow over time. 3/3 tests pass.
+
+### Task 1.4 — Wire FeatureLog into the gatekeeper loop
+
+**Files:** `trading_copilot/reasoning_engine.py`, `tests/test_gatekeeper_feature_logging.py` (new). Commit
+`34b85ac`.
+
+A `FeatureRecord` is now written for every symbol on every 10s gatekeeper tick, **before** the 3-tick
+debounce `continue` — a debounced-out tick is still recorded, not only the ticks that end up changing the UI
+card. This is what makes the 102 hand-picked thresholds tunable later: rejections and gated setups (the
+counterfactual — what the system did *not* take) are logged, not just fired signals.
+
+Decision classification (`PROPOSED` / `REJECTED_<reason>` / `GATED_<reason>`) and numeric-field flattening
+were pulled out as pure module-level functions (`_classify_decision`, `_numeric_features`) specifically so
+they're directly unit-testable — the loop itself is an infinite `while True` mutating class-level dicts and
+isn't reasonably driven in a test.
+
+**Deviation from the plan:** the plan's own verification ("run one session, inspect the decision distribution
+and column count in `data/features/*.parquet`") needs a live session, same as Task 1.2 — deferred to manual
+verification. 4/4 tests pass.
+
+### Task 1.5 — Bar-accurate outcome labelling and pending-signal recovery (fixes C-3)
+
+**Files:** `trading_copilot/journal/outcome_labeller.py` (new), `trading_copilot/signal_ledger.py`,
+`trading_copilot/data_services/upstox_feed.py`. Commit `0460308`.
+
+- **C-3b/c (bar-accurate labelling, cost floor):** the resolver previously sampled `current_ltp` once every
+  60s against stop/target, so a touch-and-recover inside a minute was invisible, and a +0.001% move at the
+  60-minute mark counted as a win. `label_outcome()` walks the actual 5-minute bars' high/low within the
+  horizon window, and requires clearing a round-trip cost floor
+  (`SignalLedger.ROUND_TRIP_COST_PCT = 0.06`, documented as a placeholder superseded by Task 3.1's real cost
+  model) before a move counts as directionally correct.
+- **Genuine architectural gap found while implementing step 6:** the plan says to source bars "from the
+  owning RollingStateEngine's `ltf_df`" as if this were a same-process call. Traced the actual process
+  topology: `RollingStateEngine` (and its `ltf_df`) lives only inside the `upstox_feed.py` process
+  (port 8001); `SignalLedger`'s resolver runs inside `main.py`'s process (port 8000) — confirmed by finding
+  `api_server.py`'s existing `aiohttp.ClientSession().get("http://127.0.0.1:8001/state")` poll, which exists
+  for exactly this reason (documented in the codebase as the D-5 "2 Hz semantic pipeline" cross-process
+  transport). Built the same bridge for bars: `GET /api/bars` on the `upstox_feed.py` app
+  (`build_bars_response` is the pure, unit-tested half) and `SignalLedger._fetch_recent_bars()` to pull them,
+  following the established pattern rather than inventing a new one.
+- **C-3d (restart recovery):** `SignalLedger.recover_pending()` rebuilds `_pending_signals` from disk on
+  startup, called at the top of `start_outcome_resolver`. Previously every signal younger than its resolution
+  horizon at shutdown stayed `PENDING` forever and was silently excluded from every statistic after a
+  restart.
+- `SignalLedger._resolve_one()` is the pure per-signal resolution step (no network, no event loop) so the
+  30m/60m/early-resolution logic is directly testable; the resolver's `while True` loop is now a thin driver
+  that fetches bars and calls it.
+
+**Verified:** 11 new tests across 4 new test files, all pass; full suite green (63 tests total).
+
+**Phase 1 complete: 5/5 tasks done, 63 tests passing.**
+
+---
+
+## Phase 2 — Purity, Config, Single-Writer
+
+> Exit criteria: all 102 thresholds live in YAML; `evaluate()` is a pure function under test; the display
+> path cannot mutate decision state; ingest is single-writer; the perf hotspots are gone.
+
 ---
 
 ## Open questions / follow-ups

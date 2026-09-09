@@ -35,13 +35,13 @@ full detail and the still-open question for the user.
 
 ## Phase 1 — Record Everything
 
-- [ ] **1.1** TickRecorder
-- [ ] **1.2** Wire TickRecorder into ingest
-- [ ] **1.3** FeatureLog
-- [ ] **1.4** Wire FeatureLog into the gatekeeper loop
-- [ ] **1.5** Bar-accurate outcome labelling + pending recovery (fixes C-3)
+- [x] **1.1** TickRecorder — commit `c821e19`
+- [x] **1.2** Wire TickRecorder into ingest — commit `ab74978`
+- [x] **1.3** FeatureLog — commit `ec4dd3f`
+- [x] **1.4** Wire FeatureLog into the gatekeeper loop — commit `34b85ac`
+- [x] **1.5** Bar-accurate outcome labelling + pending recovery (fixes C-3) — commit `0460308`
 
-**Phase 1 status:** in progress — 0/5 tasks done
+**Phase 1 status:** ✅ complete — 5/5 tasks done
 
 ## Phase 2 — Purity, Config, Single-Writer
 
