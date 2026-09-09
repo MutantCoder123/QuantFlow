@@ -553,6 +553,13 @@ async def start_upstox_service():
                 rolling_engine.save_cache()
                 
     asyncio.create_task(state_persistence_worker())
+
+    async def tick_flush_worker():
+        while True:
+            await asyncio.sleep(30)
+            await asyncio.to_thread(rolling_engine.recorder.flush)
+
+    asyncio.create_task(tick_flush_worker())
     
     config = uvicorn.Config(app, host="127.0.0.1", port=8001, log_level="warning")
     server = uvicorn.Server(config)

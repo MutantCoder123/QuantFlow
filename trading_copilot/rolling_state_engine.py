@@ -22,12 +22,19 @@ logger = logging.getLogger(__name__)
 class RollingStateEngine:
     live_options_state = {}
     daily_metrics_cache = {}
-    
+    # Class-level default so every existing __new__-bypass test fixture (none
+    # of which sets a recorder) keeps working without touching disk.
+    recorder = None
+
     def __init__(self, dfs_map: dict, watchlist: dict = None):
         self.dfs = dfs_map
         self.watchlist = watchlist or {}
         self.phantom_candles = {}
         self._failures = {}
+
+        from journal.tick_recorder import TickRecorder
+        from paths import TICKS_DIR
+        self.recorder = TickRecorder(TICKS_DIR)
 
         # Hydration (Anti-Cold Start)
         self.cache_file = str(CACHE_STATE_PATH)
@@ -147,7 +154,17 @@ class RollingStateEngine:
         O(1) dictionary update. Called directly by WebSocket callback thread.
         """
         tick_ts = pd.to_datetime(timestamp_ms, unit='ms', utc=True).tz_convert('Asia/Kolkata').tz_localize(None)
-        
+
+        # Capture EVERY tick (including options) before any branching, so the
+        # recorded stream is a faithful copy of what the feed sent (Task 1.2).
+        if self.recorder is not None:
+            best_bid = bids[0]['price'] if bids else 0.0
+            best_ask = asks[0]['price'] if asks else 0.0
+            best_bid_qty = bids[0]['quantity'] if bids else 0
+            best_ask_qty = asks[0]['quantity'] if asks else 0
+            self.recorder.record(token, timestamp_ms, price, volume, oi,
+                                 best_bid, best_ask, best_bid_qty, best_ask_qty)
+
         # 1. Option Greeks Interception
         if greeks:
             sym = token.split('|')[-1]
