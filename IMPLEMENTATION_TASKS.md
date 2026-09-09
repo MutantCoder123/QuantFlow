@@ -12,10 +12,10 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done & committed · `[!]
 
 > Exit criteria: `pytest` green; no fabricated values reach the UI; volume accounting correct; all paths resolve.
 
-- [ ] **0.1** Test infrastructure and branch
-- [ ] **0.2** Centralise path resolution (fixes A-9)
-- [ ] **0.3** Correct VTT volume accounting (fixes A-2, A-3 guard)
-- [ ] **0.4** Single session-boundary reset (fixes A-3)
+- [x] **0.1** Test infrastructure and branch — commit `46586d8`
+- [x] **0.2** Centralise path resolution (fixes A-9) — commit `7e239ca`
+- [x] **0.3** Correct VTT volume accounting (fixes A-2, A-3 guard) — commit `35acf4f`
+- [x] **0.4** Single session-boundary reset (fixes A-3) — commit `e617706`
 - [ ] **0.5** Fix SignalLedger crash on held positions (fixes A-8)
 - [ ] **0.6** Remove the fabricated macro narrative (fixes A-1)
 - [ ] **0.7** Expose alert endpoints (fixes A-11, B-28)
@@ -24,7 +24,12 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done & committed · `[!]
 - [ ] **0.10** Clamp LLM prices server-side (fixes A-10)
 - [ ] **0.11** Security and documentation hygiene (fixes E-1, E-2, E-3, B-21, B-29, E-8)
 
-**Phase 0 status:** not started
+**Unplanned:** security fix — commit `27b1c93` untracked a live credential
+(`trading_copilot/upstox_token.json`) accidentally re-added by 0.2's `git add -A`.
+See [CHANGE_SPECSHEET.md](CHANGE_SPECSHEET.md#unplanned-security-incident) for
+full detail and the still-open question for the user.
+
+**Phase 0 status:** in progress — 4/11 tasks done
 
 ---
 
