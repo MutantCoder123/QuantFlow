@@ -402,6 +402,35 @@ async def get_state():
     from diagnostic_ui import TerminalDashboard
     return make_json_serializable({"active_states": TerminalDashboard.active_states})
 
+
+def build_bars_response(df, n: int = 300) -> dict:
+    """Serialise the tail of an ltf_df for the /api/bars endpoint.
+
+    Extracted as a pure function so it's unit-testable without a running
+    FastAPI app or a live RollingStateEngine (Task 1.5, C-3b/c): the
+    outcome resolver runs in the main.py process, while ltf_df lives only
+    in this (upstox_feed.py) process's memory — this endpoint is the bridge
+    that lets label_outcome see real bar highs/lows instead of the 60s LTP
+    samples that were silently understating stop-hit rates.
+    """
+    if df is None or df.empty:
+        return {"bars": []}
+    tail = df.tail(n).copy()
+    tail["timestamp"] = tail["timestamp"].astype(str)
+    cols = [c for c in ("timestamp", "open", "high", "low", "close", "volume") if c in tail.columns]
+    return {"bars": tail[cols].to_dict(orient="records")}
+
+
+@app.get("/api/bars")
+async def get_bars(token: str, request: Request, n: int = 300):
+    """Recent LTF bars for one token — used by SignalLedger's outcome
+    resolver to label outcomes against real bar highs/lows (C-3b)."""
+    eng = getattr(request.app.state, "rolling_engine", None)
+    if eng is None:
+        return {"bars": []}
+    df = (eng.dfs.get(token) or {}).get("ltf_df")
+    return make_json_serializable(build_bars_response(df, n))
+
 @app.post("/api/watchlist/update")
 async def update_watchlist(request: Request):
     data = await request.json()
