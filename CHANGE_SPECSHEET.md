@@ -357,7 +357,97 @@ task).
 
 ---
 
+### Task 0.10 — Clamp LLM-returned prices server-side (fixes A-10)
+
+**Files:** `trading_copilot/reasoning_engine.py`, `tests/test_ticket_clamp.py` (new). Commit `d2a87c2`.
+
+**Problem:** the prompt tells the LLM "you may ONLY modify risk_parameters within these bounds," but
+nothing server-side enforced that. A hallucinated `final_entry`/`final_stop`/`final_target` reached the UI
+as an actionable price with no validation, indistinguishable from a value derived from real math.
+
+**Fix:** new module-level `clamp_risk_parameters(risk_params, geo, atr15, bias) -> (dict, error|None)`:
+- Entry clamped to ±0.3% of `geo["calculated_entry"]`.
+- Stop clamped to the band `[padded_stop - 1.0*ATR15, padded_stop + 0.5*ATR15]`.
+- Target bounded so it can only move the "generous" direction by up to 0.5*ATR15 from
+  `geo["calculated_target"]`.
+- If the resulting geometry is internally inverted for the position's bias, the whole ticket falls back to
+  the deterministic math geometry unchanged and returns `error="LLM_GEOMETRY_REJECTED"`.
+- Empty/missing `risk_params` (e.g. a HOLD/CLOSE ticket) returns the fallback with no error.
+
+Wired into `ReasoningEngine.analyze_stock`: `ui_data` is now built from `clamp_risk_parameters(...)` output
+rather than the raw `ticket.get("risk_parameters")`, and a new `geometry_override` field carries the
+rejection reason (or `None`) so the UI can flag when the LLM's numbers were discarded.
+
+**Deliberate deviation from the plan's literal pseudocode (same category of issue as Task 0.9's `> 75` vs
+`>= 1500`):** the plan checks `ordered` against the *already-clamped* stop and target. Traced through the
+fixture values (`padded_stop=98`, `calculated_entry=100`, `atr15=1.0`): the stop's clamp band is
+`[97, 98.5]`, entirely below the entry's clamp band `[99.7, 100.3]`, so `stop < entry < target` holds
+*unconditionally* after clamping regardless of what the LLM originally sent — the rejection branch is
+dead code under the plan's literal ordering. Concretely, `test_inverted_geometry_is_rejected_and_falls_back`
+(final_stop=106, i.e. a stop hallucinated above the entry, nonsensical for a long) fails under the literal
+pseudocode: 106 clamps down into the valid-looking `98.5`, and `98.5 < 100 < 105` reads as ordered, so the
+hallucinated inversion would silently pass through as a plausible price. Fixed by checking `ordered` against
+the **raw** stop/target (before their own clamp) against the *already-bounded* entry — this is what actually
+distinguishes "entry needed reining in" (test 1, not rejected) from "stop is on the wrong side of the
+position entirely" (test 3, rejected). Traced against all four tests in the specsheet entry above before
+implementing; all four pass under this ordering and only this ordering.
+
+**Verified:** 4/4 new tests pass; full suite green (39 tests total).
+
+---
+
+### Task 0.11 — Security and documentation hygiene (fixes E-1, E-2, E-3, B-21, B-29)
+
+**Files:** `.env.example`, `README.md`, `.gitignore`, `trading_copilot/api_server.py`,
+`trading_copilot/start_all.bat`. Commit `7845524`.
+
+- **`.env.example`:** `UPSTOX_TOTP_KEY` held a real-looking base32 value (`XHRGR2YOVCEGBYT3MQEBLI6CV3POJD7L`)
+  while every other entry was a `your_*` placeholder — almost certainly a real seed pasted into the wrong
+  file. Confirmed this file is a template only, never read at runtime (the app reads the separate,
+  already-untracked `.env`), so replacing it does not affect the running system. Replaced with
+  `your_totp_secret` and dropped the dead `ANGEL_*` block (Angel One is retired code per
+  `drawbacks_false_claimed.md` §F). **Flagged to the user in the same turn: rotate this in Upstox if it is a
+  live seed** — it predates this session and its exposure history outside git is unknown.
+- **`README.md`:** documented `UPSTOX_API_KEY`/`UPSTOX_API_SECRET`, but the code
+  (`data_services/upstox_feed.py:48-53`, confirmed by direct read) reads `UPSTOX_CLIENT_ID`/
+  `UPSTOX_CLIENT_SECRET`/`UPSTOX_MOBILE_NO`. Following the README as written yields `client_id=None`.
+  Replaced the `.env` block with the keys the code actually reads.
+- **`api_server.py` CORS:** `allow_origins=["*"]` combined with `allow_credentials=True` against an
+  unauthenticated API meant any page open in the same browser could call it cross-origin. Scoped to
+  `http://127.0.0.1:8000` and `http://localhost:8000`, and `allow_methods` narrowed from `["*"]` to the two
+  methods the API actually uses (`GET`, `POST`).
+- **`api_server.py` bind address:** `uvicorn.Config(..., host="0.0.0.0", ...)` exposed the unauthenticated
+  API to the whole LAN. Bound to `127.0.0.1`; left a comment documenting that LAN access needs a
+  shared-secret header dependency first, not just reopening the bind.
+- **`start_all.bat`:** launched `smart_api_feed.py` (dead Angel One stack) and `nse_feed.py` (does not exist
+  anywhere in the repo — verified via `ls`), and its `-d .` set CWD to `trading_copilot/`, which broke the
+  playbook path before Task 0.2 centralised path resolution. Replaced with the four services that actually
+  run today (`upstox_feed.py`, `news_feed.py`, `macro_worker.py`, `main.py`), launched from the repo root —
+  all four target paths verified to exist before committing.
+- **`.gitignore`:** added the scratch/debug-artefact patterns accumulated in the repo root during this
+  session (`scratch/`, `temp.js`, `scratch_script_*.js`, `script_test_*.js`, root-level `test_*.py`,
+  `grep_transcript.txt`, `current_diff.txt`, `*.tex`, `output.json`, `response.json`, `index_edits.txt`,
+  `tab_html3.txt`), plus an explicit `!tests/test_*.py` negation. Verified with
+  `git check-ignore -v tests/test_smoke.py test_gk.py`: the tracked test module is untouched (not matched)
+  while the root-level scratch script is correctly ignored; also confirmed `git status --short tests/` shows
+  no changes to the real suite.
+
+**Not done — deliberately out of scope for this task:** the older, pre-existing, possibly-public token
+exposure at commit `2c38035` on `master`/`origin` (see Unplanned section above) is unrelated to any of these
+files and remains an open question for the user, not something Task 0.11's doc/hygiene scope covers.
+
+**Verified:** full suite green (39 tests, unchanged — this task touches no test-covered logic paths, only
+config/docs/CORS/bind-address/gitignore).
+
+---
+
+**Phase 0 complete: 11/11 tasks done, 39 tests passing.**
+
+---
+
 ### Unplanned: security incident
+
+
 
 **Commits:** `27b1c93` (fix) — surfaced between Tasks 0.4 and 0.5
 
@@ -396,6 +486,13 @@ again with a freshly-issued token, the blanket `add -A` picked it up. It was com
 1. Rotate/invalidate the Upstox token via re-authentication (recommended regardless of push status).
 2. Whether to rewrite the local `7e239ca` commit to remove the secret from this branch's history.
 3. Whether/how to address the older, already-potentially-public `2c38035` exposure on `master`/`origin`.
+
+---
+
+## Phase 1 — Record Everything
+
+> Pure addition, no behaviour change. Appends tick/feature-vector capture so the dataset starts
+> accumulating immediately; nothing in Phase 0's decision logic is touched.
 
 ---
 

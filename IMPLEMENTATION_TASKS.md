@@ -21,19 +21,19 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done & committed · `[!]
 - [x] **0.7** Expose alert endpoints (fixes A-11, B-28) — commit `711dc25`
 - [x] **0.8** Isolate per-symbol failures (fixes A-13, D-4) — commit `1bdcac8`
 - [x] **0.9** Correct whale-CVD polarity check (fixes A-6) — commits `36ef5e9`, `24b5528`
-- [ ] **0.10** Clamp LLM prices server-side (fixes A-10)
-- [ ] **0.11** Security and documentation hygiene (fixes E-1, E-2, E-3, B-21, B-29, E-8)
+- [x] **0.10** Clamp LLM prices server-side (fixes A-10) — commit `d2a87c2`
+- [x] **0.11** Security and documentation hygiene (fixes E-1, E-2, E-3, B-21, B-29) — commit `7845524`
 
 **Unplanned:** security fix — commit `27b1c93` untracked a live credential
 (`trading_copilot/upstox_token.json`) accidentally re-added by 0.2's `git add -A`.
 See [CHANGE_SPECSHEET.md](CHANGE_SPECSHEET.md#unplanned-security-incident) for
 full detail and the still-open question for the user.
 
-**Phase 0 status:** in progress — 9/11 tasks done
+**Phase 0 status:** ✅ complete — 11/11 tasks done
 
 ---
 
-## Phase 1 — Record Everything  *(not started)*
+## Phase 1 — Record Everything
 
 - [ ] **1.1** TickRecorder
 - [ ] **1.2** Wire TickRecorder into ingest
@@ -41,7 +41,9 @@ full detail and the still-open question for the user.
 - [ ] **1.4** Wire FeatureLog into the gatekeeper loop
 - [ ] **1.5** Bar-accurate outcome labelling + pending recovery (fixes C-3)
 
-## Phase 2 — Purity, Config, Single-Writer  *(not started)*
+**Phase 1 status:** in progress — 0/5 tasks done
+
+## Phase 2 — Purity, Config, Single-Writer
 
 - [ ] **2.1** PolicyConfig (102 thresholds → YAML)
 - [ ] **2.2** Split read from write via `advance_state` (fixes A-4)
@@ -50,6 +52,8 @@ full detail and the still-open question for the user.
 - [ ] **2.5** Stream supervision and staleness (fixes A-12)
 - [ ] **2.6** Retire performance hotspots (fixes D-1, D-2, D-3)
 - [ ] **2.7** Session-anchored resampling (fixes C-4)
+
+**Phase 2 status:** not started — 0/7 tasks done
 
 ## Phase 3 — Risk, Horizon, Cost  *(not started)*
 
