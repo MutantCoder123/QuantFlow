@@ -308,6 +308,55 @@ after.
 
 ---
 
+### Task 0.9 — Correct whale-CVD polarity check
+**Commits:** `36ef5e9` (core fix), `24b5528` (wiring) | **Fixes:** drawbacks §A-6
+
+| | |
+|---|---|
+| Files modified | `intraday_gatekeeper.py`, `api_server.py`, `rolling_state_engine.py` |
+| Test | `tests/test_gatekeeper_polarity.py` (5 tests), `tests/test_position_whale_baseline.py` (3 tests), `tests/test_adv_shares.py` (2 tests) |
+
+**What was broken:** the active-position whipsaw guard tested the *sign* of the cumulative
+`whale_cvd_ema_1h` level (`if direction == "Long" and whale_cvd_ema_1h < 0`), despite its own comment
+saying it should detect a *polarity flip*. `whale_cvd_ema_1h` is a signed cumulative share count; for any
+symbol with net large-print selling since session open it is negative essentially all day, independent of
+price action. Reproduced directly: a long position with `whale_cvd_ema_1h = -480,000` (barely different
+from its `-500,000` entry baseline) forced a `Close` at confidence 9/10, burning an LLM call for a value
+that had barely moved.
+
+**Fix (commit `36ef5e9`):** replaced the sign test with the *change* in whale flow since entry
+(`(whale_cvd_ema_1h - whale_cvd_at_entry) / adv_shares`), gated at 3% of average daily volume moved
+against the position — a threshold comparable across a ₹20 stock and a ₹10,000 one, unlike a fixed absolute
+share count.
+
+**Test-writing correction (documented for the record):** the first test run failed for a reason unrelated
+to the fix — `IntradayGatekeeper.evaluate`'s forced 15:20 IST square-off computes its own wall-clock time
+independently of the mocked `pipeline_guard.is_market_open()`, and real elapsed time during this session
+had passed 15:20 IST (started ~14:30, by this task real time was 19:35). Every test returned `Close` from
+that unrelated branch. Fixed by freezing time via `freezegun` in the autouse fixture rather than depending
+on whatever time the suite happens to run at — a fragility worth knowing about for any future test that
+exercises `intraday_gatekeeper`.
+
+**Gap found and closed (commit `24b5528`):** the core fix reads `position.whale_cvd_at_entry` and
+`raw_payload.adv_shares`, but nothing populated either — every position would have silently compared
+against a `0.0` baseline and every normalisation would have hit its safe floor, making the fix inert in
+practice despite passing its own unit tests (which supply both values directly). Closed by:
+- `save_position_api` now backfills `whale_cvd_at_entry` from the symbol's live `whale_cvd_ema_1h` when the
+  caller doesn't supply one; an explicit caller-supplied value is never overwritten.
+- `_compute_symbol` now publishes `adv_shares` as a genuine 20-session average volume.
+
+**Deliberate deviation from the plan's literal pseudocode:** the plan's Step 5 guard was
+`if ltf is not None and len(ltf) > 75:` with the comment "20 sessions x 75 five-minute bars" — but `> 75`
+bars is only *3* sessions' worth, not 20; the guard didn't match its own comment. Implemented
+`len(target_df) >= 1500` instead (75 × 20 = 1500), so `adv_shares` is either a genuine 20-session average or
+explicitly `0.0` — never a partial-window figure silently mislabelled as a full ADV. A test
+(`test_adv_shares_defaults_to_zero_with_insufficient_history`) locks in this behaviour.
+
+**Verified:** all 10 new tests pass; full suite green (35 tests total at this point, up from 24 before this
+task).
+
+---
+
 ### Unplanned: security incident
 
 **Commits:** `27b1c93` (fix) — surfaced between Tasks 0.4 and 0.5
