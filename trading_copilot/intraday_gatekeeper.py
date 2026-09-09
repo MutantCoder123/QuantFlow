@@ -103,13 +103,25 @@ class IntradayGatekeeper:
                     res["Alert_Log"] = "Whipsaw Filtered: SemanticTagger confirms institutional distribution."
                     return res
                     
-            # If whale_cvd_ema_1h completely flips polarity against the trade direction
-            polarity_flipped = False
-            if direction == "Long" and whale_cvd_ema_1h < 0:
-                polarity_flipped = True
-            elif direction == "Short" and whale_cvd_ema_1h > 0:
-                polarity_flipped = True
-                
+            # Adverse whale-flow CHANGE since entry, normalised by average daily
+            # volume so the threshold is comparable across a Rs.20 stock and a
+            # Rs.10,000 one. Previously this tested the SIGN of the cumulative
+            # level, not a flip -- for any net-selling name (cumulative whale
+            # CVD negative essentially all day) that force-closed every held
+            # long on the very next gatekeeper tick regardless of price action.
+            FLIP_THRESHOLD_ADV_FRAC = 0.03  # 3% of ADV moved against the position
+            try:
+                entry_whale = float(position.get("whale_cvd_at_entry") or 0.0)
+            except (ValueError, TypeError):
+                entry_whale = 0.0
+            adv = max(1.0, float(raw_payload.get("adv_shares") or 0.0))
+            delta_norm = (whale_cvd_ema_1h - entry_whale) / adv
+
+            polarity_flipped = (
+                (direction == "Long" and delta_norm < -FLIP_THRESHOLD_ADV_FRAC) or
+                (direction == "Short" and delta_norm > FLIP_THRESHOLD_ADV_FRAC)
+            )
+
             if stop_proximity_hit or polarity_flipped:
                 return cls._create_response("Close", priority=10, confidence=9, llm_auth=True)
                 
