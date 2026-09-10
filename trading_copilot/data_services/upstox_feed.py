@@ -324,11 +324,33 @@ class UpstoxStreamManager:
         def _on_open():
             logger.info(f"{name} stream connected! Subscribing to {len(instrument_keys)} keys in {mode} mode.")
             streamer.subscribe(instrument_keys, mode)
-        
+
         streamer.on("open", _on_open)
         streamer.on("message", self._on_market_update)
         streamer.on("error", self._on_error)
         streamer.on("close", self._on_close)
+
+    async def _supervise(self, name, streamer, keys, mode):
+        """Keep one stream alive. streamer.connect() blocks its thread until
+        the socket drops; when the thread exits we reconnect with capped
+        exponential backoff. Previously a dropped stream was silent and
+        permanent -- the UI kept showing the last frozen frame forever (A-12).
+        """
+        import threading
+        backoff = 1
+        while True:
+            try:
+                self._setup_stream(streamer, name, keys, mode)
+                t = threading.Thread(target=streamer.connect, daemon=True)
+                t.start()
+                while t.is_alive():
+                    await asyncio.sleep(1)
+                    backoff = 1                      # healthy — reset
+            except Exception as e:
+                logger.error(f"{name} supervisor error: {e}", exc_info=True)
+            logger.error(f"{name} stream died; reconnecting in {backoff}s")
+            await asyncio.sleep(backoff)
+            backoff = min(backoff * 2, 60)
 
     async def start_multiplexer(self, indices, equities, options):
         logger.info("Initializing Tri-Stream Multiplexer...")
@@ -343,15 +365,12 @@ class UpstoxStreamManager:
             asyncio.create_task(self._mock_feed_loop(indices, equities, options))
             return
 
-        self._setup_stream(self.stream_macro, "Macro Pulse (Indices)", indices, "full")
-        self._setup_stream(self.stream_equity, "Equity Tape", equities, "full_d30")
-        self._setup_stream(self.stream_options, "Derivatives Matrix", options, "option_greeks")
-        # Let them connect concurrently without blocking the main event loop
-        import threading
-        threading.Thread(target=self.stream_macro.connect, daemon=True).start()
-        threading.Thread(target=self.stream_equity.connect, daemon=True).start()
-        threading.Thread(target=self.stream_options.connect, daemon=True).start()
-        
+        # Each stream gets its own supervisor task -- a drop on one reconnects
+        # it without touching the other two.
+        asyncio.create_task(self._supervise("Macro Pulse (Indices)", self.stream_macro, indices, "full"))
+        asyncio.create_task(self._supervise("Equity Tape", self.stream_equity, equities, "full_d30"))
+        asyncio.create_task(self._supervise("Derivatives Matrix", self.stream_options, options, "option_greeks"))
+
         logger.info("[SYSTEM] Upstox Tri-Stream separated. Macro Polling ENGAGED.")
 
     async def _mock_feed_loop(self, indices, equities, options):

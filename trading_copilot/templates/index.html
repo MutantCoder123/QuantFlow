@@ -100,6 +100,8 @@
             </div>
         </div>
     </header>
+    <!-- Stale-feed banner (A-12): shown only when a LIVE symbol has not ticked in >15s -->
+    <div id="stale-banner" class="hidden bg-amber-600 text-black font-bold p-2 text-center"></div>
     <!-- Main Container -->
     <main class="flex-1 max-w-[90rem] w-full mx-auto p-6 space-y-6">
 
@@ -627,6 +629,7 @@
                 const payload = JSON.parse(event.data);
                 updateMacroWeather(payload.macro_state);
                 updateMarketMatrix(payload.global_state);
+                updateStaleBanner(payload.global_state);
                 // 4. Update Market Breadth
                 if (payload.macro_state && payload.macro_state.ad_ratio !== undefined) {
                     const adRatio = parseFloat(payload.macro_state.ad_ratio);
@@ -751,6 +754,17 @@
             }
 
             document.getElementById('macro-date').innerText = `Date: ${dateStr}`;
+        }
+        function updateStaleBanner(globalState) {
+            const banner = document.getElementById('stale-banner');
+            if (!banner) return;
+            const stale = Object.values(globalState || {}).filter(
+                s => s && s.market_state === 'LIVE' && (s.data_age_s || 0) > 15);
+            banner.classList.toggle('hidden', stale.length === 0);
+            if (stale.length) {
+                banner.textContent =
+                    `⚠ FEED STALE — ${stale.length} symbol(s) have not ticked in >15s`;
+            }
         }
         function updateMarketMatrix(globalState) {
             const tableBody = document.getElementById('matrix-body');

@@ -37,6 +37,13 @@ class IntradayGatekeeper:
         if market_state != "LIVE":
             return {"Action": "Wait", "Priority_Score": 0, "Confidence_Score": 0, "llm_authorized": False}
 
+        # 1b. STALE FEED SHIELD (A-12): never act on a frozen tick. data_age_s
+        # is published by RollingStateEngine._compute_symbol.
+        age = float(raw_payload.get("data_age_s", 0.0) or 0.0)
+        if age > 15.0:
+            return {"Action": "Wait", "Priority_Score": 0, "Confidence_Score": 0,
+                    "llm_authorized": False, "math_rejection": f"STALE_DATA_{int(age)}s"}
+
         # 2. TIME OVERRIDE
         # If local machine time >= 15:15 IST (Auto-Square off time for intraday)
         current_time_utc = datetime.datetime.utcnow()

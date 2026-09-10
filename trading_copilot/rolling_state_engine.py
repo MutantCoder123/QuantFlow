@@ -36,6 +36,9 @@ class RollingStateEngine:
         # is the sole consumer and the only caller of process_tick (§4.10).
         self.tick_q = asyncio.Queue(maxsize=100_000)
 
+        # token -> wall-clock time of its last tick, for staleness (A-12).
+        self.last_tick_ts = {}
+
         from journal.tick_recorder import TickRecorder
         from paths import TICKS_DIR
         self.recorder = TickRecorder(TICKS_DIR)
@@ -158,6 +161,10 @@ class RollingStateEngine:
         O(1) dictionary update. Called directly by WebSocket callback thread.
         """
         tick_ts = pd.to_datetime(timestamp_ms, unit='ms', utc=True).tz_convert('Asia/Kolkata').tz_localize(None)
+
+        # Mark this token as freshly ticked (A-12 staleness tracking).
+        if hasattr(self, 'last_tick_ts'):
+            self.last_tick_ts[token] = time.time()
 
         # Capture EVERY tick (including options) before any branching, so the
         # recorded stream is a faithful copy of what the feed sent (Task 1.2).
@@ -496,6 +503,11 @@ class RollingStateEngine:
             final_payload['high_probability_setup'] = True
 
         final_payload['prev_close'] = prev_close
+
+        # Seconds since this token last ticked. The gatekeeper and the UI
+        # both key off this so a frozen feed can't be acted on (A-12).
+        _last = getattr(self, 'last_tick_ts', {}).get(token, 0)
+        final_payload['data_age_s'] = round(time.time() - _last, 1) if _last else 0.0
 
         # Fixes A-5: MTFFeatureExtractor was defined but never called, so
         # fractal_alignment/volatility_state/elasticity_risk/kinetic_divergence
