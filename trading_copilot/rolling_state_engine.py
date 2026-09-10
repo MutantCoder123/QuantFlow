@@ -32,6 +32,10 @@ class RollingStateEngine:
         self.phantom_candles = {}
         self._failures = {}
 
+        # Single-writer ingest: WS threads only enqueue Ticks here; ingest_loop
+        # is the sole consumer and the only caller of process_tick (§4.10).
+        self.tick_q = asyncio.Queue(maxsize=100_000)
+
         from journal.tick_recorder import TickRecorder
         from paths import TICKS_DIR
         self.recorder = TickRecorder(TICKS_DIR)
@@ -256,6 +260,32 @@ class RollingStateEngine:
             phantom['volume'] += tick_volume
             phantom['oi'] = oi
             phantom['microstructure'] = micro_state
+
+    async def ingest_loop(self):
+        """The single writer. Drains tick_q and is the ONLY caller of
+        process_tick, so phantom_candles / ltf_df are mutated from exactly
+        one task -- no more three OS threads racing on shared dicts behind an
+        incorrect "GIL makes this safe" comment (improved §4.10).
+
+        Tick capture to parquet stays inside process_tick (Task 1.2) so it
+        happens exactly once regardless of caller. Accepts either a Tick
+        dataclass or a plain dict (tests use dicts).
+        """
+        while True:
+            tick = await self.tick_q.get()
+            try:
+                d = tick if isinstance(tick, dict) else vars(tick)
+                self.process_tick(**{k: d[k] for k in
+                                     ("token", "timestamp_ms", "price", "volume",
+                                      "oi", "greeks", "bids", "asks") if k in d})
+            except Exception as e:
+                logger.error(f"ingest_loop error: {e}", exc_info=True)
+            finally:
+                self.tick_q.task_done()
+
+    @property
+    def queue_depth(self) -> int:
+        return self.tick_q.qsize()
 
     async def calculate_technicals_loop(self):
         """
