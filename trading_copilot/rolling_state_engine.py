@@ -22,9 +22,13 @@ logger = logging.getLogger(__name__)
 class RollingStateEngine:
     live_options_state = {}
     daily_metrics_cache = {}
-    # Class-level default so every existing __new__-bypass test fixture (none
-    # of which sets a recorder) keeps working without touching disk.
+    # Class-level defaults so every existing __new__-bypass test fixture (none
+    # of which runs __init__) keeps working without touching disk.
     recorder = None
+    _baselines = {}
+    _baselines_mtime = 0.0
+    _flow_state = {}
+    _flow_mtime = 0.0
 
     def __init__(self, dfs_map: dict, watchlist: dict = None):
         self.dfs = dfs_map
@@ -38,6 +42,13 @@ class RollingStateEngine:
 
         # token -> wall-clock time of its last tick, for staleness (A-12).
         self.last_tick_ts = {}
+
+        # mtime-keyed caches for files that were being re-read from disk once
+        # per symbol per 1.5s cycle (D-2).
+        self._baselines = {}
+        self._baselines_mtime = 0.0
+        self._flow_state = {}
+        self._flow_mtime = 0.0
 
         from journal.tick_recorder import TickRecorder
         from paths import TICKS_DIR
@@ -155,6 +166,37 @@ class RollingStateEngine:
                         }
                 except Exception as e:
                     logger.error(f"Failed to load parquet for {parent_symbol}: {e}")
+
+    def _get_baselines(self) -> dict:
+        """macro_baselines.json, reloaded only when its mtime changes."""
+        try:
+            m = MACRO_BASELINES_PATH.stat().st_mtime
+        except FileNotFoundError:
+            return self._baselines
+        if m != self._baselines_mtime:
+            try:
+                with open(MACRO_BASELINES_PATH, 'r') as f:
+                    self._baselines = json.load(f)
+                self._baselines_mtime = m
+            except Exception as e:
+                logger.error(f"Failed to reload macro baselines: {e}")
+        return self._baselines
+
+    def _get_flow_state(self) -> dict:
+        """institutional_flow.json (FII/DII), reloaded only on mtime change."""
+        from paths import INSTITUTIONAL_FLOW_PATH
+        try:
+            m = INSTITUTIONAL_FLOW_PATH.stat().st_mtime
+        except FileNotFoundError:
+            return self._flow_state or {"fii_net": 0, "dii_net": 0, "ad_ratio": 1.0}
+        if m != self._flow_mtime:
+            try:
+                with open(INSTITUTIONAL_FLOW_PATH, 'r') as f:
+                    self._flow_state = json.load(f)
+                self._flow_mtime = m
+            except Exception as e:
+                logger.error(f"Failed to reload institutional flow state: {e}")
+        return self._flow_state or {"fii_net": 0, "dii_net": 0, "ad_ratio": 1.0}
 
     def process_tick(self, token, timestamp_ms, price, volume, oi, greeks=None, bids=None, asks=None):
         """
@@ -335,8 +377,14 @@ class RollingStateEngine:
 
         # 1. Phantom Merge (Temporary Concat)
         phantom_df = pd.DataFrame([phantom])
-        # Ensure timestamp format matches
-        temp_df = pd.concat([target_df, phantom_df], ignore_index=True)
+        # Cap the window fed to MathEngine so a multi-day-running process does
+        # not recompute an ever-growing frame every 1.5s (D-3). 2000 5-minute
+        # bars is ~27 sessions -- deliberately NOT the plan's 400 (~5
+        # sessions), which would quietly shrink the time-of-day volume
+        # z-score baseline (groupby('time') over all history) and the 4h
+        # omni-resample depth. RSI/MACD/BB are already numerically identical
+        # well before 2000 bars.
+        temp_df = pd.concat([target_df.tail(2000), phantom_df], ignore_index=True)
 
         # 2. Compute Technicals
         try:
@@ -390,11 +438,9 @@ class RollingStateEngine:
         else:
             final_payload['market_state'] = "CLOSED"
 
-        # Load Macro Baselines
-        baselines = {}
-        if MACRO_BASELINES_PATH.exists():
-            with open(MACRO_BASELINES_PATH, 'r') as f:
-                baselines = json.load(f)
+        # Macro baselines: mtime-cached, not re-read from disk for every
+        # symbol on every 1.5s cycle (D-2).
+        baselines = self._get_baselines()
 
         stock_macro = baselines.get(parent_symbol, {})
         vol_edge = stock_macro.get("volatility_edge_52w", {})
@@ -453,7 +499,7 @@ class RollingStateEngine:
         nifty_state = TerminalDashboard.active_states.get('NSE_INDEX|Nifty 50', {})
         final_payload['macro_pcr'] = nifty_state.get('stock_pcr', 1.0)
 
-        fii_dii_state = InstitutionalFlowTracker.load_state()
+        fii_dii_state = self._get_flow_state()
         final_payload['fii_net_flow'] = fii_dii_state.get('fii_net', 0)
 
         advances = 0

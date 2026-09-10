@@ -623,7 +623,8 @@ async def start_upstox_service():
         while True:
             await asyncio.sleep(300) # Every 5 minutes
             if is_market_open():
-                rolling_engine.save_cache()
+                # ~6 MB JSON dump -- off the event loop thread (D-2).
+                await asyncio.to_thread(rolling_engine.save_cache)
                 
     asyncio.create_task(state_persistence_worker())
 

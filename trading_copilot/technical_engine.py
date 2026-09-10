@@ -93,15 +93,14 @@ class MathEngine:
         df['rolling_mean'] = df['volume'].rolling(window=20).mean()
         df['rolling_std'] = df['volume'].rolling(window=20).std()
         
-        def calc_tod_z(row):
-            stats = time_stats.get(row['time'])
-            if stats and pd.notna(stats['std']) and stats['std'] > 0:
-                return (row['volume'] - stats['mean']) / stats['std']
-            if pd.notna(row['rolling_std']) and row['rolling_std'] > 0:
-                return (row['volume'] - row['rolling_mean']) / row['rolling_std']
-            return 0.0
-            
-        df['vol_z_score'] = df.apply(calc_tod_z, axis=1)
+        # Vectorised replacement for a per-row df.apply(axis=1) that ran on
+        # every ~1650-row frame every cycle (D-3). Same semantics: prefer the
+        # time-of-day z-score, fall back to the 20-bar rolling z-score, else 0.
+        tod_mean = df['time'].map({k: v['mean'] for k, v in time_stats.items()})
+        tod_std = df['time'].map({k: v['std'] for k, v in time_stats.items()})
+        z_tod = (df['volume'] - tod_mean) / tod_std.where(tod_std > 0)
+        z_roll = (df['volume'] - df['rolling_mean']) / df['rolling_std'].where(df['rolling_std'] > 0)
+        df['vol_z_score'] = z_tod.fillna(z_roll).fillna(0.0)
         df.drop(columns=['time', 'rolling_mean', 'rolling_std'], inplace=True, errors='ignore')
         
         # 3. Chaikin Money Flow (CMF)
@@ -341,13 +340,12 @@ class MathEngine:
             # Clip indices to ensure they are within [0, bins-1] bounds
             indices = np.clip(indices, 0, bins - 1)
             
-            # 3. Volume Aggregation
-            vol_profile = np.zeros(bins)
+            # 3. Volume Aggregation -- vectorised (D-3). np.bincount with
+            # weights is the exact equivalent of the per-row accumulation
+            # loop, NaN volumes zeroed as before.
             volumes = ltf_df['volume'].values
-            
-            for i in range(len(indices)):
-                if not pd.isna(volumes[i]):
-                    vol_profile[indices[i]] += volumes[i]
+            vol_profile = np.bincount(indices, weights=np.nan_to_num(volumes),
+                                      minlength=bins)[:bins]
                 
             # 4. Calculate POC
             poc_idx = np.argmax(vol_profile)
