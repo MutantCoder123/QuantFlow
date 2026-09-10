@@ -48,12 +48,12 @@ full detail and the still-open question for the user.
 - [x] **2.1** PolicyConfig (thresholds → YAML) — commit `fd75341`
 - [x] **2.2** Split read from write via `advance_state` (fixes A-4) — commit `934e16d`
 - [x] **2.3** Wire MTFFeatureExtractor (fixes A-5) — commit `d9b6a22`
-- [ ] **2.4** Queue-based single-writer ingest
-- [ ] **2.5** Stream supervision and staleness (fixes A-12)
-- [ ] **2.6** Retire performance hotspots (fixes D-1, D-2, D-3)
-- [ ] **2.7** Session-anchored resampling (fixes C-4)
+- [x] **2.4** Queue-based single-writer ingest — commit `437cd0a`
+- [x] **2.5** Stream supervision and staleness (fixes A-12) — commit `a0cd86a`
+- [x] **2.6** Retire performance hotspots (fixes D-1, D-2, D-3) — commit `fecb66e`
+- [x] **2.7** Session-anchored resampling (fixes C-4) — commit `ef317a9`
 
-**Phase 2 status:** in progress — 3/7 tasks done
+**Phase 2 status:** ✅ complete — 7/7 tasks done
 
 ## Phase 3 — Risk, Horizon, Cost  *(not started)*
 

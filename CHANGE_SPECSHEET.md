@@ -588,7 +588,7 @@ verification. 4/4 tests pass.
 > Exit criteria: all 102 thresholds live in YAML; `evaluate()` is a pure function under test; the display
 > path cannot mutate decision state; ingest is single-writer; the perf hotspots are gone.
 
-**Status: 3/7 tasks done (2.1, 2.2, 2.3). 2.4–2.7 not started.**
+**Status: ✅ complete — 7/7 tasks done. 86 tests passing.**
 
 ### Task 2.1 — PolicyConfig
 
@@ -674,9 +674,115 @@ in `_compute_symbol`'s source.
 
 **Verified:** 3/3 new tests pass; full suite green (73 tests).
 
+### Task 2.4 — Queue-based single-writer ingest (improved §4.10)
+
+**Files:** `trading_copilot/data_services/upstox_feed.py`, `trading_copilot/rolling_state_engine.py`,
+`tests/test_ingest_queue.py` (new). Commit `437cd0a`.
+
+Three OS threads (macro/equity/options WS callbacks) were calling `process_tick()` directly, mutating
+`phantom_candles` / `ltf_df` while `calculate_technicals_loop` read them — "safe" only per a comment
+claiming GIL protection, which does not cover the multi-step read-modify-write in `process_tick`.
+
+- `parse_tick(instrument_key, feed_data, reverse_map) -> Tick | None`: the protobuf-dict flattening lifted
+  out of `_on_market_update` into a pure module-level function (`Tick` = frozen dataclass). Now the only
+  work the callback threads do.
+- `_on_market_update`: parse-and-enqueue only, via `self.loop.call_soon_threadsafe(tick_q.put_nowait,
+  tick)`. The write-only `live_market_data` accumulation (grepped — never read anywhere) is dropped.
+- `self.loop = asyncio.get_running_loop()` captured at the top of `start_multiplexer` before any producer;
+  WS threads marked `daemon=True`.
+- `RollingStateEngine.ingest_loop()`: the single consumer, the only `process_tick` caller. Accepts a `Tick`
+  or a plain dict. Tick→parquet capture stays in `process_tick` (Task 1.2), so the recorder call is **not**
+  duplicated in `ingest_loop`.
+- `tick_q = asyncio.Queue(maxsize=100_000)` in `__init__`; `queue_depth` property; started via
+  `asyncio.create_task` in `start_upstox_service` before the multiplexer.
+- `GET /state` now also reports `queue_depth` (`-1` if the engine isn't attached yet).
+
+**Verified:** 4/4 new tests pass; full suite green (77 tests).
+
+### Task 2.5 — Stream supervision and staleness (fixes A-12)
+
+**Files:** `trading_copilot/data_services/upstox_feed.py`, `trading_copilot/rolling_state_engine.py`,
+`trading_copilot/intraday_gatekeeper.py`, `trading_copilot/templates/index.html`,
+`tests/test_gatekeeper_staleness.py` (new). Commit `a0cd86a`.
+
+- `UpstoxStreamManager._supervise(name, streamer, keys, mode)`: one task per stream.
+  `streamer.connect()` blocks its daemon thread until the socket drops; on thread exit the supervisor
+  reconnects with capped exponential backoff (1s→60s, reset to 1s once healthy), wrapped in try/except so a
+  throwing reconnect can't kill the supervisor. `start_multiplexer` launches three `_supervise` tasks
+  instead of three bare threads.
+- `RollingStateEngine.last_tick_ts[token]` set in `process_tick`; `_compute_symbol` publishes
+  `final_payload['data_age_s']`.
+- `IntradayGatekeeper.evaluate`: STALE FEED SHIELD right after the market-open guard — `data_age_s > 15`
+  returns `Wait` / `llm_authorized=False` / `math_rejection="STALE_DATA_<n>s"`.
+- `index.html`: hidden `#stale-banner` (amber) shown by `updateStaleBanner()` when any LIVE symbol's
+  `data_age_s > 15`. `node --check` clean on the edited inline script block.
+
+**Not auto-testable** (needs a live socket to drop): the `_supervise` reconnect loop, and whether
+`MarketDataStreamerV3.connect()` is re-invokable on the same instance after a drop — flagged here for
+manual verification. The staleness propagation and gatekeeper shield are covered: 3/3 new tests pass; full
+suite green (80 tests).
+
+### Task 2.6 — Retire the performance hotspots (fixes D-1, D-2, D-3)
+
+**Files:** `trading_copilot/performance_analyzer.py`, `trading_copilot/technical_engine.py`,
+`trading_copilot/rolling_state_engine.py`, `trading_copilot/data_services/upstox_feed.py`,
+`tests/test_perf_hotspots.py` (new). Commit `fecb66e`.
+
+- **D-1:** `PerformanceAnalyzer.get_feedback_payload` re-read the whole signal ledger ~100×/sec
+  (`conviction_scorer` calls it per scored symbol per cycle; each call did two `load_all_signals` scans).
+  Now a 300s TTL cache + a single load per miss; `compute_regime_accuracy` /
+  `compute_symbol_accuracy` / `compute_dashboard` share one load via new `_regime_accuracy_from` /
+  `_symbol_accuracy_from`. `invalidate_cache()` added. Test: 50 calls → ≤2 loads.
+- **D-2:** `_compute_symbol` re-opened `macro_baselines.json` and `institutional_flow.json` once per
+  symbol per 1.5s cycle. Now mtime-keyed caches (`_get_baselines` / `_get_flow_state`) — re-read only when
+  the file actually changes. The ~6 MB `save_cache()` JSON dump moved off the event loop via
+  `asyncio.to_thread`.
+- **D-3:** two per-row Python loops on ~1650-row frames every cycle:
+  - `calc_institutional_volume`'s `df.apply(calc_tod_z, axis=1)` → vectorised `map`/`where`;
+    `test_tod_zscore_vectorised_equals_row_apply` proves bit-equality to the old row logic.
+  - `calc_volume_profile_high_fidelity`'s accumulation loop → `np.bincount(weights=...)`;
+    `test_bincount_profile_equals_the_old_accumulation_loop` proves bit-equality.
+- **D-4** (yield between symbols) was already done in Task 0.8.
+
+**Deliberate deviation:** the plan's Step 6 slices the MathEngine input to `target_df.tail(400)`. 400
+5-minute bars is ~5 sessions, which would quietly shrink the time-of-day volume z-score baseline
+(`groupby('time')` over *all* history) and the 4h omni-resample depth — an untested behaviour change. Used
+`tail(2000)` (~27 sessions) instead: it bounds unbounded multi-day frame growth without touching the
+≤20-session semantics anything actually consumes; RSI/MACD/BB are numerically identical well before 2000
+bars regardless.
+
+**Verified:** 4/4 perf tests (2 are loop-equivalence proofs); full suite green (84 tests).
+
+### Task 2.7 — Session-anchored resampling (fixes C-4)
+
+**Files:** `trading_copilot/technical_engine.py`, `tests/test_resample_anchor.py` (new). Commit `ef317a9`.
+
+`df.resample('4h')` / `.resample('1h')` default to a midnight origin. Against an NSE session of
+09:15–15:30, the first "4h" bar of the day spanned 08:00–12:00 and actually held only 09:15–12:00 = 2h45m
+of real session — a dimensionally wrong bar feeding the omni-timeframe trend/EMA math.
+`generate_omni_dataframes` now passes `origin=<09:15 of the frame's first day>` to every resample; 24h is
+divisible by all five frequencies so the origin tiles cleanly and each session re-anchors at 09:15. Used
+`df.index.min()` rather than the plan's `df.index[0]` (order-independent).
+
+**Verified:** 2/2 new tests pass (one asserts the 1h open; one asserts 4h bars re-anchor each session over a
+3-day frame and are never midnight-aligned); full suite green (86 tests).
+
+**Phase 2 complete: 7/7 tasks done, 86 tests passing.**
+
 ---
 
 ## Open questions / follow-ups
 
-- **Security incident above** — awaiting user decision on token rotation and history rewriting (both the
+- **PolicyConfig call sites not yet rewired (Task 2.1 scope note):** `config/policy_v1.yaml` + the loader
+  exist, but `semantic_tagger.py` / `conviction_scorer.py` / `intraday_gatekeeper.py` still read their
+  inline constants. Rewiring them to `load_policy()` is not a named step in this plan — follow-up work.
+- **`semantic.whale_slope_gate_adv_frac` (0.002)** in `policy_v1.yaml` corresponds to no code path yet — the
+  intended ADV-normalised replacement for `abs(whale_cvd_slope) > 50` at `semantic_tagger.py:67`.
+- **`_supervise` reconnect not verified against a live drop (Task 2.5):** unknown whether
+  `MarketDataStreamerV3.connect()` can be re-invoked on the same instance after disconnect; if not, the
+  supervisor needs to recreate the streamer each loop.
+
+- **Security incident (Phase 0)** — awaiting user decision on token rotation and history rewriting (both the
   local `7e239ca` commit and the pre-existing `master`/`origin` exposure at `2c38035`).
+- **`.env.example` TOTP seed (Task 0.11)** — replaced with a placeholder; if `XHRGR2YOVCEGBYT3MQEBLI6CV3POJD7L`
+  was a live seed, rotate it in Upstox.
