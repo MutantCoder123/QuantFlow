@@ -20,6 +20,16 @@ class PerformanceAnalyzer:
         cls._cache, cls._cache_ts = None, 0.0
 
     @staticmethod
+    def _primary_minute() -> int:
+        """The horizon the system is optimised on -- the largest configured
+        measurement checkpoint (improved §4.4)."""
+        try:
+            from core.policy_config import load_policy
+            return max(int(m) for m in load_policy().horizon["measure_at_minutes"])
+        except Exception:
+            return 90
+
+    @staticmethod
     def _compute_metrics(signals: list) -> dict:
         if not signals:
             return {}
@@ -28,11 +38,17 @@ class PerformanceAnalyzer:
         if not resolved:
             return {"total_signals": len(signals), "total_resolved": 0}
 
-        win_30m = sum(1 for s in resolved if s.get("outcome", {}).get("directional_correct_30m", False))
-        win_60m = sum(1 for s in resolved if s.get("outcome", {}).get("directional_correct_60m", False))
+        primary = PerformanceAnalyzer._primary_minute()
+        p_dir = f"directional_correct_{primary}m"
+        p_pnl = f"pnl_{primary}m_pct"
 
-        pnl_sum_win = sum(s["outcome"]["pnl_30m_pct"] for s in resolved if s["outcome"].get("pnl_30m_pct", 0) > 0)
-        pnl_sum_loss = sum(s["outcome"]["pnl_30m_pct"] for s in resolved if s["outcome"].get("pnl_30m_pct", 0) < 0)
+        # Primary-horizon win rate (what PerformanceAnalyzer optimises) plus a
+        # 30m diagnostic that stays informational.
+        win_primary = sum(1 for s in resolved if s.get("outcome", {}).get(p_dir, False))
+        win_30m = sum(1 for s in resolved if s.get("outcome", {}).get("directional_correct_30m", False))
+
+        pnl_sum_win = sum(s["outcome"][p_pnl] for s in resolved if s["outcome"].get(p_pnl, 0) > 0)
+        pnl_sum_loss = sum(s["outcome"][p_pnl] for s in resolved if s["outcome"].get(p_pnl, 0) < 0)
 
         profit_factor = round(pnl_sum_win / abs(pnl_sum_loss), 2) if pnl_sum_loss != 0 else 999.0
 
@@ -40,12 +56,15 @@ class PerformanceAnalyzer:
         hit_target = sum(1 for s in resolved if s["outcome"].get("hit_target", False))
 
         total_resolved = len(resolved)
+        primary_wr = round((win_primary / total_resolved) * 100, 2)
 
         return {
             "total_signals": len(signals),
             "total_resolved": total_resolved,
+            "primary_horizon_min": primary,
+            f"win_rate_{primary}m": primary_wr,
+            "win_rate_primary": primary_wr,
             "win_rate_30m": round((win_30m / total_resolved) * 100, 2),
-            "win_rate_60m": round((win_60m / total_resolved) * 100, 2),
             "profit_factor": profit_factor,
             "stop_hit_rate": round((hit_stop / total_resolved) * 100, 2),
             "target_hit_rate": round((hit_target / total_resolved) * 100, 2)
@@ -114,17 +133,19 @@ class PerformanceAnalyzer:
 
             for r, m in regime_acc.items():
                 if m["total_resolved"] >= 3:
-                    if m["win_rate_30m"] > best_wr:
-                        best_wr = m["win_rate_30m"]
+                    wr = m.get("win_rate_primary", 0.0)
+                    if wr > best_wr:
+                        best_wr = wr
                         best_regime = r
-                    if m["win_rate_30m"] < worst_wr:
-                        worst_wr = m["win_rate_30m"]
+                    if wr < worst_wr:
+                        worst_wr = wr
                         worst_regime = r
 
             payload = {
                 "total_signals": metrics["total_resolved"],
+                "primary_horizon_min": metrics.get("primary_horizon_min"),
+                "win_rate_primary": metrics.get("win_rate_primary"),
                 "win_rate_30m": metrics["win_rate_30m"],
-                "win_rate_60m": metrics["win_rate_60m"],
                 "profit_factor": metrics["profit_factor"],
                 "best_regime": best_regime,
                 "best_regime_wr": best_wr,

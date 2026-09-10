@@ -26,9 +26,10 @@ def test_recover_pending_restores_only_unresolved_signals(monkeypatch):
 
     assert n == 2
     assert set(SignalLedger._pending_signals.keys()) == {"A", "C"}
-    assert SignalLedger._pending_signals["A"]["target_30m"] == 100 + 1800
-    assert SignalLedger._pending_signals["A"]["target_60m"] == 100 + 3600
-    assert SignalLedger._pending_signals["A"]["resolved_30m"] is False
+    a = SignalLedger._pending_signals["A"]
+    mins = SignalLedger._measure_at()
+    assert a["targets"] == {m: 100 + m * 60 for m in mins}
+    assert all(v is False for v in a["resolved"].values())
     SignalLedger._pending_signals.clear()
 
 

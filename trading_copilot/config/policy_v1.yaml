@@ -69,9 +69,9 @@ conviction:
 gates:
   min_stat_edge: 0.05           # conviction_scorer.py:274; intraday_gatekeeper.py:182
   stop_proximity_pct: 0.5       # intraday_gatekeeper.py:92
-  failure_to_launch_min: 45     # intraday_gatekeeper.py:129
-  stagnation_min: 30            # intraday_gatekeeper.py:134
-  stagnation_drift_pct: 0.2     # intraday_gatekeeper.py:134
+  failure_to_launch_min: 45     # intraday_gatekeeper.py
+  stagnation_min: 60            # intraday_gatekeeper.py -- aligned to 2/3 of the 90m primary (Task 3.4)
+  stagnation_drift_pct: 0.2     # intraday_gatekeeper.py
   whale_flip_adv_frac: 0.03     # intraday_gatekeeper.py:112 (Task 0.9)
   regime_dampening:             # intraday_gatekeeper.py:173-179
     LUNCH_CHOP_HIGH_VOL: 0.85

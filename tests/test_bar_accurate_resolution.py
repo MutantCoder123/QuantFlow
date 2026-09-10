@@ -30,13 +30,16 @@ def _record():
 
 
 def _state(rec):
-    return {"record": rec, "target_30m": ENTRY_TS + 1800, "target_60m": ENTRY_TS + 3600,
-            "resolved_30m": False, "resolved_60m": False}
+    mins = SignalLedger._measure_at()
+    return {"record": rec,
+            "targets": {m: ENTRY_TS + m * 60 for m in mins},
+            "resolved": {m: False for m in mins}}
 
 
-def test_intrabar_stop_touch_resolves_early_at_the_30m_checkpoint():
+def test_intrabar_stop_touch_resolves_early_at_the_first_checkpoint():
     """The bar at 10:10 dips to a low of 97.8, touching the 98.0 stop within
-    the 30-minute window; a 60s-LTP sampler could easily have missed it."""
+    the first (30-minute) window; a 60s-LTP sampler could easily have missed
+    it. An early stop hit resolves the whole signal, not just that leg."""
     rec = _record()
     st = _state(rec)
     now_ts = ENTRY_TS + 1800
@@ -44,7 +47,7 @@ def test_intrabar_stop_touch_resolves_early_at_the_30m_checkpoint():
     assert updated is True
     assert rec["outcome"]["hit_stop"] is True
     assert rec["outcome"]["status"] == "RESOLVED_EARLY"
-    assert st["resolved_30m"] is True and st["resolved_60m"] is True
+    assert all(st["resolved"].values())
 
 
 def test_tiny_positive_move_below_cost_floor_is_not_directionally_correct():
@@ -54,10 +57,11 @@ def test_tiny_positive_move_below_cost_floor_is_not_directionally_correct():
     for c in ("open", "high", "low", "close"):
         flat[c] = 100.02
     st = _state(rec)
-    updated = SignalLedger._resolve_one(rec, st, ENTRY_TS + 3600, flat)
+    primary = SignalLedger._measure_at()[-1]
+    updated = SignalLedger._resolve_one(rec, st, ENTRY_TS + primary * 60, flat)
     assert updated is True
-    assert rec["outcome"]["pnl_60m_pct"] > 0
-    assert rec["outcome"]["directional_correct_60m"] is False
+    assert rec["outcome"][f"pnl_{primary}m_pct"] > 0
+    assert rec["outcome"][f"directional_correct_{primary}m"] is False
     assert rec["outcome"]["status"] == "RESOLVED"
 
 

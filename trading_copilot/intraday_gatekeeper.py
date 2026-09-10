@@ -136,9 +136,11 @@ class IntradayGatekeeper:
             if time_in_trade_minutes > 45 and -0.5 <= pnl_pct <= 0.1:
                 return cls._create_response("Wait", priority=7, confidence=6, llm_auth=True)
                 
-            # STAGNATION GATE
+            # STAGNATION GATE -- aligned to >=2/3 of the 90m primary horizon
+            # (improved §4.4). Was 30m, which killed trades before they had a
+            # fair chance to run the horizon the system is graded on.
             drift_pct = abs(ltp - entry_price) / entry_price * 100 if entry_price > 0 else 0
-            if time_in_trade_minutes > 30 and drift_pct < 0.2:
+            if time_in_trade_minutes > 60 and drift_pct < 0.2:
                 # Suppress LLM to save tokens
                 return cls._create_response("Hold", priority=2, confidence=5, llm_auth=False)
                 
@@ -146,7 +148,24 @@ class IntradayGatekeeper:
             return cls._create_response("Hold", priority=1, confidence=5, llm_auth=False)
             
         # 4. PATH B: ENTRY EVALUATION (No Active Position)
-        
+
+        # HORIZON CUTOFF (improved §4.4): do not OPEN a new trade that cannot
+        # run its full primary horizon before square-off. One config value
+        # (policy_v1.yaml horizon.entry_cutoff_ist) now governs this, the
+        # ledger's measurement points, and the prompt.
+        cutoff = "13:45"
+        try:
+            from core.policy_config import load_policy
+            cutoff = str(load_policy().horizon.get("entry_cutoff_ist", "13:45"))
+            ch, cm = (int(x) for x in cutoff.split(":"))
+            cutoff_decimal = ch + cm / 60.0
+        except Exception:
+            cutoff_decimal = 13.75
+        if current_decimal >= cutoff_decimal:
+            res = cls._create_response("Wait", priority=0, confidence=0, llm_auth=False)
+            res["math_rejection"] = f"ENTRY_CUTOFF_{cutoff.replace(':', '')}"
+            return res
+
         # Read ConvictionScorer output directly
         setup_rejected = math_setup.get("setup_rejected", True)
         composite_score = abs(math_setup.get("composite_score", 0.0))

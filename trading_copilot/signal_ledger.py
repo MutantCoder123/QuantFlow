@@ -21,6 +21,19 @@ class SignalLedger:
     ROUND_TRIP_COST_PCT = 0.06
 
     @classmethod
+    def _measure_at(cls) -> list:
+        """Outcome measurement checkpoints in minutes, from the single
+        horizon config (policy_v1.yaml horizon.measure_at_minutes). The
+        largest is the PRIMARY horizon the system is optimised on; the
+        smaller ones stay as diagnostics (improved §4.4)."""
+        try:
+            from core.policy_config import load_policy
+            mins = load_policy().horizon.get("measure_at_minutes", [30, 90])
+            return sorted({int(m) for m in mins})
+        except Exception:
+            return [30, 90]
+
+    @classmethod
     def _get_log_file(cls, date_str=None):
         if not date_str:
             date_str = datetime.now().strftime("%Y-%m-%d")
@@ -80,13 +93,13 @@ class SignalLedger:
             }
         }
 
-        # Track in memory for resolution
+        # Track in memory for resolution, keyed by the configured horizon
+        # checkpoints rather than a hardcoded 30m/60m pair.
+        mins = cls._measure_at()
         cls._pending_signals[signal_id] = {
             "record": record,
-            "target_30m": ts + 1800,
-            "target_60m": ts + 3600,
-            "resolved_30m": False,
-            "resolved_60m": False
+            "targets": {m: ts + m * 60 for m in mins},
+            "resolved": {m: False for m in mins},
         }
 
         cls._append_to_log(record, date_str)
@@ -101,13 +114,15 @@ class SignalLedger:
         the most recent, most relevant evidence.
         """
         restored = 0
+        mins = cls._measure_at()
         for rec in cls.load_all_signals(last_n_days=days):
             if rec.get("outcome", {}).get("status") != "PENDING":
                 continue
             ts = rec["timestamp"]
             cls._pending_signals[rec["signal_id"]] = {
-                "record": rec, "target_30m": ts + 1800, "target_60m": ts + 3600,
-                "resolved_30m": False, "resolved_60m": False,
+                "record": rec,
+                "targets": {m: ts + m * 60 for m in mins},
+                "resolved": {m: False for m in mins},
             }
             restored += 1
         logger.info(f"Recovered {restored} pending signals from disk.")
@@ -160,36 +175,32 @@ class SignalLedger:
         entry, bias = snap["ltp_at_signal"], snap["bias"]
         stop, target = snap["padded_stop"], snap["calculated_target"]
 
-        need_30 = not state["resolved_30m"] and now_ts >= state["target_30m"]
-        need_60 = not state["resolved_60m"] and now_ts >= state["target_60m"]
-        if not (need_30 or need_60) or bars is None:
+        mins = sorted(state["targets"].keys())
+        primary = mins[-1]
+        due = any(not state["resolved"][m] and now_ts >= state["targets"][m] for m in mins)
+        if not due or bars is None:
             return False
 
         updated = False
-        if need_30:
+        for m in mins:
+            if state["resolved"][m] or now_ts < state["targets"][m]:
+                continue
             res = label_outcome(bars, entry_ts, entry, stop, target, bias,
-                                horizon_min=30, cost_pct=cls.ROUND_TRIP_COST_PCT)
-            record["outcome"]["pnl_30m_pct"] = res["pnl_pct"]
-            record["outcome"]["directional_correct_30m"] = res["directional_correct"]
+                                horizon_min=m, cost_pct=cls.ROUND_TRIP_COST_PCT)
+            record["outcome"][f"pnl_{m}m_pct"] = res["pnl_pct"]
+            record["outcome"][f"directional_correct_{m}m"] = res["directional_correct"]
             record["outcome"]["hit_stop"] = record["outcome"].get("hit_stop") or res["hit_stop"]
             record["outcome"]["hit_target"] = record["outcome"].get("hit_target") or res["hit_target"]
-            state["resolved_30m"] = True
+            state["resolved"][m] = True
             updated = True
             if res["outcome"] in ("STOP", "TARGET"):
-                # Decided early — don't wait for the 60m mark to grade it.
+                # Decided early -- don't wait for later checkpoints.
                 record["outcome"]["status"] = "RESOLVED_EARLY"
-                state["resolved_60m"] = True
-
-        if need_60 and not state["resolved_60m"]:
-            res = label_outcome(bars, entry_ts, entry, stop, target, bias,
-                                horizon_min=60, cost_pct=cls.ROUND_TRIP_COST_PCT)
-            record["outcome"]["pnl_60m_pct"] = res["pnl_pct"]
-            record["outcome"]["directional_correct_60m"] = res["directional_correct"]
-            record["outcome"]["hit_stop"] = record["outcome"].get("hit_stop") or res["hit_stop"]
-            record["outcome"]["hit_target"] = record["outcome"].get("hit_target") or res["hit_target"]
-            record["outcome"]["status"] = "RESOLVED"
-            state["resolved_60m"] = True
-            updated = True
+                for k in mins:
+                    state["resolved"][k] = True
+                break
+            if m == primary:
+                record["outcome"]["status"] = "RESOLVED"
 
         return updated
 
@@ -208,10 +219,10 @@ class SignalLedger:
                     record = state["record"]
                     symbol = record["symbol"]
 
-                    due = ((not state["resolved_30m"] and now_ts >= state["target_30m"]) or
-                           (not state["resolved_60m"] and now_ts >= state["target_60m"]))
+                    due = any(not state["resolved"][m] and now_ts >= state["targets"][m]
+                              for m in state["targets"])
                     if not due:
-                        if state["resolved_30m"] and state["resolved_60m"]:
+                        if all(state["resolved"].values()):
                             resolved_ids.append(sig_id)
                         continue
 
@@ -227,7 +238,7 @@ class SignalLedger:
                     if updated:
                         cls._append_to_log(record, record["session_date"])
 
-                    if state["resolved_30m"] and state["resolved_60m"]:
+                    if all(state["resolved"].values()):
                         resolved_ids.append(sig_id)
 
                 for sig_id in resolved_ids:
