@@ -1,0 +1,19 @@
+# Static correlation clusters for the live watchlist (improved §4.3.1).
+# One bet fired across N correlated names is N*R risk on a single thesis, not
+# N independent 1R bets -- the exposure layer (core/risk.py) caps aggregate
+# risk per cluster. A rolling-correlation map is a better LATER refinement;
+# this static map captures the Adani and power concentrations on day one.
+#
+# Each key is a cluster id; the value is the list of bare symbols in it.
+# A symbol not listed here is its own cluster (cluster_of returns the symbol).
+
+ADANI:            [ADANIENSOL, ADANIENT, ADANIGREEN, ADANIPORTS]
+POWER_CAPGOODS:   [TATAPOWER, POWERINDIA, CGPOWER, BHEL, SUZLON]
+PSU_METALS_INFRA: [SAIL, NMDC, NBCC]
+FINANCIALS:       [IDFCFIRSTB, YESBANK, KOTAKBANK, ANGELONE, MCX, 360ONE, SAMMAANCAP]
+TELECOM:          [IDEA, TEJASNET]
+IT:               [INFY, OFSS]
+HEALTHCARE:       [FORTIS]
+SHIPPING:         [SCI]
+EV:               [OLAELEC]
+# RELIANCE is a diversified conglomerate -- deliberately its own cluster.
