@@ -9,23 +9,26 @@ class SessionMemory:
         self.buffer = collections.deque(maxlen=12)
 
     def _extract_regime_slice(self, payload: dict) -> dict:
+        from semantic_tagger import state_of
         micro = payload.get("1_live_microstructure", {})
         deriv = payload.get("2_derivatives_matrix_52w", {})
         struct = payload.get("3_local_structural_edge_20d", {})
         prox = struct.get("structural_proximity_state", {})
 
+        # Semantic fields may now be {"state": tag, ...} -- unwrap to the tag
+        # here so _evaluate_candidate keeps comparing plain strings.
         return {
             "timestamp": payload.get("timestamp"),
             "current_time": payload.get("current_time", ""),
             "ltp": payload.get("ltp"),
-            "flow_divergence_state": micro.get("flow_divergence_state", "EQUILIBRIUM_CHOP"),
-            "volume_regime": micro.get("volume_regime", "NORMAL_DRIFT"),
-            "fractal_alignment": micro.get("fractal_alignment", "CONFLICTING_CHOP"),
-            "elasticity_risk": micro.get("elasticity_risk", "EQUILIBRIUM"),
-            "kinetic_divergence": micro.get("kinetic_divergence", "MOMENTUM_CONFIRMED"),
-            "volatility_state": micro.get("volatility_state", "NORMAL_RANGING"),
-            "volatility_regime_state": deriv.get("volatility_regime_state", "NORMAL_PRICING"),
-            "options_gravity_state": deriv.get("options_gravity_state", "NORMAL_ORBIT"),
+            "flow_divergence_state": state_of(micro.get("flow_divergence_state")) or "EQUILIBRIUM_CHOP",
+            "volume_regime": state_of(micro.get("volume_regime")) or "NORMAL_DRIFT",
+            "fractal_alignment": state_of(micro.get("fractal_alignment")) or "CONFLICTING_CHOP",
+            "elasticity_risk": state_of(micro.get("elasticity_risk")) or "EQUILIBRIUM",
+            "kinetic_divergence": state_of(micro.get("kinetic_divergence")) or "MOMENTUM_CONFIRMED",
+            "volatility_state": state_of(micro.get("volatility_state")) or "NORMAL_RANGING",
+            "volatility_regime_state": state_of(deriv.get("volatility_regime_state")) or "NORMAL_PRICING",
+            "options_gravity_state": state_of(deriv.get("options_gravity_state")) or "NORMAL_ORBIT",
             "structural_proximity_state": prox.get("state", "NO_MANS_LAND")
         }
 

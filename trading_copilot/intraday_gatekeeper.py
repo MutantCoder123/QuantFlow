@@ -64,8 +64,9 @@ class IntradayGatekeeper:
         current_regime = regime.get("current_regime", "TRANSITIONAL_DRIFT")
         session_phase = regime.get("session_phase", "UNKNOWN")
         
-        # Read SemanticTagger's clean states
-        flow_divergence = micro.get("flow_divergence_state", "EQUILIBRIUM_CHOP")
+        # Read SemanticTagger's clean states (may be {"state": tag, ...} now)
+        from semantic_tagger import state_of
+        flow_divergence = state_of(micro.get("flow_divergence_state")) or "EQUILIBRIUM_CHOP"
         
         # Read raw whale CVD for polarity check (not available in semantic payload)
         try:
@@ -194,7 +195,7 @@ class IntradayGatekeeper:
         # REGIME-AWARE SUPPRESSION
         effective_score = composite_score
         if session_phase == "LUNCH_CHOP":
-            vol_regime = micro.get("volume_regime", "NORMAL_DRIFT")
+            vol_regime = state_of(micro.get("volume_regime")) or "NORMAL_DRIFT"
             if vol_regime in ("TIME_ADJUSTED_SHOCK", "ELEVATED_ACCUMULATION"):
                 effective_score *= 0.85  # High volume during lunch = real move
             else:

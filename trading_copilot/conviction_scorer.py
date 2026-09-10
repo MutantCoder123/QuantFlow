@@ -39,6 +39,18 @@ class ConvictionScorer:
         except Exception:
             return base
 
+    def _normalized_weights(self, regime: str, catalyst_live: bool = False) -> dict:
+        """Renormalise the component weights over the LIVE components only
+        (fixes C-1). The catalyst component is a hardcoded 0.0 pass-through
+        today, so multiplying it by w_cat just bled 10-25% of weight into
+        nothing and capped |composite| below 1.0 (0.75 in TREND_EXPANSION).
+        When catalyst is dead, w_cat is dropped from the denominator so the
+        three live components sum to 1.0."""
+        base = self._get_adaptive_weights(regime)
+        live = ["w_micro", "w_struct", "w_deriv"] + (["w_cat"] if catalyst_live else [])
+        denom = sum(base[k] for k in live) or 1.0
+        return {k: (base[k] / denom if k in live else 0.0) for k in base}
+
     def score_setup(self, semantic_payload: dict, flat_telemetry: dict, advance_state: bool = False) -> dict:
         market_regime = semantic_payload.get("market_regime", {})
         regime = market_regime.get("current_regime", "TRANSITIONAL_DRIFT")
@@ -51,15 +63,16 @@ class ConvictionScorer:
         # Step 2: Component Scoring (13 signals -> 4 categories)
         
         # --- Microstructure (Max abs sum: 11) ---
+        from semantic_tagger import state_of
         micro = semantic_payload.get("1_live_microstructure", {})
-        flow_div = micro.get("flow_divergence_state", "")
-        obi = micro.get("order_book_imbalance_state", "")
-        vol_regime = micro.get("volume_regime", "")
-        cost_basis = micro.get("session_cost_basis_state", "")
-        fractal = micro.get("fractal_alignment", "")
-        kinetic = micro.get("kinetic_divergence", "")
-        elasticity = micro.get("elasticity_risk", "")
-        volatility = micro.get("volatility_state", "")
+        flow_div = state_of(micro.get("flow_divergence_state")) or ""
+        obi = state_of(micro.get("order_book_imbalance_state")) or ""
+        vol_regime = state_of(micro.get("volume_regime")) or ""
+        cost_basis = state_of(micro.get("session_cost_basis_state")) or ""
+        fractal = state_of(micro.get("fractal_alignment")) or ""
+        kinetic = state_of(micro.get("kinetic_divergence")) or ""
+        elasticity = state_of(micro.get("elasticity_risk")) or ""
+        volatility = state_of(micro.get("volatility_state")) or ""
 
         micro_score = 0.0
         if "MOMENTUM_CONFIRMED_BULLISH" in flow_div: micro_score += 3
@@ -96,9 +109,9 @@ class ConvictionScorer:
 
         # --- Derivatives (Max abs sum: 4) ---
         deriv = semantic_payload.get("2_derivatives_matrix_52w", {})
-        pcr = deriv.get("pcr_regime", "")
-        vol_reg = deriv.get("volatility_regime_state", "")
-        gravity = deriv.get("options_gravity_state", "")
+        pcr = state_of(deriv.get("pcr_regime")) or ""
+        vol_reg = state_of(deriv.get("volatility_regime_state")) or ""
+        gravity = state_of(deriv.get("options_gravity_state")) or ""
 
         deriv_score = 0.0
         if pcr == "EXTREME_PUT_WRITING": deriv_score += 2
@@ -140,8 +153,10 @@ class ConvictionScorer:
         raw_news = catalyst.get("raw_news", [])
         catalyst_norm = 0.0  # Pass-through logic: qualitative news interpretation belongs in LLM Layer 2
 
-        # Step 3: Composite Calculation (Adaptive Feedback)
-        weights = self._get_adaptive_weights(regime)
+        # Step 3: Composite Calculation -- renormalise over live components so a
+        # dead catalyst weight can't cap |composite| below 1.0 (C-1).
+        catalyst_live = (catalyst_norm != 0.0)
+        weights = self._normalized_weights(regime, catalyst_live)
         w_micro, w_struct, w_deriv, w_cat = weights["w_micro"], weights["w_struct"], weights["w_deriv"], weights["w_cat"]
 
         composite = (micro_norm * w_micro) + (struct_norm * w_struct) + (deriv_norm * w_deriv) + (catalyst_norm * w_cat)
@@ -224,7 +239,7 @@ class ConvictionScorer:
         if nearest_floor == 0.0:
             nearest_floor = ltp - (2.0 * atr_15m)
 
-        vol_state = deriv.get("volatility_regime_state", "")
+        vol_state = state_of(deriv.get("volatility_regime_state")) or ""
         if vol_state == 'EXTREME_EXPANSION': atr_mult = 1.0
         elif vol_state == 'ELEVATED_VOLATILITY': atr_mult = 0.75
         elif vol_state == 'PREMIUM_COMPRESSION': atr_mult = 0.30
