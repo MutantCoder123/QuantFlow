@@ -521,6 +521,68 @@ class ReasoningEngine:
     llm_enabled = {} # symbol -> bool
 
     @classmethod
+    def _build_portfolio(cls):
+        """Reconstruct an L3 Portfolio from the tracked user positions.
+
+        Each position contributes qty*|entry-stop| of risk to its cluster
+        when it carries a numeric quantity AND a stoploss; positions
+        missing either contribute nothing (they cannot be sized). There is
+        no realised-P&L feed in this process, so realized_loss_today stays
+        0.0 -- the daily-loss breaker is a documented no-op here until a
+        P&L source is wired (Phase 4/5).
+        """
+        from core.risk import Portfolio, cluster_of, load_clusters
+        book = Portfolio()
+        clusters = load_clusters()
+        for sym, pos in list(cls.user_positions.items()):
+            if not isinstance(pos, dict):
+                continue
+            try:
+                qty = float(pos.get("qty") or pos.get("entry_qty") or 0)
+                entry = float(pos.get("entry_price") or pos.get("entry") or 0)
+                stop = float(pos.get("stoploss") or pos.get("stop") or 0)
+            except (TypeError, ValueError):
+                continue
+            if qty > 0 and entry > 0 and stop > 0:
+                book.add_open(sym, cluster_of(sym, clusters), qty * abs(entry - stop))
+        return book
+
+    @classmethod
+    def _attach_sizing(cls, gatekeeper_res, symbol, math_setup, regime_meta, payload):
+        """Size an authorised proposal and stamp qty / risk / rejection onto
+        the UI card (improved §4.3)."""
+        try:
+            from core.risk import size, load_risk_limits
+            from core.types import Proposal
+            geo = math_setup.get("execution_geometry") or {}
+            entry = float(geo.get("calculated_entry") or 0)
+            stop = float(geo.get("padded_stop") or 0)
+            target = float(geo.get("calculated_target") or 0)
+            if entry <= 0 or stop <= 0:
+                gatekeeper_res["Qty"] = 0
+                gatekeeper_res["Risk_Rejection"] = "NO_GEOMETRY"
+                return
+            prop = Proposal(
+                symbol=symbol, bias=math_setup.get("directional_bias", "LONG"),
+                entry=entry, stop=stop, target=target,
+                composite=float(math_setup.get("composite_score") or 0.0),
+                regime=regime_meta.get("current_regime", "UNKNOWN"))
+            adv = float(payload.get("adv_shares") or 0.0)
+            out = size(prop, cls._build_portfolio(), load_risk_limits(), adv)
+            if getattr(out, "reason", None):
+                gatekeeper_res["Qty"] = 0
+                gatekeeper_res["Risk_Amount"] = 0.0
+                gatekeeper_res["Risk_Rejection"] = out.reason
+            else:
+                gatekeeper_res["Qty"] = out.qty
+                gatekeeper_res["Risk_Amount"] = round(out.risk_amount, 2)
+                gatekeeper_res["Risk_Rejection"] = None
+        except Exception as e:
+            logger.error(f"L3 sizing failed for {symbol}: {e}")
+            gatekeeper_res["Qty"] = 0
+            gatekeeper_res["Risk_Rejection"] = "SIZING_ERROR"
+
+    @classmethod
     async def start_global_gatekeeper_loop(cls):
         logger.info("Starting Global Gatekeeper Loop (runs every 10s)")
         from intraday_gatekeeper import IntradayGatekeeper
@@ -593,6 +655,12 @@ class ReasoningEngine:
                         composite=math_setup_fl.get("composite_score"),
                         decision=_classify_decision(math_setup_fl, gatekeeper_res),
                     ))
+
+                    # ---- L3 risk layer: every authorised proposal gets a
+                    # quantity and a rupee risk, or a risk rejection (A-4.3). ----
+                    if gatekeeper_res.get("llm_authorized"):
+                        cls._attach_sizing(gatekeeper_res, sym, math_setup_fl,
+                                           regime_meta_fl, payload)
 
                     has_pos = bool(current_pos)
                     current_advice = {

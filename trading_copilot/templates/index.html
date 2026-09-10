@@ -2281,11 +2281,16 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                                     <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Target</div>
                                     <div class="text-sm font-bold text-emerald-400">${data.Exit_Target_Price || 'N/A'}</div>
                                 </div>
-                                <div class="bg-slate-800/50 p-2 rounded border border-slate-700/50 text-center col-span-2">
+                                <div class="bg-slate-800/50 p-2 rounded border border-slate-700/50 text-center">
                                     <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Stop Loss</div>
                                     <div class="text-sm font-bold text-rose-400">${data.Stoploss || 'N/A'}</div>
                                 </div>
+                                <div class="bg-slate-800/50 p-2 rounded border border-slate-700/50 text-center">
+                                    <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Qty (L3)</div>
+                                    <div class="text-sm font-bold ${data.Risk_Rejection ? 'text-rose-400' : 'text-sky-400'}">${data.Risk_Rejection ? data.Risk_Rejection : (data.Qty != null ? data.Qty : 'N/A')}</div>
+                                </div>
                             </div>
+                            ${data.Risk_Rejection ? `<div class="mb-3 px-2 py-1 rounded text-[11px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30">RISK LAYER BLOCKED: ${data.Risk_Rejection}</div>` : (data.Risk_Amount ? `<div class="mb-3 px-2 py-1 rounded text-[11px] text-slate-400 border border-slate-700/50">Sized risk: ₹${data.Risk_Amount}</div>` : '')}
                             <div class="flex justify-between items-center px-1 mt-2">
                                 <div class="flex items-center gap-1.5">
                                     <span class="text-xs text-slate-500 uppercase tracking-wider">Confidence:</span>
