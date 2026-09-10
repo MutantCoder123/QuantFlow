@@ -406,8 +406,15 @@ class MathEngine:
         
         omni = {}
         try:
+            # Anchor every resample to the NSE session open (09:15 IST), not
+            # midnight (C-4). df.resample('4h') defaults to a midnight origin,
+            # so its first "4h" bar of the day ran 08:00-12:00 and contained
+            # only 09:15-12:00 = 2h45m of real session -- a dimensionally
+            # wrong bar. 24h is divisible by every freq here, so a 09:15
+            # origin tiles cleanly and re-anchors each session.
+            session_origin = pd.Timestamp(df.index.min().date()) + pd.Timedelta(hours=9, minutes=15)
             for freq, label in [('5min', '5m'), ('15min', '15m'), ('30min', '30m'), ('1h', '1h'), ('4h', '4h')]:
-                omni[label] = df.resample(freq).agg(agg_dict).dropna()
+                omni[label] = df.resample(freq, origin=session_origin).agg(agg_dict).dropna()
         except Exception as e:
             import logging
             logging.getLogger(__name__).error(f"Error resampling omni dataframes: {e}")
