@@ -1,0 +1,20 @@
+# Round-trip cost rate card for Indian intraday equity.
+# VERIFY every rate against your actual broker's current card before relying
+# on it -- these change (source: improved_architecture_and_features.md §4.3.2).
+
+intraday_equity:
+  brokerage_pct: 0.03          # % of turnover per leg
+  brokerage_cap: 20            # Rs. cap per executed order (per leg)
+  stt_sell_pct: 0.025          # Securities Transaction Tax, SELL leg only
+  exchange_txn_pct: 0.00297    # NSE transaction charge, both legs
+  sebi_pct: 0.0001             # SEBI turnover fee, both legs
+  stamp_duty_buy_pct: 0.003    # stamp duty, BUY leg only
+  gst_pct: 18                  # GST on (brokerage + exchange txn + SEBI)
+
+  # round_trip_cost_pct() only receives (entry, exit_px) -- it has no
+  # quantity. But the Rs.20 brokerage cap makes the real cost-as-%-of-notional
+  # depend on order size (a large order's brokerage is capped, so its % is
+  # lower). This reference quantity is the order size assumed for that
+  # cost-% calculation so the cap can bite realistically. The L3 risk layer
+  # (Task 3.3) recomputes costs against the actual sized quantity.
+  ref_qty: 100

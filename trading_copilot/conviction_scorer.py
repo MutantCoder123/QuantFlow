@@ -264,8 +264,14 @@ class ConvictionScorer:
         risk = abs(calculated_entry - padded_stop)
         reward = abs(target - calculated_entry)
 
-        effective_risk = risk + (0.1 * atr_5m)
-        effective_reward = max(0.0001, reward - (0.1 * atr_5m))
+        # Real round-trip charges (improved §4.3.2), not just the old
+        # +/-0.1*ATR5m slippage stub. cost_abs is in price units per share.
+        from core.costs import load_costs, round_trip_cost_pct
+        slippage = 0.1 * atr_5m
+        cost_pct = round_trip_cost_pct(calculated_entry, target, load_costs())
+        cost_abs = calculated_entry * cost_pct / 100.0
+        effective_risk = risk + slippage + cost_abs
+        effective_reward = max(0.0001, reward - slippage - cost_abs)
 
         import math
         # Multiply absolute score by 4.5 to stretch the logistic curve
