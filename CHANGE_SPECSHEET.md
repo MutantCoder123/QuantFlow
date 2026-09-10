@@ -588,6 +588,92 @@ verification. 4/4 tests pass.
 > Exit criteria: all 102 thresholds live in YAML; `evaluate()` is a pure function under test; the display
 > path cannot mutate decision state; ingest is single-writer; the perf hotspots are gone.
 
+**Status: 3/7 tasks done (2.1, 2.2, 2.3). 2.4–2.7 not started.**
+
+### Task 2.1 — PolicyConfig
+
+**Files:** `trading_copilot/config/policy_v1.yaml`, `trading_copilot/core/__init__.py`,
+`trading_copilot/core/policy_config.py` (new). Commit `fd75341`.
+
+`config/policy_v1.yaml` collects every threshold previously hardcoded across `semantic_tagger.py`,
+`conviction_scorer.py`, `intraday_gatekeeper.py`, and `regime_manager.py` into one auditable, versioned
+file. **Every value was verified against the actual current source (line-by-line `grep`/`Read`) before
+transcription** — not taken from the plan's YAML block on trust, because Tasks 0.9 and 0.10 both turned up
+literal-value mismatches between this plan's pseudocode and the real code. All values matched.
+
+`core/policy_config.py`: `PolicyConfig` is a frozen (immutable) dataclass; `load_policy()` reads + validates
+the YAML and raises `ValueError` on any missing required section (`semantic`, `regime`, `conviction`,
+`gates`, `horizon`).
+
+**Documented exception (not a silent behaviour change):** `semantic.whale_slope_gate_adv_frac: 0.002` does
+**not** correspond to any current code path. It is the intended ADV-normalised replacement for the
+unnormalised `abs(whale_cvd_slope) > 50` magic number at `semantic_tagger.py:67`, but wiring that call site
+is out of scope for a task whose stated exit bar is "reproduce today's behaviour exactly." Flagged in the
+YAML header comment and the commit message.
+
+**Scope note:** this task builds the loader only. Rewiring individual call sites
+(`semantic_tagger.py`/`conviction_scorer.py`/`intraday_gatekeeper.py`) to *read* from `PolicyConfig` instead
+of their inline constants is not a named step anywhere in this plan and is left as follow-up work — the YAML
++ loader exist so the values are auditable and available for the Phase 4 fitting work.
+
+**Verified:** 4/4 new tests pass; full suite green (67 tests).
+
+### Task 2.2 — Split read from write (`advance_state`) (fixes A-4)
+
+**Files:** `trading_copilot/regime_manager.py`, `trading_copilot/conviction_scorer.py`,
+`trading_copilot/reasoning_engine.py`, `tests/test_state_isolation.py` (new). Commit `934e16d`.
+
+The regime FSM and whipsaw shield were defeated by a second, faster caller: `api_server.py`'s 2 Hz display
+refresh called `determine_regime()` and `score_setup()` purely to render a value, mutating the same
+hysteresis buffer, epoch counter, and polarity-flip counter the 0.1 Hz gatekeeper loop depends on. That
+collapsed the 30 s hysteresis window to ~1.5 s (13× faster) and could fire the whipsaw shield on noise the
+decision loop never saw.
+
+- `RegimeManager.peek_regime()` — reads `current_regime`/`session_phase`/`epochs_in_regime` without touching
+  `memory.buffer`, `current_regime`, or `epochs_in_regime`.
+- `ConvictionScorer.score_setup(..., advance_state: bool = False)` — the `polarity_flips_today` and
+  `previous_bias` mutations (and the post-penalty bias re-evaluation) only run when `advance_state=True`.
+- `ReasoningEngine.build_structured_payload(..., *, advance_state: bool = False)` — peeks by default; calls
+  `determine_regime`/`score_setup` with `advance_state=True` only when the caller passes it.
+
+**Exactly one call site sets `advance_state=True`:** the main gatekeeper loop in
+`start_global_gatekeeper_loop` — the single authoritative 0.1 Hz decision cadence this state is meant to
+track.
+
+**Two other call sites audited, left at the new default (`False`):**
+1. `api_server.py`'s 2 Hz display `build_structured_payload` call — the bug this task fixes. (No edit
+   needed; the new kwarg defaults to `False`.)
+2. `analyze_stock`'s own `build_structured_payload` call, used by the user-triggered
+   `POST /api/reasoning/instant/{symbol}` endpoint. **Not named in the plan** (which only lists two call
+   sites). Reasoned through: it's a human-driven, un-rate-limited action; letting it advance regime/whipsaw
+   state would reintroduce the exact defect category this task removes (an uncontrolled second caller
+   mutating shared hysteresis state) if a user clicks it repeatedly across symbols. Left as peek.
+
+**Verified:** 3/3 new tests pass; full suite green (70 tests).
+
+### Task 2.3 — Wire MTFFeatureExtractor (fixes A-5)
+
+**Files:** `trading_copilot/rolling_state_engine.py`, `trading_copilot/mtf_extractor.py`,
+`tests/test_mtf_wiring.py` (new). Commit `d9b6a22`.
+
+`MTFFeatureExtractor.extract_all()` was fully implemented and correct but **never called**, so
+`fractal_alignment` / `volatility_state` / `elasticity_risk` / `kinetic_divergence` were permanently pinned
+to `SemanticTagger`'s defaults on every symbol every tick. `RegimeManager._evaluate_candidate()` branches on
+exactly those fields, so `PRE_BREAKOUT_SQUEEZE` (needs `"SQUEEZE"` in `volatility_state`) and
+`MEAN_REVERSION_IMMINENT` (needs `"OVERSTRETCHED"` in `elasticity_risk`) could never fire — two of five
+documented regimes were dead code, biasing everything toward `RANGE_BOUND_CHOP`.
+
+Wired into `RollingStateEngine._compute_symbol`, immediately before `TerminalDashboard.update_state`:
+`final_payload.update(MTFFeatureExtractor.extract_all(final_payload, final_payload['ltp']))`. Also deleted
+the dead `bandwidth` local in `calc_volatility_state` (computed, never read, carrying a comment admitting
+uncertainty about its own formula).
+
+Both fixture cases in the plan's test were traced by hand before writing the test — the extractor's logic
+was already correct, only the call was missing; the regression guard asserts `"MTFFeatureExtractor"` appears
+in `_compute_symbol`'s source.
+
+**Verified:** 3/3 new tests pass; full suite green (73 tests).
+
 ---
 
 ## Open questions / follow-ups

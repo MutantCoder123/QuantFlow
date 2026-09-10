@@ -45,15 +45,15 @@ full detail and the still-open question for the user.
 
 ## Phase 2 — Purity, Config, Single-Writer
 
-- [ ] **2.1** PolicyConfig (102 thresholds → YAML)
-- [ ] **2.2** Split read from write via `advance_state` (fixes A-4)
-- [ ] **2.3** Wire MTFFeatureExtractor (fixes A-5)
+- [x] **2.1** PolicyConfig (thresholds → YAML) — commit `fd75341`
+- [x] **2.2** Split read from write via `advance_state` (fixes A-4) — commit `934e16d`
+- [x] **2.3** Wire MTFFeatureExtractor (fixes A-5) — commit `d9b6a22`
 - [ ] **2.4** Queue-based single-writer ingest
 - [ ] **2.5** Stream supervision and staleness (fixes A-12)
 - [ ] **2.6** Retire performance hotspots (fixes D-1, D-2, D-3)
 - [ ] **2.7** Session-anchored resampling (fixes C-4)
 
-**Phase 2 status:** not started — 0/7 tasks done
+**Phase 2 status:** in progress — 3/7 tasks done
 
 ## Phase 3 — Risk, Horizon, Cost  *(not started)*
 
