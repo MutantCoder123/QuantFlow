@@ -771,6 +771,122 @@ divisible by all five frequencies so the origin tiles cleanly and each session r
 
 ---
 
+## Phase 3 — Risk, Horizon, Cost
+
+> Exit criteria: every proposal carries a quantity; correlated clusters can't exceed their risk budget;
+> expectancy is net of real costs; one horizon governs prompt, measurement, and exits.
+
+**Status: ✅ complete — 5/5 tasks done. 103 tests passing.**
+
+### Task 3.1 — Cost model (improved §4.3.2)
+
+**Files:** `trading_copilot/config/costs.yaml`, `trading_copilot/core/costs.py` (new),
+`trading_copilot/conviction_scorer.py`. Commit `163344d`.
+
+`round_trip_cost_pct(entry, exit_px, cfg)` sums both legs' brokerage (capped Rs.20/order), STT (sell),
+exchange txn + SEBI (both legs), stamp duty (buy), and GST on the charge components, as % of entry notional.
+`net_reward(...)` subtracts that plus a spread term.
+
+**Design note (why `test_cost_scales_with_notional` passes robustly, not on FP noise):** the function only
+gets `(entry, exit_px)`, but the Rs.20 brokerage cap makes real cost-% order-size dependent. `costs.yaml`
+carries a `ref_qty` (100) — the assumed order size for the cost-% calc only — so the cap can bite; the L3
+layer recomputes against the actual sized qty.
+
+**Deviation:** the plan's Step 5 pseudocode drops the existing `0.1*ATR5m` slippage and uses `cost_abs`
+alone. Kept both in `effective_risk`/`effective_reward` — market-impact slippage and statutory charges are
+separate costs and §4.3.2 itself says "plus spread". Slightly stricter than the plan's version, which is the
+stated intent.
+
+**Verified:** 3/3 new tests pass; full suite green (89 tests).
+
+### Task 3.2 — Cluster map (improved §4.3.1)
+
+**Files:** `trading_copilot/config/clusters.yaml`, `trading_copilot/core/risk.py`,
+`trading_copilot/core/types.py` (new). Commit `3cab9fc`.
+
+`clusters.yaml` partitions the 27-name watchlist (ADANI×4, POWER_CAPGOODS×5, PSU_METALS_INFRA, FINANCIALS×7,
+TELECOM, IT, HEALTHCARE, SHIPPING, EV; RELIANCE deliberately its own). `load_clusters()` inverts to
+`{symbol: cluster_id}`; `cluster_of(symbol, map)` returns the cluster or the symbol when unmapped. This
+commit also lands `core/types.py` (Proposal/SizedProposal/Rejection frozen dataclasses) and the rest of
+`core/risk.py` (RiskLimits, Portfolio, `size()`) as the shared foundation for 3.3 — inert until 3.3 wires
+it.
+
+**Deviation:** BHEL and SCI each appear in two of the plan's overlapping prose groups; a symbol can only be
+in one cluster. BHEL → POWER_CAPGOODS, SCI → its own SHIPPING. The three tests (Adani grouping, power
+grouping, unmapped fallback) all pass.
+
+**Verified:** 3/3 new tests pass; full suite green (92 tests).
+
+### Task 3.3 — Position sizing and exposure limits (improved §4.3)
+
+**Files:** `trading_copilot/config/risk.yaml` (new), `trading_copilot/reasoning_engine.py`,
+`trading_copilot/templates/index.html`. Commit `708f37e`.
+
+`core.risk.size(proposal, portfolio, limits, adv_shares)` enforces, in order: DEGENERATE_STOP guard,
+DAILY_LOSS_LIMIT breaker, per-trade risk (`risk_per_trade_pct` of capital at the stop), liquidity cap
+(`max_adv_participation` of ADV), aggregate per-cluster risk budget (`CLUSTER_LIMIT_<id>` /
+`SIZE_ROUNDS_TO_ZERO`).
+
+`ReasoningEngine._attach_sizing` runs after `IntradayGatekeeper.evaluate` authorises a proposal — the card
+gains `Qty` / `Risk_Amount` / `Risk_Rejection`. `_build_portfolio` reconstructs the open-risk book from
+`user_positions` (`qty*|entry-stop|` per position, mapped to its cluster; positions missing a numeric qty or
+stop contribute nothing). `index.html renderReasoningReport` gets a "Qty (L3)" cell + a sized-risk /
+risk-layer-blocked banner (`node --check` clean).
+
+**Known limitation (documented):** no realised-P&L feed in this process, so
+`Portfolio.realized_loss_today` is always 0.0 — the daily-loss breaker is a no-op here until a P&L source is
+wired (Phase 4/5). Per-trade, liquidity and cluster caps are fully active.
+
+**Verified:** 5/5 new tests pass; full suite green (97 tests).
+
+### Task 3.4 — Unify the horizon (improved §4.4)
+
+**Files:** `trading_copilot/intraday_gatekeeper.py`, `trading_copilot/signal_ledger.py`,
+`trading_copilot/performance_analyzer.py`, `trading_copilot/config/policy_v1.yaml`,
+`trading_copilot/templates/index.html`. Commit `b593336`.
+
+One `policy_v1.yaml` `horizon` block is now the source of truth (primary 90m, entry_cutoff 13:45,
+square_off 15:20, measure_at [30, 90]).
+
+- Gatekeeper Path B: HORIZON CUTOFF rejects any new entry after `entry_cutoff_ist` with
+  `math_rejection="ENTRY_CUTOFF_<hhmm>"`, `llm_authorized=False`.
+- `SignalLedger`: `_pending_signals` re-keyed from hardcoded `target_30m`/`target_60m` to
+  `targets`/`resolved` dicts built from `_measure_at()`. `_resolve_one` loops the checkpoints, writes
+  `pnl_<n>m_pct` / `directional_correct_<n>m` per checkpoint, marks RESOLVED when the primary (90m) lands;
+  an intrabar stop/target hit at any checkpoint still resolves early.
+- `PerformanceAnalyzer._compute_metrics`: optimises `win_rate_90m` / `win_rate_primary`, keeps
+  `win_rate_30m` as a diagnostic, drops `win_rate_60m`; best/worst-regime selection keys off
+  `win_rate_primary`.
+- Stagnation gate 30m → 60m (gatekeeper + policy).
+- Prompt: "2-6 hour" → "~90-minute primary + 30m diagnostic; no entry after 13:45 IST, square-off 15:20".
+
+`test_bar_accurate_resolution.py` / `test_pending_recovery.py` updated for the checkpoint-keyed structure.
+
+**Verified:** 2/2 new tests pass; full suite green (99 tests).
+
+### Task 3.5 — Emit tags AND values; renormalise the composite (improved §4.7, C-1)
+
+**Files:** `trading_copilot/semantic_tagger.py`, `trading_copilot/conviction_scorer.py`,
+`trading_copilot/regime_manager.py`, `trading_copilot/intraday_gatekeeper.py`. Commit `6463090`.
+
+- §4.7: Block-1/2/3 fields with a real underlying scalar are now `{"state": <tag>, <scalar>: <value>}`
+  (`volume_regime.vol_z`, `order_book_imbalance_state.obi`, `session_cost_basis_state.vwap_atr_ratio`,
+  `flow_divergence_state.{whale_slope, price_to_vwap_pct}`, `volatility_regime_state.iv_pct`,
+  `options_gravity_state.mp_atr_ratio`, `pcr_regime.pcr_pct`). Pass-through fields stay bare strings. New
+  module-level `state_of(v)` normalises both shapes, wired into every string-comparison consumer
+  (RegimeManager unwraps at `_extract_regime_slice`'s boundary so `_evaluate_candidate` is untouched;
+  ConvictionScorer; IntradayGatekeeper). The UI reads none of these fields — no JS change.
+- C-1: `ConvictionScorer._normalized_weights(regime, catalyst_live)` renormalises the component weights over
+  the live components only. Catalyst is a hardcoded 0.0 pass-through, so `w_cat` (0.10–0.25) was bleeding
+  weight into nothing and capping `|composite|` below 1.0 (0.75 in TREND_EXPANSION). With catalyst dead,
+  `w_cat` drops from the denominator; the three live components sum to 1.0. `score_setup` uses it.
+
+**Verified:** 4/4 new tests pass; full suite green (103 tests) — every SemanticTagger consumer still passes.
+
+**Phase 3 complete: 5/5 tasks done, 103 tests passing.**
+
+---
+
 ## Open questions / follow-ups
 
 - **PolicyConfig call sites not yet rewired (Task 2.1 scope note):** `config/policy_v1.yaml` + the loader
@@ -781,6 +897,15 @@ divisible by all five frequencies so the origin tiles cleanly and each session r
 - **`_supervise` reconnect not verified against a live drop (Task 2.5):** unknown whether
   `MarketDataStreamerV3.connect()` can be re-invoked on the same instance after disconnect; if not, the
   supervisor needs to recreate the streamer each loop.
+- **L3 daily-loss breaker is a no-op (Task 3.3):** `Portfolio.realized_loss_today` is always 0.0 in the
+  reasoning process — needs a realised-P&L feed (Phase 4/5) before the DAILY_LOSS_LIMIT rejection can fire
+  in production. Per-trade / liquidity / cluster caps are live.
+- **`costs.yaml` rate card unverified (Task 3.1):** rates are from the improved-arch doc, not a live broker
+  card — verify before trusting the expectancy numbers. `ref_qty` (100) is a modelling assumption for the
+  cost-% calc, not a real order size.
+- **`ConvictionScorer._get_adaptive_weights` still reads `win_rate_30m`** for its feedback scaling (Task
+  3.4 kept that key as a diagnostic); arguably should use `win_rate_primary` now — left as-is, not a named
+  plan step.
 
 - **Security incident (Phase 0)** — awaiting user decision on token rotation and history rewriting (both the
   local `7e239ca` commit and the pre-existing `master`/`origin` exposure at `2c38035`).

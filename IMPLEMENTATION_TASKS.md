@@ -55,13 +55,15 @@ full detail and the still-open question for the user.
 
 **Phase 2 status:** ✅ complete — 7/7 tasks done
 
-## Phase 3 — Risk, Horizon, Cost  *(not started)*
+## Phase 3 — Risk, Horizon, Cost
 
-- [ ] **3.1** Cost model
-- [ ] **3.2** Cluster map
-- [ ] **3.3** Position sizing and exposure limits
-- [ ] **3.4** Unify the horizon
-- [ ] **3.5** Tags + values; renormalise composite (fixes C-1)
+- [x] **3.1** Cost model — commit `163344d`
+- [x] **3.2** Cluster map — commit `3cab9fc`
+- [x] **3.3** Position sizing and exposure limits — commit `708f37e`
+- [x] **3.4** Unify the horizon — commit `b593336`
+- [x] **3.5** Tags + values; renormalise composite (fixes C-1) — commit `6463090`
+
+**Phase 3 status:** ✅ complete — 5/5 tasks done
 
 ## Phase 4 — Measurement  *(not started)*
 
