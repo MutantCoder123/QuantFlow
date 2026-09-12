@@ -80,14 +80,24 @@ full detail and the still-open question for the user.
 > Note: all 84 resolved signals are **legacy**, graded at the retired 30m/60m horizons, so they carry no
 > 90m outcome and do not count toward the 200 either. The counter effectively restarts from 0.
 
-## Phase 5 — Operator Surfaces  *(not started)*
+## Phase 5 — Operator Surfaces  *(in progress — 2/6, paused by request after 5.2)*
 
-- [ ] **5.1** Attention ranking
-- [ ] **5.2** Provenance panel
+- [x] **5.1** Attention ranking (improved §4.6) — commits `2b5e276`, `d543f7d` (fix round: NaN sort comparator)
+- [x] **5.2** Provenance panel (improved §5.1) — commit `3b265ad`
 - [ ] **5.3** Exposure view
 - [ ] **5.4** Replay runner
 - [ ] **5.5** Fix screener, close discovery loop (fixes A-15)
 - [ ] **5.6** Session review + dead-code removal
+
+> Executed via Subagent-Driven Development (fresh implementer per task + task review +
+> fix loop). Ledger: `.superpowers/sdd/2026-09-09-quantflow-remediation-and-measurability/progress.md`.
+> Pre-flight rulings recorded there: (a) Task 5.5 gets an explicit Step 0 — disable the
+> Discovery/playbook-generate button + endpoint, per the plan's own Deliberate Gaps note
+> that its step list omitted; (b) Task 5.5's screener fixes stay scoped to pure scoring/
+> selection logic — rewiring `screener_engine.py` off the dead Angel One `smart_connect`
+> path onto Upstox is a separate, unscoped migration; (c) Task 5.6's ported
+> `fetch_market_breadth` must actually feed the live `/ws` payload (with the existing
+> watchlist-only proxy as fallback), not sit unused next to it.
 
 ---
 

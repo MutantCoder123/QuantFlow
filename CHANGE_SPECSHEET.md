@@ -992,6 +992,123 @@ against the real on-disk ledger.
 
 ---
 
+## Phase 5 — Operator Surfaces *(in progress — 2/6, paused after 5.2 by request)*
+
+Executed via Subagent-Driven Development: a fresh implementer subagent per task, a task
+review (spec compliance + code quality) against the actual diff after each, and a fix
+loop when the review finds something. Ledger, briefs, reports and review packages live at
+`.superpowers/sdd/2026-09-09-quantflow-remediation-and-measurability/` (git-ignored).
+
+**Pre-flight rulings** (recorded before Task 5.1 started, after scanning all six tasks for
+plan-vs-plan and plan-vs-code conflicts):
+
+- The plan's own "Deliberate Gaps" section says *"disable the Discovery button until Task
+  5.5 rebuilds the loop properly... Add to Task 5.5 as its first step"* — but the printed
+  Task 5.5 step list (6 steps, all scoring-math fixes) never actually includes that step.
+  Ruling: Task 5.5 gets an explicit Step 0 honoring the Deliberate Gaps instruction over
+  the incomplete step list.
+- `screener_engine.py` (Task 5.5's target) still constructs against `smart_connect`
+  (Angel One SmartAPI), which doesn't exist anywhere in the live 4-process Upstox
+  architecture. Ruling: Task 5.5's six listed steps are pure, unit-testable scoring/
+  selection functions independent of the data source — fix those; do NOT rewire the
+  screener onto Upstox, that's a separate unscoped migration.
+- Task 5.6 asks to port `macro_eod_engine.fetch_market_breadth` (the correct NIFTY-50
+  A/D calc) into `macro_worker.py` before deleting the old file. Found that the live `/ws`
+  handler (`api_server.py:402-413`) already computes its own `ad_ratio` — a watchlist-only
+  proxy — and always overrides whatever the stored `ad_ratio` field holds, so a naive port
+  would ship correct code that nothing ever calls. Ruling: the ported fetch must actually
+  feed the `/ws` payload (falling back to the watchlist proxy only when the fetch hasn't
+  run yet), with the UI label reflecting which source is showing.
+
+### Task 5.1 — Attention ranking (improved §4.6)
+
+**Files:** `reasoning_engine.py`, `api_server.py`, `templates/index.html`, `tests/test_attention_rank.py`.
+Commits `2b5e276`, `d543f7d` (fix round).
+
+The plan's formula (`ev_r × confidence × freshness`) predates Task 4.2, which deleted the
+invented-probability "confidence" field — there is no such field in the current payload.
+Reconciled as `ev_r = statistical_edge if measured else (reward_risk - 1.0)`, `freshness =
+1 / (1 + age_s/60)`. Rejected setups rank at `-inf` so they sink to the bottom without a
+special case. `data_age_s` (already tracked per-tick) is now copied onto the structured
+payload so `attention_rank(sp)` stays a single-argument pure function.
+
+Fixed the debounce asymmetry named in the plan: the old `if count < 3: continue` blanked
+the operator's card for the first two ticks of *any* state change, not just the LLM
+escalation it was meant to protect. Now the card publishes every tick (marked `unstable`
+while `count < 3`); only escalation to the LLM still requires 3 stable ticks. Escalation
+is additionally capped to the top 5 ranked symbols per cycle, computed without a second
+`build_structured_payload(..., advance_state=True)` call per symbol (Task 2.2 restricted
+that mutation to exactly one call site per tick; a second call in the same tick would
+double-mutate the whipsaw-shield state).
+
+**Found in review, fixed in round 1:** the Live Action grid's client-side sort comparator
+(`getAttentionRank(b) - getAttentionRank(a)`) returned `NaN` whenever both cards were
+rejected/unranked (`-Infinity - (-Infinity) === NaN` in JS) — a common state, not an edge
+case, since every suppressed setup renders that way. `Array.prototype.sort` is undefined
+on a NaN-returning comparator, so the grid's ordering jittered across the 3s poll for any
+set of suppressed cards. Fixed with explicit `!==`/`>` branching that handles `-Infinity`
+correctly on both operand orders (commit `d543f7d`).
+
+**Deviations:** top-N escalation re-evaluates only at the instant a symbol's debounced
+advice *transitions* — a symbol that climbs into the top-5 without its own advice changing
+won't retroactively escalate until it transitions again (scoped, documented, not a redesign
+of the escalation trigger). The Live Action grid turned out to be fed by
+`/api/reasoning/all_reports` (`latest_reports`), not `/ws`'s `global_state` as guessed when
+dispatching the task — rank is attached at the correct endpoint.
+
+**Not fixed (deferred, non-blocking):** `ATTENTION_TOP_N` is a separate constant in Python
+and JS with only the Python side under test — nothing stops the two drifting apart.
+`attention_rank` is computed twice per tick on two independently-built structured payloads
+(the escalation-decision one, discarded; the `/ws` one, displayed) — very likely identical
+in practice but not proven so by construction.
+
+**Verified:** 140 passed / 0 failed after the fix round (was 125 before this task); `node
+--check` clean on the modified inline scripts.
+
+### Task 5.2 — Provenance panel (improved §5.1)
+
+**Files:** `conviction_scorer.py`, `templates/index.html`, `tests/test_provenance_panel.py`.
+Commit `3b265ad`.
+
+`ConvictionScorer.score_setup` now returns a `contributions` dict (one entry per `micro`/
+`struct`/`deriv`/`catalyst` category: `raw`, `normalized`, `weight`, `contribution`,
+`firing_signals`) built from the function's own existing intermediate variables — not
+recomputed, so it cannot drift from the real composite math. `catalyst` gets `raw: None`
+(not `0.0`) plus `dead: True` and the marker `"⚠ no catalyst input (see C-1)"`, distinguishing
+"never scored" from "scored as neutral" for a term that has been a hardcoded pass-through
+since before this plan. `firing_signals` lists only the tags that actually matched a scoring
+branch, not every non-empty tag.
+
+`_create_rejected_output` now threads `contributions` through too, so a rejected setup still
+shows the operator *why* — six of the seven rejection paths fire after category scoring and
+get the real dict; only `MARKET_CLOSED` (the one guard that fires before scoring happens)
+gets `None`.
+
+The mockup's footer (`edge unmeasured (n=41 < 200)  staleness: micro 0.4s · deriv 271s`)
+needed real per-block staleness numbers or nothing at all — never a fabricated one. `micro`
+has one (`data_age_s`, already tracked). Investigated `struct` (`RollingStateEngine` tracks
+a baseline-file mtime internally but never surfaces it to the payload), `deriv` (no age/
+timestamp field anywhere in `derivatives_worker.py`'s output), and `catalyst` (`NewsEngine.
+last_fetch_time` exists but only on a separate process's own `/state` endpoint, not on the
+payload reaching the scorer) — none reachable without new cross-file or cross-process
+plumbing, so all three render as `n/a` rather than an invented number. `edge` reuses the
+pre-existing `calibration_status()` string verbatim.
+
+**Not fixed (deferred, non-blocking):** only the `NEUTRAL_CONVICTION` rejection path has a
+dedicated test among the six structurally-identical post-scoring paths that now carry
+`contributions` (same one-line pass-through, verified by direct code reading, but untested
+individually). `contribution` is computed before `normalized`/`weight` are independently
+rounded for display, so the displayed triple can show a ~0.001 mismatch in edge cases
+(tolerance-tested, does not affect the real composite math).
+
+**Verified:** 147 passed / 0 failed; review approved with zero fix rounds.
+
+**Phase 5 status: 2/6 done (5.1, 5.2). Paused after 5.2 by explicit request — 5.3 (Exposure
+view), 5.4 (Replay runner), 5.5 (screener + discovery loop), 5.6 (session review + dead-code
+removal) remain, briefs already prepared.**
+
+---
+
 ## Open questions / follow-ups
 
 - **PolicyConfig call sites not yet rewired (Task 2.1 scope note):** `config/policy_v1.yaml` + the loader
