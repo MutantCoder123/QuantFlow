@@ -211,6 +211,21 @@ async def get_arm_comparison(days: int = 30):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@app.get("/api/performance/reliability")
+async def get_reliability(days: int = 60):
+    """Realised win rate per |composite| decile (Task 4.4). A flat curve
+    means the score has no discriminative power -- the view says so."""
+    try:
+        from core.calibration import reliability_buckets, load_calibration, calibration_status
+        from signal_ledger import SignalLedger
+        from performance_analyzer import PerformanceAnalyzer
+        data = reliability_buckets(SignalLedger.load_all_signals(days),
+                                   primary_minute=PerformanceAnalyzer._primary_minute())
+        data["calibration_status"] = calibration_status(load_calibration())
+        return {"status": "success", "data": data}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 @app.post("/api/reasoning/instant/{symbol}")
 async def instant_analyze(symbol: str, req: InstantAnalyzeRequest):
     TerminalDashboard.active_states = local_active_states

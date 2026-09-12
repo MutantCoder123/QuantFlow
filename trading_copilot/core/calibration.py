@@ -91,3 +91,72 @@ def calibration_status(cal: Calibration | None = None) -> str:
     if cal is not None and cal.is_usable:
         return f"calibrated (n={n}, fitted {cal.fitted_at})"
     return f"unmeasured (n={n} < {MIN_N})"
+
+
+# Below this spread (percentage points) between the best and worst populated
+# bucket, the score is not separating winners from losers in any useful way.
+_DISCRIMINATION_THRESHOLD_PP = 10.0
+
+
+def reliability_buckets(signals: list, primary_minute: int = 90,
+                        n_buckets: int = 10, min_n: int = 10) -> dict:
+    """Realised win rate per |composite| decile (Task 4.4).
+
+    The x-axis is |composite| rather than a predicted probability because
+    while uncalibrated there IS no prediction -- and this is exactly the
+    diagnostic Task 4.3 needs first: a flat curve means the score has no
+    discriminative power, and no amount of calibration fixes that. Buckets
+    thinner than `min_n` are marked suppressed (not silently dropped) so the
+    operator sees where the evidence runs out.
+    """
+    key = f"directional_correct_{primary_minute}m"
+    width = 1.0 / n_buckets
+    buckets = [{"lo": round(i * width, 4), "hi": round((i + 1) * width, 4),
+                "n": 0, "wins": 0} for i in range(n_buckets)]
+
+    n_resolved = 0
+    n_legacy_excluded = 0
+    for s in signals or []:
+        outcome = s.get("outcome") or {}
+        if not str(outcome.get("status", "")).startswith("RESOLVED"):
+            continue
+        if key not in outcome:
+            # Resolved, but graded at a horizon we have since retired (the
+            # pre-Task-3.4 30m/60m schema). Counted separately rather than
+            # folded in -- a 60m outcome is not a 90m outcome, and silently
+            # mixing them would corrupt the curve. Counted rather than
+            # dropped, so "no data" is never shown when data exists.
+            n_legacy_excluded += 1
+            continue
+        try:
+            x = abs(float((s.get("signal_snapshot") or {}).get("composite_score") or 0.0))
+        except (TypeError, ValueError):
+            continue
+        idx = min(int(x / width), n_buckets - 1)
+        buckets[idx]["n"] += 1
+        buckets[idx]["wins"] += 1 if outcome.get(key) else 0
+        n_resolved += 1
+
+    populated = []
+    for b in buckets:
+        b["suppressed"] = b["n"] < min_n
+        if b["n"] and not b["suppressed"]:
+            b["win_rate"] = round(b["wins"] / b["n"] * 100, 2)
+            populated.append(b["win_rate"])
+        else:
+            b["win_rate"] = None
+        # The diagonal a perfectly calibrated score would sit on.
+        b["reference"] = round((b["lo"] + b["hi"]) / 2 * 100, 2)
+
+    spread = round(max(populated) - min(populated), 2) if populated else None
+    return {
+        "buckets": buckets,
+        "n_resolved": n_resolved,
+        "n_legacy_excluded": n_legacy_excluded,
+        "populated_buckets": len(populated),
+        "win_rate_spread": spread,
+        "has_discriminative_power": (
+            spread is not None and spread >= _DISCRIMINATION_THRESHOLD_PP),
+        "min_n": min_n,
+        "primary_minute": primary_minute,
+    }
