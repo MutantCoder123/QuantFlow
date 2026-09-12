@@ -1132,21 +1132,104 @@ overshoot). Also dropped a dead `load_clusters()` call left over from an earlier
 
 **Verified:** 156 passed / 0 failed after the fix round (was 147 before this task).
 
-**Phase 5 status: 3/6 done (5.1, 5.2, 5.3). 5.4 (Replay runner), 5.5 (screener + discovery
-loop), 5.6 (session review + dead-code removal) remain, briefs already prepared.**
+### Task 5.4 — Replay runner (improved §5.4)
+
+**Files:** `trading_copilot/replay/runner.py` (new), `trading_copilot/replay/__init__.py` (new),
+`tests/test_replay.py`. Commits `05aa358`, `5390537` (fix round).
+
+The architecturally riskiest task in this phase. The plan's brief ("feed recorded ticks
+through `process_tick → build_features → evaluate`") is architecture-document shorthand for
+a live, continuously-running pipeline built on several process-wide singletons — not
+something that can be called twice in a row and trusted to produce the same answer without
+deliberate isolation. Working out what actually had to be isolated, and proving it, was most
+of this task.
+
+The real per-tick path: `RollingStateEngine.process_tick()` → `_compute_symbol()` (run
+synchronously per tick, in place of the live system's decoupled 1.5s timer, so the run is a
+function of the tape and not of machine speed) → the resulting payload is read back from
+`TerminalDashboard.active_states` (the same hand-off point the live gatekeeper loop uses) →
+`ReasoningEngine.build_structured_payload(..., advance_state=True)` → `IntradayGatekeeper.
+evaluate()` → one `FeatureRecord`, built with the live loop's own `_numeric_features`/
+`_classify_decision` helpers so replayed and live records are directly comparable.
+
+Getting two identical replay() calls to produce byte-identical output required resetting or
+scoping every piece of shared mutable state the pipeline touches: `TerminalDashboard`'s three
+class-level dicts, `RollingStateEngine.live_options_state`/`daily_metrics_cache`, and the
+`ConvictionScorerRegistry`/`RegimeManagerRegistry` entries for the replayed symbols (popped
+before the run so fresh scorer/regime-manager instances are used, restored after). Wall-clock
+was frozen to each tick's own recorded timestamp (`freezegun`) so `data_age_s` and every other
+`time.time()` read in the pipeline become pure functions of the tape instead of wall-clock
+noise — the difference between a replay finishing in milliseconds and pacing believably at
+`speed`x, without needing `freezegun` to also patch `time.sleep` (verified it doesn't, and
+bound a real, un-frozen `time.sleep` reference defensively regardless).
+
+**Found and fixed independently, not in the original task scope:** `MicrostructureEngine`
+carries eight class-level per-token dicts (CVD, whale-CVD, session VWAP, last-tick baselines)
+that only reset on an IST *date change* — under a frozen clock a whole replay sits on one
+date, so without isolating these too, a second replay of the same day would silently inherit
+the first run's cumulative microstructure state. Verified load-bearing by mutation-testing:
+forcing the isolation off makes two identical replays diverge; restoring it makes them match.
+
+**Also found:** the plan named `gates.min_reward_risk` as the policy threshold to vary for the
+required "changed config changes output" test — that key doesn't exist. The real, live-wired
+threshold is `conviction.min_reward_risk` (read via `ConvictionScorer._cfg_conviction`, not
+`_cfg_gate`). Confirmed by reading the scorer directly rather than trusting the plan's
+citation. `cfg` takes effect by monkeypatching `core.policy_config.load_policy` for the
+duration of one replay call (every real call site does a function-local import, so patching
+the module attribute reaches all of them) — restored after, cache cleared both times.
+
+**Found in review, fixed in round 1 (documentation only, no code-logic change):** the
+report's stated reason for testing `min_reward_risk` at 0.0-vs-100.0 rather than default-vs-
+strict was itself factually wrong (claimed default-vs-strict would be vacuous; it isn't —
+default and strict genuinely produce different sequences on the test tape). The *choice* was
+still correct, just for a different reason: at the default, the target rejection reason
+already appears in both runs, so the test's strongest assertion ("appears ONLY in the strict
+run") could only be written against a lenient value where that rejection is impossible.
+Corrected the report's rationale; while re-verifying it the implementer also caught and fixed
+a second, unprompted error — a results table that had the default-run counts mis-pasted into
+the strict-run column. Also documented, in `replay()`'s own docstring: because feature
+computation runs synchronously per tick under a frozen clock, `data_age_s` is structurally
+pinned to ~0.0 in every replay, so the staleness shield (`intraday_gatekeeper.py`'s 15-second
+`STALE_DATA` check) can never fire here — this tool cannot be used to fit or validate that
+threshold, a real fidelity limit worth knowing before anyone tries.
+
+**Known, explicitly scoped-out limitation:** `_compute_symbol` runs once per tick (needed for
+"one `FeatureRecord` per tick evaluated" to be exact), which means a real ~2.4M-tick
+production day would be impractically slow through the CLI as written. Batching or a
+decimation flag is a real follow-up and a genuine behavior change (fewer records) — deferred
+as a separate decision rather than folded into this task.
+
+**Verified:** 158 passed / 0 failed after the fix round (was 156 before this task). Reviewer
+independently mutation-tested the isolation claims rather than trusting the report.
+
+**Phase 5 status: 4/6 done (5.1-5.4). 5.5 (screener + discovery loop), 5.6 (session review +
+dead-code removal) remain, briefs already prepared.**
 
 ---
 
 ## Open questions / follow-ups
 
-- **PolicyConfig call sites not yet rewired (Task 2.1 scope note):** `config/policy_v1.yaml` + the loader
-  exist, but `semantic_tagger.py` / `conviction_scorer.py` / `intraday_gatekeeper.py` still read their
-  inline constants. Rewiring them to `load_policy()` is not a named step in this plan — follow-up work.
+- **PolicyConfig call sites only partially rewired (Task 2.1 scope note, corrected during Task 5.4):**
+  `conviction_scorer.py`'s `min_stat_edge`/`min_reward_risk` gates (`_cfg_gate`/`_cfg_conviction`, reading
+  `policy.gates`/`policy.conviction`) and `intraday_gatekeeper.py`'s `horizon.entry_cutoff_ist` ARE live-wired
+  to `load_policy()` — confirmed by direct code reading while building the Task 5.4 replay runner, which
+  needed a threshold it could actually change. `semantic_tagger.py` and `regime_manager.py` remain on inline
+  constants. Rewiring the rest is not a named step in this plan — follow-up work, and worth knowing before
+  assuming a `policy_v2.yaml` edit will move behaviour it doesn't actually touch.
 - **`semantic.whale_slope_gate_adv_frac` (0.002)** in `policy_v1.yaml` corresponds to no code path yet — the
   intended ADV-normalised replacement for `abs(whale_cvd_slope) > 50` at `semantic_tagger.py:67`.
 - **`_supervise` reconnect not verified against a live drop (Task 2.5):** unknown whether
   `MarketDataStreamerV3.connect()` can be re-invoked on the same instance after disconnect; if not, the
   supervisor needs to recreate the streamer each loop.
+- **Replay's `data_age_s` is structurally always ~0.0 (Task 5.4):** because `_compute_symbol` runs
+  synchronously right after `process_tick` under a clock frozen to that tick's own timestamp, the staleness
+  shield (`intraday_gatekeeper.py`'s `age > 15.0` → `STALE_DATA_*`) can never fire in a replay. Fine for the
+  determinism/threshold-sensitivity tests it was built for; means this tool cannot be used to fit or validate
+  that 15-second threshold specifically.
+- **Replay runner is not production-scale yet (Task 5.4):** `_compute_symbol` runs once per tick (needed for
+  an exact one-`FeatureRecord`-per-tick contract), which would be impractically slow over a real ~2.4M-tick
+  day via the CLI. Batching or a decimation flag is a real follow-up and a genuine behaviour change (fewer
+  records per run) — deliberately not attempted in this task.
 - **L3 daily-loss breaker is a no-op (Task 3.3):** `Portfolio.realized_loss_today` is always 0.0 in the
   reasoning process — needs a realised-P&L feed (Phase 4/5) before the DAILY_LOSS_LIMIT rejection can fire
   in production. Per-trade / liquidity / cluster caps are live.
