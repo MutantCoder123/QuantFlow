@@ -2434,15 +2434,18 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                 if (body && body.status === 'disabled') {
                     // Task 5.5 step 0: the backend short-circuits this
                     // endpoint without running anything. Tell the user the
-                    // truth instead of the old unconditional success toast.
-                    showToast("Discovery Disabled", body.message || "Discovery is temporarily disabled.", "error");
+                    // truth instead of the old unconditional success message.
+                    // (Uses alert(), this file's existing pattern for
+                    // surfacing messages -- not showToast, which is called
+                    // nowhere else in this codebase and is not defined.)
+                    alert("Discovery Disabled: " + (body.message || "Discovery is temporarily disabled."));
                     if (status) { status.classList.add('hidden'); status.classList.remove('block'); }
                 } else if (res.ok) {
-                    showToast("Playbook Generation Triggered", "The AI is compiling the multi-factor matrix in the background. Please wait a few seconds...");
+                    alert("Playbook Generation Triggered: The AI is compiling the multi-factor matrix in the background. Please wait a few seconds...");
                 }
             } catch (e) {
                 console.error(e);
-                showToast("Error", "Failed to contact API server.", "error");
+                alert("Error: Failed to contact API server.");
                 if (status) { status.classList.add('hidden'); status.classList.remove('block'); }
             } finally {
                 // Discovery is permanently disabled (Task 5.5 step 0) --
