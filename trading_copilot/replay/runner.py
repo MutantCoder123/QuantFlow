@@ -253,6 +253,17 @@ def replay(tick_files: list[Path], cfg: Path | str, speed: float = 0) -> list[Fe
     real-time, 10.0 = 10x real-time). Not safe to call concurrently with a
     live gatekeeper loop or another replay() in the same process -- see the
     module docstring for why.
+
+    Fidelity limitation -- staleness is not replayable. Feature computation
+    runs synchronously per tick under a clock frozen to that tick's own
+    timestamp, so `data_age_s` is always ~0.0 here and every emitted
+    FeatureRecord.staleness is 0.0. Live, _compute_symbol runs on an
+    independent 1.5s timer and data_age_s reflects a real gap. Consequence:
+    intraday_gatekeeper's staleness shield (age > 15.0 -> STALE_DATA_*) can
+    never fire in a replay, so this tool cannot validate or fit that
+    threshold. It is inherent to the per-tick drive that buys determinism,
+    not a bug -- but do not read "no STALE_DATA in the replay output" as
+    evidence about the live feed.
     """
     ticks = load_ticks(tick_files)
     if ticks.empty:
