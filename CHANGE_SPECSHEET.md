@@ -887,6 +887,111 @@ square_off 15:20, measure_at [30, 90]).
 
 ---
 
+## Phase 4 — Measurement
+
+> Exit criteria: the system reports only confidence it has measured, and the LLM's contribution is
+> quantifiable.
+
+**Status: ✅ complete — 3/3 startable tasks done (4.1, 4.2, 4.4). 4.3 is data-gated and correctly not
+started. 125 tests passing.**
+
+### Task 4.1 — Shadow-mode both-arm logging (improved §4.5)
+
+**Files:** `trading_copilot/journal/arms.py` (new), `trading_copilot/reasoning_engine.py`,
+`trading_copilot/api_server.py`. Commit `fa90e2a`.
+
+The architecture's whole premise is that the LLM adds judgment over the math layer — but only
+`CONFIRM`/`ADJUST` verdicts reached the ledger, so every `ABORT`/`DEFER` vanished and the premise could not
+be tested even in principle.
+
+- `ArmRecord` (symbol, ts, config_version, math_arm, llm_arm, escalated) + `ArmJournal`, append-only JSONL
+  under `SIGNALS_DIR/arms`, one file per IST session date. `load_all()` dedupes on `arm_id` so a re-written
+  (labelled) row supersedes its original.
+- `ReasoningEngine._write_arm_record` fires on **every** escalation, before and independent of the
+  actionable-directive gate.
+- `label_arm_record()` scores **both** arms against the same bars with Task 1.5's `label_outcome`. The math
+  arm is always scored (that is the counterfactual); the LLM arm only when the verdict actually took a
+  trade, so a veto's outcome stays `None` and the math arm alone says whether the veto was right.
+- `resolve_arms()` labels records whose horizon has elapsed; wired into the gatekeeper loop as a 5-minute
+  task, reusing the ledger's cross-process bar bridge through an **injected fetcher** (no import coupling).
+- `summarise_arms()` + `GET /api/performance/arms`: win rate, avg R and count per arm, plus **LLM veto
+  precision** — the share of vetoed proposals whose math arm would in fact have lost.
+
+**Also fixed here:** a wall-clock-fragile test I had introduced in Task 3.5.
+`test_semantic_block_carries_the_scalar_alongside_the_tag` never pinned `is_market_open`, and
+`translate_to_llm_payload` zeroes all live microstructure when the market is closed — so it passed on a
+weekday afternoon and failed every weekend (discovered because 2026-09-12 is a Saturday). Same defect class
+as Task 0.9. Swept the whole suite for the pattern afterwards; no other test was unpinned.
+
+**Verified:** 7/7 new tests pass; full suite green (110 tests).
+
+### Task 4.2 — Report `None` until calibrated (improved §4.2, fixes C-1)
+
+**Files:** `trading_copilot/core/calibration.py` (new), `conviction_scorer.py`, `intraday_gatekeeper.py`,
+`reasoning_engine.py`, `config/policy_v1.yaml`, `templates/index.html`. Commit `3ddb86c`.
+
+`implied_probability` was `0.50 + 0.85*(sigmoid(4.5*|composite|) - 0.50)` — a monotone rescaling of the
+score with two magic constants, never fitted against a single realised outcome, yet rendered to the operator
+as confidence and handed to the LLM as "ground truth".
+
+- `Calibration(b0, b1, n_resolved, fitted_at, buckets)` with `MIN_N = 200`; below that `.predict()` returns
+  `None`. `load_calibration()` returns `None` when `data/calibration.json` is absent (it is).
+  `implied_probability()` takes `regime` so a future per-regime fit is a one-site change.
+  `calibration_status()` renders `unmeasured (n=0 < 200)`.
+- Sigmoid deleted. `expectancy_matrix` now always carries `reward_risk` and `calibration_status`;
+  `implied_probability` and `statistical_edge` are `None` while uncalibrated. `breakeven_probability`
+  survives — it comes from the geometry, not a guess.
+- Admission gate switches: measured `stat_edge` when calibrated, else
+  `reward_risk >= conviction.min_reward_risk` (new, 1.5) with a distinct `INSUFFICIENT_REWARD_RISK` reason.
+- **Downstream `None`-safety:** `IntradayGatekeeper` and `analyze_stock` both did `stat_edge > 0` and
+  `stat_edge >= 0.05`, which would now raise `TypeError` on `None`. Both fall back to reward:risk and report
+  **no** confidence number rather than deriving one from a null edge.
+- Prompt no longer calls `expectancy_matrix` ground truth; it tells the LLM a null `implied_probability`
+  means unmeasured and forbids inventing one.
+- UI Action Plan card shows `Edge: unmeasured · R:R x.x` plus an explanatory line, instead of a fabricated
+  Confidence score.
+
+**Verified:** 9/9 new tests pass; full suite green (119 tests).
+
+### Task 4.3 — Fit the calibration 🔒 **DATA-GATED — NOT STARTED (correct)**
+
+Gate checked 2026-09-12: **`resolved signals: 84 (need 200) | feature days: 0 (need 20)`**. The plan states
+*"Do not start this task before the trigger passes"* and deliberately omits detailed steps because the right
+model form depends on an empirical distribution that does not exist yet. Fitting now would fit noise.
+
+Worse than the raw count suggests: **all 84 resolved signals are legacy**, graded at the retired 30m/60m
+horizons (pre-Task-3.4), so they carry no 90m outcome and do not count toward the 200 either. The usable
+counter effectively restarts from zero. Re-run the plan's gate command after ~20 live sessions.
+
+### Task 4.4 — Reliability view
+
+**Files:** `core/calibration.py`, `api_server.py`, `templates/index.html`. Commit `0113b1b`.
+
+While uncalibrated there is no predicted probability to plot, so the honest x-axis is `|composite|` itself —
+which is exactly the diagnostic 4.3 needs first: a flat curve means the score has no discriminative power
+and no calibration will rescue it.
+
+- `reliability_buckets()`: realised win rate per `|composite|` decile against the diagonal a calibrated
+  score would sit on. Buckets under `min_n` (10) are marked **suppressed rather than silently dropped**, so
+  the operator sees where evidence runs out. Reports `win_rate_spread` and `has_discriminative_power`
+  (≥ 10 pp between best and worst populated bucket).
+- `GET /api/performance/reliability`; a Score Reliability panel on the dashboard with per-bucket n, win
+  rate, diagonal reference and a bar with the diagonal marked, plus a verdict banner that says **FLAT
+  CURVE** outright when the spread is small and **NOT ENOUGH DATA** when fewer than two buckets clear
+  `min_n`.
+
+**Found while smoke-testing against the real ledger:** 84 resolved signals exist on disk but every one was
+graded at a retired horizon, so the view reported a bare `n=0`. Folding them in would mix horizons (a 60m
+outcome is not a 90m one) and corrupt the curve; dropping them silently would show "no data" when data
+plainly exists. They are now counted separately as `n_legacy_excluded` and named in the UI status line.
+
+**Verified:** 7/7 new tests pass; full suite green (125 tests); `node --check` clean; endpoint smoke-tested
+against the real on-disk ledger.
+
+**Phase 4 complete: 3/3 startable tasks done, 125 tests passing. 4.3 remains gated by design.**
+
+---
+
 ## Open questions / follow-ups
 
 - **PolicyConfig call sites not yet rewired (Task 2.1 scope note):** `config/policy_v1.yaml` + the loader
@@ -906,6 +1011,14 @@ square_off 15:20, measure_at [30, 90]).
 - **`ConvictionScorer._get_adaptive_weights` still reads `win_rate_30m`** for its feedback scaling (Task
   3.4 kept that key as a diagnostic); arguably should use `win_rate_primary` now — left as-is, not a named
   plan step.
+- **Task 4.3 calibration is gated on data, not effort** — needs ≥200 signals resolved at the *90m* horizon
+  plus ≥20 feature-days. The 84 legacy signals on disk do not count (retired horizon). Until then the
+  system correctly reports `implied_probability: None` everywhere.
+- **Arm-journal veto precision needs live escalations** — `summarise_arms` is unit-tested but the journal is
+  empty until a session runs with the LLM enabled; the both-arm comparison table stays blank until then.
+- **Legacy signal records (pre-Task-3.4 schema)** carry `pnl_30m_pct`/`pnl_60m_pct` and no 90m fields.
+  `PerformanceAnalyzer` degrades them to 0 and the reliability view excludes them explicitly. A one-off
+  backfill script could re-grade them at 90m from recorded bars if that history is ever wanted.
 
 - **Security incident (Phase 0)** — awaiting user decision on token rotation and history rewriting (both the
   local `7e239ca` commit and the pre-existing `master`/`origin` exposure at `2c38035`).

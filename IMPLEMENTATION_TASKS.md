@@ -65,12 +65,20 @@ full detail and the still-open question for the user.
 
 **Phase 3 status:** ✅ complete — 5/5 tasks done
 
-## Phase 4 — Measurement  *(not started)*
+## Phase 4 — Measurement
 
-- [ ] **4.1** Shadow-mode both-arm logging
-- [ ] **4.2** Report `None` until calibrated
-- [ ] **4.3** Fit the calibration 🔒 DATA-GATED
-- [ ] **4.4** Reliability view
+- [x] **4.1** Shadow-mode both-arm logging — commit `fa90e2a`
+- [x] **4.2** Report `None` until calibrated — commit `3ddb86c`
+- [!] **4.3** Fit the calibration 🔒 **DATA-GATED — trigger not met, correctly not started**
+- [x] **4.4** Reliability view — commit `0113b1b`
+
+**Phase 4 status:** ✅ complete — 3/3 startable tasks done; 4.3 blocked on data by design
+
+> **4.3 gate check (2026-09-12):** `resolved signals: 84 (need 200) | feature days: 0 (need 20)`.
+> The plan says explicitly *"Do not start this task before the trigger passes"* — fitting now would fit
+> noise. Re-run the gate command in the plan after ~20 live sessions.
+> Note: all 84 resolved signals are **legacy**, graded at the retired 30m/60m horizons, so they carry no
+> 90m outcome and do not count toward the 200 either. The counter effectively restarts from 0.
 
 ## Phase 5 — Operator Surfaces  *(not started)*
 
