@@ -177,28 +177,66 @@ def test_cluster_cap_limits_members_per_cluster():
     assert "SAIL" in dynamic_symbols   # the cluster cap made room for it
 
 
-def test_churn_cap_reverts_excess_swaps_to_previous_watchlist():
-    # Previous dynamic watchlist (core excluded): 3 symbols.
+def test_churn_cap_is_a_hard_ceiling_on_adds_plus_drops():
+    # Previous dynamic watchlist (core excluded): 3 symbols, already at
+    # dynamic_slots capacity -- so every add can only happen via a real
+    # swap (2 budget units: 1 add + 1 drop), never a "free" vacant-slot add.
     previous_symbols = ["OLD1", "OLD2", "OLD3"]
     # This run's candidates propose replacing ALL three with new names --
-    # a churn of 6 (3 adds + 3 drops), but churn_cap only allows 1.
+    # a churn of 6 (3 adds + 3 drops), but churn_cap only allows 2 (one
+    # full swap).
     candidates = [
         _candidate("NEW1", 100),
         _candidate("NEW2", 90),
         _candidate("NEW3", 80),
     ]
-    policy = dict(BASE_POLICY, dynamic_slots=3, cluster_cap=None, churn_cap=1)
+    policy = dict(BASE_POLICY, dynamic_slots=3, cluster_cap=None, churn_cap=2)
     out = select_bounded_watchlist(candidates, previous_symbols, policy, NO_CLUSTERS,
                                     token_resolver=_fake_resolver)
-    dynamic_symbols = {c["symbol"] for c in out
-                       if c["symbol"] not in ("RELIANCE", "INFY", "KOTAKBANK")}
-    added = dynamic_symbols - set(previous_symbols)
-    dropped = set(previous_symbols) - dynamic_symbols
-    # Exactly one swap (one add + one drop) is allowed through.
-    assert len(added) == 1
-    assert len(dropped) == 1
-    # The single add let through must be the highest-scored candidate.
+    dynamic_symbols = [c["symbol"] for c in out
+                       if c["symbol"] not in ("RELIANCE", "INFY", "KOTAKBANK")]
+    # No duplicates, capacity respected.
+    assert len(dynamic_symbols) == len(set(dynamic_symbols)) <= 3
+    added = set(dynamic_symbols) - set(previous_symbols)
+    dropped = set(previous_symbols) - set(dynamic_symbols)
+    # The real invariant the spec cares about: total CHANGES (adds+drops),
+    # not "swaps" (pairs) -- a prior version of this test asserted
+    # len(added)==1 and len(dropped)==1 for one specific scenario, which is
+    # exactly the assertion style that let a dynamic_slots-truncation bug
+    # silently exceed the cap. Assert the ceiling directly instead.
+    assert len(added) + len(dropped) <= 2
+    # Budget for exactly one swap; the highest-scored candidate must win it.
     assert added == {"NEW1"}
+    assert len(dropped) == 1
+
+
+def test_churn_cap_hard_ceiling_holds_on_the_reviewers_repro_shape():
+    # Regression for the exact shape the fix-round-1 review reproduced:
+    # dynamic_slots=6, churn_cap=2, 6 previous symbols, and the new ideal
+    # ranking only wants to swap out the 2 weakest of them.
+    previous_symbols = ["P1", "P2", "P3", "P4", "P5", "P6"]
+    candidates = [
+        _candidate("P1", 50), _candidate("P2", 49),
+        _candidate("P3", 48), _candidate("P4", 47),
+        _candidate("N1", 100), _candidate("N2", 90),
+        # P5, P6 don't make the ideal ranking at all this run.
+    ]
+    policy = dict(BASE_POLICY, dynamic_slots=6, cluster_cap=None, churn_cap=2)
+    out = select_bounded_watchlist(candidates, previous_symbols, policy, NO_CLUSTERS,
+                                    token_resolver=_fake_resolver)
+    dynamic_symbols = [c["symbol"] for c in out
+                       if c["symbol"] not in ("RELIANCE", "INFY", "KOTAKBANK")]
+    assert len(dynamic_symbols) == len(set(dynamic_symbols)) <= 6
+    added = set(dynamic_symbols) - set(previous_symbols)
+    dropped = set(previous_symbols) - set(dynamic_symbols)
+    # This is the exact invariant that broke before: adds+drops <= churn_cap,
+    # not just "the ranking step's kept-changes list was <= churn_cap before
+    # a later truncation silently created more of them."
+    assert len(added) + len(dropped) <= 2
+    # P1-P4 are both previously held AND still in the ideal ranking --
+    # retained for free, never counted as churn.
+    for s in ("P1", "P2", "P3", "P4"):
+        assert s in dynamic_symbols
 
 
 def test_churn_within_cap_is_not_reverted():
@@ -210,3 +248,42 @@ def test_churn_within_cap_is_not_reverted():
     dynamic_symbols = {c["symbol"] for c in out
                        if c["symbol"] not in ("RELIANCE", "INFY", "KOTAKBANK")}
     assert dynamic_symbols == {"NEW1"}
+
+
+def test_core_symbol_in_previous_symbols_is_not_counted_or_duplicated():
+    # Critical #2 regression: watchlist.csv (the real source of
+    # previous_symbols) always contains both core AND dynamic symbols, since
+    # _update_watchlist writes both. Core must never be treated as a "drop"
+    # candidate, must never consume churn budget, and must never appear
+    # twice in the output (once via core_selections, once via a reverted
+    # "drop" that shouldn't have existed).
+    previous_symbols = ["RELIANCE", "INFY", "KOTAKBANK", "OLD1"]
+    candidates = [_candidate("NEW1", 100)]
+    policy = dict(BASE_POLICY, dynamic_slots=1, cluster_cap=None, churn_cap=2)
+    out = select_bounded_watchlist(candidates, previous_symbols, policy, NO_CLUSTERS,
+                                    token_resolver=_fake_resolver)
+    symbols = [c["symbol"] for c in out]
+    # No duplicates anywhere in the output.
+    assert len(symbols) == len(set(symbols))
+    # Core present exactly once each.
+    for core_sym in ("RELIANCE", "INFY", "KOTAKBANK"):
+        assert symbols.count(core_sym) == 1
+    # The one real dynamic-slot swap (OLD1 -> NEW1) proceeds unaffected by
+    # core symbols incorrectly appearing in previous_symbols.
+    dynamic_symbols = [s for s in symbols if s not in ("RELIANCE", "INFY", "KOTAKBANK")]
+    assert dynamic_symbols == ["NEW1"]
+
+
+def test_core_symbol_in_previous_symbols_does_not_shrink_effective_churn_budget():
+    # With 3 core symbols wrongly counted as "drops" every run (the pre-fix
+    # bug), a churn_cap of 4 left only 1 real unit of budget. Verify a
+    # single real swap (2 units) now goes through even though core symbols
+    # sit in previous_symbols alongside the dynamic ones.
+    previous_symbols = ["RELIANCE", "INFY", "KOTAKBANK", "OLD1", "OLD2"]
+    candidates = [_candidate("NEW1", 100), _candidate("OLD2", 10)]
+    policy = dict(BASE_POLICY, dynamic_slots=2, cluster_cap=None, churn_cap=2)
+    out = select_bounded_watchlist(candidates, previous_symbols, policy, NO_CLUSTERS,
+                                    token_resolver=_fake_resolver)
+    dynamic_symbols = [c["symbol"] for c in out
+                       if c["symbol"] not in ("RELIANCE", "INFY", "KOTAKBANK")]
+    assert set(dynamic_symbols) == {"NEW1", "OLD2"}

@@ -64,8 +64,13 @@ def select_bounded_watchlist(candidates: list, previous_symbols: list,
 
     `candidates` are scored screener results (each carrying at least
     token/symbol/exchange/score; dynamic-slot eligibility also needs
-    adv_crore). `previous_symbols` is the watchlist's current dynamic-slot
-    contents (core excluded). `policy` is the parsed watchlist_policy.yaml.
+    adv_crore). `previous_symbols` should be the watchlist's current
+    dynamic-slot contents with core already excluded by the caller (e.g.
+    watchlist.csv contains both core AND dynamic symbols, since
+    `_update_watchlist` writes both) -- but any core symbols that slip
+    through anyway are filtered out defensively here too, since core must
+    never be treated as an add/drop candidate, consume churn budget, or be
+    duplicated in the output. `policy` is the parsed watchlist_policy.yaml.
     `clusters` is the {symbol: cluster_id} map from core.risk.load_clusters().
 
     Returns core selections + final dynamic selections, each a dict with at
@@ -115,52 +120,84 @@ def select_bounded_watchlist(candidates: list, previous_symbols: list,
         cluster_counts[cid] = cluster_counts.get(cid, 0) + 1
 
     # 4. Enforce churn_cap against the previous watchlist's dynamic slots.
-    prev_syms = [str(s).upper() for s in previous_symbols]
+    # Core symbols are excluded here (and, defensively, at the call site in
+    # run_scan()) -- they are pinned, must never be proposed as an add/drop,
+    # must never consume churn budget, and must never appear a second time
+    # in the dynamic portion of the output.
+    prev_syms = [str(s).upper() for s in previous_symbols if str(s).upper() not in core_symbols]
     prev_set = set(prev_syms)
-    new_syms_ordered = [str(c["symbol"]).upper() for c in dynamic_selections]
-    new_set = set(new_syms_ordered)
+    ideal_syms = [str(c["symbol"]).upper() for c in dynamic_selections]
+    ideal_set = set(ideal_syms)
 
-    retained = [s for s in new_syms_ordered if s in prev_set]
-    added = [s for s in new_syms_ordered if s not in prev_set]       # score-desc order
-    dropped = [s for s in prev_syms if s not in new_set]
-    churn = len(added) + len(dropped)
+    retained = [s for s in ideal_syms if s in prev_set]
+    added_candidates = [s for s in ideal_syms if s not in prev_set]     # score-desc order
+    removable_prev = [s for s in prev_syms if s not in ideal_set]
+    removable_prev.sort(key=lambda s: by_symbol.get(s, {}).get("score", 0))  # weakest first
+
+    churn = len(added_candidates) + len(removable_prev)
 
     if churn <= churn_cap:
-        final_dynamic = dynamic_selections
+        # Enough budget to afford every proposed add and drop outright.
+        final_syms = retained + added_candidates
     else:
-        # Rank every prospective change -- an add's value is its own score
-        # (bigger = more improving); a drop's value is the negative of the
-        # previous-watchlist symbol's own current-run score, if known (bigger
-        # = safer/less costly to drop). Keep only the churn_cap
-        # highest-valued changes; revert everything else to its previous
-        # state. (Exact tie-break mechanics are this function's own call --
-        # only the churn_cap hard ceiling is contractual.)
-        changes = [("add", s, by_symbol[s]["score"]) for s in added]
-        changes += [("drop", s, -(by_symbol[s]["score"] if s in by_symbol else 0.0))
-                    for s in dropped]
-        changes.sort(key=lambda t: t[2], reverse=True)
-        kept = changes[:churn_cap]
-        kept_adds = {s for typ, s, _ in kept if typ == "add"}
-        kept_drops = {s for typ, s, _ in kept if typ == "drop"}
+        # Hard ceiling: len(adds) + len(drops) <= churn_cap, AND the result
+        # never exceeds dynamic_slots -- the previous bug let the
+        # dynamic_slots truncation silently evict previous-watchlist symbols
+        # that were never counted as a "drop" in the first place. Spend the
+        # budget on the most-improving changes first: (1) fill genuinely
+        # vacant slots (previous list shorter than dynamic_slots) with the
+        # best proposed adds -- 1 budget unit each, no drop required; then
+        # (2) spend remaining budget on real swaps, pairing the next-best
+        # proposed add with the weakest removable previous member -- 2
+        # budget units per swap (1 add + 1 drop). Anything the budget can't
+        # cover reverts to its previous state. (Exact tie-break mechanics
+        # are this function's own call -- only the churn_cap hard ceiling,
+        # and the dynamic_slots capacity, are contractual.)
+        final_list = list(prev_syms)
+        budget = churn_cap
+        free_slots = max(0, dynamic_slots - len(final_list))
 
-        final_symbols = list(retained)
-        final_symbols += [s for s in added if s in kept_adds]
-        final_symbols += [s for s in dropped if s not in kept_drops]   # reverted
+        remaining_adds = list(added_candidates)
+        while remaining_adds and free_slots > 0 and budget > 0:
+            s = remaining_adds.pop(0)
+            final_list.append(s)
+            free_slots -= 1
+            budget -= 1
 
-        final_dynamic = []
-        for sym in final_symbols:
-            if sym in by_symbol:
-                final_dynamic.append(by_symbol[sym])
-            else:
-                # Reverted from the previous watchlist but absent from this
-                # run's candidate pool (e.g. fetch failed) -- keep a minimal
-                # placeholder instead of silently losing it.
-                final_dynamic.append({"token": token_resolver(sym), "symbol": sym,
-                                       "exchange": "NSE"})
+        while remaining_adds and removable_prev and budget >= 2:
+            add_s = remaining_adds.pop(0)
+            drop_s = removable_prev.pop(0)
+            if drop_s in final_list:
+                final_list.remove(drop_s)
+            final_list.append(add_s)
+            budget -= 2
 
-        if len(final_dynamic) > dynamic_slots:
-            final_dynamic.sort(key=lambda c: c.get("score", 0), reverse=True)
-            final_dynamic = final_dynamic[:dynamic_slots]
+        # Structural safety net, not a churn-budget spend: if the previous
+        # watchlist was already over dynamic_slots capacity coming in (e.g.
+        # the policy's dynamic_slots shrank between runs), trim the weakest
+        # still-present removable previous members to restore capacity.
+        # This can only trigger from a policy change, not from ordinary
+        # churn, and deliberately favours the dynamic_slots invariant over
+        # churn_cap in that narrow, config-change-induced case.
+        if len(final_list) > dynamic_slots:
+            for s in removable_prev:
+                if len(final_list) <= dynamic_slots:
+                    break
+                if s in final_list:
+                    final_list.remove(s)
+
+        final_syms = final_list
+
+    final_dynamic = []
+    for sym in final_syms:
+        if sym in by_symbol:
+            final_dynamic.append(by_symbol[sym])
+        else:
+            # Retained/reverted from the previous watchlist but absent from
+            # this run's candidate pool (e.g. its fetch failed) -- keep a
+            # minimal placeholder instead of silently losing it.
+            final_dynamic.append({"token": token_resolver(sym), "symbol": sym,
+                                   "exchange": "NSE"})
 
     return core_selections + final_dynamic
 
@@ -328,11 +365,25 @@ class PreMarketScreener:
         # `filtered` pool (not just the top-20 `top_picks` slice) so a
         # previous-watchlist symbol that scored just outside the top 20 can
         # still be found and scored for churn-cap comparison.
+        #
+        # NOTE (fix-round 1 review, Important #2): the only remaining caller
+        # of run_scan() after Task 5.5 step 0 is POST /api/run-screener,
+        # which runs inside the live ingestion process (upstox_feed.py).
+        # That process reads watchlist.csv once at startup into an in-memory
+        # WATCHLIST and never reloads it, so a screener run mid-session
+        # writes this file out from under it -- the live process's
+        # in-memory watchlist silently diverges from watchlist.csv until the
+        # next restart. Not a crash, doesn't fabricate data, but is a real
+        # new side effect this task introduces; a proper fix (reload-on-
+        # write, or moving the write to a process that owns the file) is
+        # out of scope here.
         try:
             policy = load_watchlist_policy()
             clusters = load_clusters()
+            core_symbols = {str(s).upper() for s in (policy.get("core") or [])}
             previous_watchlist = load_watchlist_from_csv(self.watchlist_file)
-            previous_symbols = [v.get("symbol", "") for v in previous_watchlist.values()]
+            previous_symbols = [v.get("symbol", "") for v in previous_watchlist.values()
+                                 if str(v.get("symbol", "")).upper() not in core_symbols]
             bounded = select_bounded_watchlist(filtered, previous_symbols, policy, clusters)
             self._update_watchlist(bounded)
         except Exception as e:

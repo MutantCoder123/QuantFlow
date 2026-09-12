@@ -453,6 +453,7 @@
                 </div>
                 <div class="flex flex-col items-end gap-1">
                     <button id="btn-run-discovery" onclick="generateIntradayPlaybook()" disabled
+                        data-permanently-disabled="true"
                         title="Temporarily disabled -- event-loop-blocking and stale key-space bugs (A-7) are still open; screener scoring was fixed in Task 5.5 but the playbook pipeline itself was not rebuilt."
                         class="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-lg shadow-lg shadow-indigo-500/20 transition-all flex items-center gap-2 border border-indigo-500/50 opacity-50 cursor-not-allowed">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -750,11 +751,19 @@
                     const plays = payload.dashboard_intraday_plays;
                     const items = Array.isArray(plays) ? plays : plays.watchlist;
                     if (items && items.length > 0) {
-                        // Hide spinner and re-enable button
+                        // Hide spinner and re-enable button -- but never
+                        // re-enable Discovery itself (Task 5.5 step 0): it's
+                        // permanently disabled pending the A-7 fix, and a
+                        // stray websocket frame carrying old
+                        // dashboard_intraday_plays (e.g. from a persisted
+                        // playbook_state.json) must not silently flip it
+                        // back on.
                         const status = document.getElementById('screener-status');
                         if (status) { status.classList.add('hidden'); status.classList.remove('block'); }
                         const btn = document.getElementById('btn-run-discovery');
-                        if (btn) { btn.disabled = false; btn.classList.remove('opacity-50'); }
+                        if (btn && btn.dataset.permanentlyDisabled !== 'true') {
+                            btn.disabled = false; btn.classList.remove('opacity-50');
+                        }
 
                         // Forward playbook data to the Discovery UI render function
                         renderDiscoveryCards(items);
@@ -2421,14 +2430,26 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ model: model })
                 });
-                if (res.ok) {
+                const body = await res.json().catch(() => ({}));
+                if (body && body.status === 'disabled') {
+                    // Task 5.5 step 0: the backend short-circuits this
+                    // endpoint without running anything. Tell the user the
+                    // truth instead of the old unconditional success toast.
+                    showToast("Discovery Disabled", body.message || "Discovery is temporarily disabled.", "error");
+                    if (status) { status.classList.add('hidden'); status.classList.remove('block'); }
+                } else if (res.ok) {
                     showToast("Playbook Generation Triggered", "The AI is compiling the multi-factor matrix in the background. Please wait a few seconds...");
                 }
             } catch (e) {
                 console.error(e);
                 showToast("Error", "Failed to contact API server.", "error");
                 if (status) { status.classList.add('hidden'); status.classList.remove('block'); }
-                if (btn) { btn.disabled = false; btn.classList.remove('opacity-50'); }
+            } finally {
+                // Discovery is permanently disabled (Task 5.5 step 0) --
+                // never re-enable it here, regardless of outcome.
+                if (btn && btn.dataset.permanentlyDisabled !== 'true') {
+                    btn.disabled = false; btn.classList.remove('opacity-50');
+                }
             }
         }
         // --- Database Management Controls (Phase 14.3) ---
