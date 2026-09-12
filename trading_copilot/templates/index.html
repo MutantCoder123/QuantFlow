@@ -506,6 +506,9 @@
                     <button id="tab-btn-catalyst" onclick="switchModalTab('catalyst')"
                         class="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-t-lg bg-transparent text-slate-500 hover:text-slate-300 transition-colors">News
                         Catalyst</button>
+                    <button id="tab-btn-provenance" onclick="switchModalTab('provenance')"
+                        class="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-t-lg bg-transparent text-slate-500 hover:text-slate-300 transition-colors">Score
+                        Provenance</button>
                     <button id="tab-btn-telemetry" onclick="switchModalTab('telemetry')"
                         class="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-t-lg bg-transparent text-slate-500 hover:text-slate-300 transition-colors">Raw
                         Telemetry</button>
@@ -625,6 +628,13 @@
                             </button>
                         </div>
                         <pre><code id="catalyst-report-block" class="text-xs font-mono-custom text-slate-300 whitespace-pre-wrap">Loading catalyst data...</code></pre>
+                    </div>
+                </div>
+                <!-- Tab Content: Provenance -->
+                <div id="tab-content-provenance" class="hidden flex-col gap-4 flex-1 overflow-y-auto pr-2">
+                    <div class="bg-[#0d1117] border border-slate-800 rounded-lg p-4">
+                        <h4 class="text-xs font-bold text-slate-500 mb-3 uppercase">Signal Provenance</h4>
+                        <div id="provenance-block" class="text-sm text-slate-300">Loading...</div>
                     </div>
                 </div>
                 <!-- Tab Content: Telemetry -->
@@ -1113,6 +1123,7 @@
             } else {
                 catalystBlock.innerText = "No cached news catalyst available for this asset. Click 'Force Fetch News' to query live API.";
             }
+            renderProvenancePanel(payloadCopy);
             document.getElementById('llm-modal').classList.remove('hidden');
             // Phase 8 Reset UI state & fetch existing report
             renderReasoningReport("Awaiting trigger...");
@@ -1138,9 +1149,96 @@
                     }
                 }).catch(e => console.error("Fetch report error", e));
         }
+        // --- Provenance Panel (Task 5.2, improved §5.1) ---
+        // Renders ConvictionScorer.score_setup's `contributions` breakdown so
+        // an operator can see WHY the composite came out the way it did,
+        // instead of trusting one number. A missing/None `contributions`
+        // (e.g. MARKET_CLOSED, before any category is scored) is a valid,
+        // expected state, not a bug -- render it as "nothing to show" rather
+        // than crashing or fabricating zeros.
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.innerText = str == null ? '' : String(str);
+            return div.innerHTML;
+        }
+        function renderProvenancePanel(payload) {
+            const block = document.getElementById('provenance-block');
+            if (!block) return;
+            const math = (payload && payload.math_setup) || {};
+            const contrib = math.contributions;
+
+            if (!contrib || Object.keys(contrib).length === 0) {
+                block.innerHTML = `<div class="text-slate-500 italic">
+                    No score decomposition available${math.rejection_reason ? ` (${escapeHtml(math.rejection_reason)})` : ''}
+                    -- rejected before the category scores were computed.
+                </div>`;
+                return;
+            }
+
+            const bias = math.directional_bias || '—';
+            const composite = (math.composite_score ?? '—');
+            const rr = math.expectancy_matrix && math.expectancy_matrix.reward_risk;
+
+            const CATS = [
+                { key: 'micro', label: 'Microstructure' },
+                { key: 'struct', label: 'Structural Edge' },
+                { key: 'deriv', label: 'Derivatives' },
+                { key: 'catalyst', label: 'Catalyst' },
+            ];
+
+            const rows = CATS.map(({ key, label }) => {
+                const c = contrib[key] || {};
+                const raw = (c.raw === null || c.raw === undefined) ? '—' : Number(c.raw).toFixed(2);
+                const norm = (c.normalized === undefined || c.normalized === null) ? '—' : Number(c.normalized).toFixed(2);
+                const weight = (c.weight === undefined || c.weight === null) ? '—' : Number(c.weight).toFixed(2);
+                const contribution = (c.contribution === undefined || c.contribution === null) ? '—' : Number(c.contribution).toFixed(3);
+                const signals = c.firing_signals || [];
+
+                const markerHtml = c.dead
+                    ? `<div class="mt-1 text-[11px] font-bold text-amber-400">${escapeHtml(c.marker || '⚠ dead term')}</div>`
+                    : '';
+                const sigHtml = signals.length
+                    ? `<ul class="mt-1 ml-4 list-disc text-[11px] text-slate-400">
+                        ${signals.map(s => `<li>${escapeHtml(s)}</li>`).join('')}
+                       </ul>`
+                    : (c.dead ? '' : `<div class="mt-1 ml-1 text-[11px] text-slate-600 italic">no signals fired</div>`);
+
+                return `<div class="py-2 border-b border-slate-800/70">
+                    <div class="flex items-center justify-between gap-3">
+                        <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">${label}</span>
+                        <span class="text-xs font-mono-custom text-slate-400 shrink-0">
+                            ${raw} (norm ${norm}) × ${weight} = <span class="text-slate-200 font-bold">${contribution}</span>
+                        </span>
+                    </div>
+                    ${markerHtml}
+                    ${sigHtml}
+                </div>`;
+            }).join('');
+
+            const edge = (math.expectancy_matrix && math.expectancy_matrix.calibration_status) || 'unknown';
+            // Only microstructure has a confirmed, plumbed-through age today
+            // (RollingStateEngine -> ReasoningEngine.build_structured_payload
+            // -> sp.data_age_s). struct/deriv/catalyst ages are not currently
+            // threaded to this payload -- show them honestly as n/a rather
+            // than inventing a number (see task-5.2-report.md).
+            const microAge = (payload && payload.data_age_s !== undefined && payload.data_age_s !== null)
+                ? `${Number(payload.data_age_s).toFixed(1)}s` : 'n/a';
+
+            block.innerHTML = `
+                <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-700">
+                    <span class="text-sm font-bold text-white">${escapeHtml(bias)} · composite ${escapeHtml(composite)}</span>
+                    ${rr ? `<span class="text-xs text-slate-400">R:R 1 : ${Number(rr).toFixed(2)}</span>` : ''}
+                </div>
+                ${rows}
+                <div class="mt-3 pt-2 text-[11px] text-slate-500 flex flex-col gap-1">
+                    <div>edge ${escapeHtml(edge)}</div>
+                    <div>staleness: micro ${microAge} · struct n/a · deriv n/a · catalyst n/a</div>
+                </div>
+            `;
+        }
         // --- Modal Tabs Logic ---
         function switchModalTab(tabName) {
-            ['reasoning', 'catalyst', 'telemetry'].forEach(t => {
+            ['reasoning', 'catalyst', 'provenance', 'telemetry'].forEach(t => {
                 document.getElementById(`tab-content-${t}`).classList.add('hidden');
                 document.getElementById(`tab-content-${t}`).classList.remove('flex');
 
