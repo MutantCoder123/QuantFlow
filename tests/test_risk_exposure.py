@@ -145,21 +145,29 @@ def test_sort_by_pct_of_limit_descending():
 
 def test_pct_of_limit_can_exceed_one():
     """pct_of_limit can legitimately exceed 1.0 if over-leveraged."""
-    # Create a position that uses more than 100% of a cluster limit
-    # Assuming max_cluster_risk_pct is 1.0, capital 1M, limit = 10,000
-    # A 15,000 risk position should have pct_of_limit = 1.5
-    ReasoningEngine.user_positions["SAIL"] = {
-        "qty": 3000,
-        "entry_price": 95.0,
-        "stoploss": 90.0,  # risk per share = 5, total = 15,000
-    }
-
+    # Fetch once to read the actual capital and limit from config
     res = client.get("/api/risk/exposure")
     json_data = res.json()
+    capital = json_data["data"]["capital"]
+    max_cluster_risk_pct = json_data["data"]["max_cluster_risk_pct"]
+    limit = capital * max_cluster_risk_pct / 100.0
 
-    clusters = json_data["data"]["clusters"]
+    # Create a position that uses 150% of the cluster limit
+    # Entry: 95, Stop: 90, risk per share = 5
+    # Need qty such that qty * 5 = 1.5 * limit
+    qty_needed = int(1.5 * limit / 5.0) + 1  # +1 to ensure we exceed 1.0
+    ReasoningEngine.user_positions["SAIL"] = {
+        "qty": qty_needed,
+        "entry_price": 95.0,
+        "stoploss": 90.0,
+    }
+
+    res2 = client.get("/api/risk/exposure")
+    json_data2 = res2.json()
+
+    clusters = json_data2["data"]["clusters"]
     assert len(clusters) == 1
-    # pct_of_limit should be > 1.0
+    # pct_of_limit should be > 1.0 (150% of limit)
     assert clusters[0]["pct_of_limit"] > 1.0
 
 

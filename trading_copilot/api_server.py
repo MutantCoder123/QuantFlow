@@ -230,10 +230,9 @@ async def get_reliability(days: int = 60):
 async def get_risk_exposure():
     """Report open risk per cluster against max_cluster_risk_pct limits (Task 5.3)."""
     try:
-        from core.risk import load_risk_limits, load_clusters
+        from core.risk import load_risk_limits
         book = ReasoningEngine._build_portfolio()
         limits = load_risk_limits()
-        clusters = load_clusters()
 
         # Collect unique clusters that have open risk
         open_clusters = set(p["cluster"] for p in book._open if p.get("risk_amount", 0) > 0)
