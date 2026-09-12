@@ -1012,6 +1012,14 @@ plan-vs-plan and plan-vs-code conflicts):
   architecture. Ruling: Task 5.5's six listed steps are pure, unit-testable scoring/
   selection functions independent of the data source — fix those; do NOT rewire the
   screener onto Upstox, that's a separate unscoped migration.
+  **Correction, made before Task 5.5 was dispatched:** this ruling's premise was wrong.
+  `smart_connect` is a stale parameter name, not a dead dependency — `HistoricalFetcher.
+  _fetch_single` (which the screener calls into) was already migrated to Upstox, and
+  `ReasoningEngine.generate_intraday_playbook` already calls the screener with a live
+  Upstox client today. See Task 5.5's own writeup below for the full correction. The
+  scoping decision (fix pure functions, don't attempt a data-source migration) stood
+  regardless, for unrelated TDD reasons — but the reasoning behind it was incorrect and
+  is recorded as corrected here rather than silently left wrong.
 - Task 5.6 asks to port `macro_eod_engine.fetch_market_breadth` (the correct NIFTY-50
   A/D calc) into `macro_worker.py` before deleting the old file. Found that the live `/ws`
   handler (`api_server.py:402-413`) already computes its own `ad_ratio` — a watchlist-only
@@ -1202,8 +1210,131 @@ as a separate decision rather than folded into this task.
 **Verified:** 158 passed / 0 failed after the fix round (was 156 before this task). Reviewer
 independently mutation-tested the isolation claims rather than trusting the report.
 
-**Phase 5 status: 4/6 done (5.1-5.4). 5.5 (screener + discovery loop), 5.6 (session review +
-dead-code removal) remain, briefs already prepared.**
+### Task 5.5 — Fix the screener and close the discovery loop (§A-15, improved §4.9)
+
+**Files:** `screener_engine.py`, `api_server.py`, `templates/index.html`,
+`config/watchlist_policy.yaml` (new), `tests/test_screener_scoring.py` (new). Commits
+`6916eec`, `2fd3f85`, `23070d0` (2 fix rounds).
+
+**Pre-flight correction:** an earlier ruling in this phase (recorded before Task 5.1 even
+started) assumed `screener_engine.py` depended on a dead Angel One `smart_connect` client
+with no live equivalent, and scoped this task to pure/unit-tested functions only on that
+basis. That assumption was wrong — `PreMarketScreener.__init__`'s `smart_connect` parameter
+name is stale, but `HistoricalFetcher._fetch_single` (which it calls into) was already
+migrated to Upstox, and `ReasoningEngine.generate_intraday_playbook` already constructs a
+real Upstox client and calls the screener with it today. This task's fixes are real, live,
+reachable code, not archaeology on dead paths. The correction didn't change the actual work
+done — the six steps were already scoped to testable pure functions for good TDD reasons,
+independent of whether the data source was live — but it matters for how the result should
+be understood: this is a working scanner with corrected math, not a fixed-but-unreachable one.
+
+**Step 0 (added, not in the plan's printed step list — carried in from the plan's own
+"Deliberate Gaps" section, which explicitly says to add it here):** disabled the Discovery
+button and its backend endpoint. `generate_intraday_playbook` runs a full-universe scan
+synchronously inside the shared reasoning-process event loop and enriches its results
+against `TerminalDashboard.active_states`, which is keyed by the ~20-50 symbol live
+watchlist — so for the hundreds of F&O-universe symbols the screener actually scans,
+enrichment silently returns "N/A". Fixing the scoring math in `screener_engine.py` (below)
+does not fix either of those two problems, both of which live in `generate_intraday_playbook`
+itself — so the button stays disabled at the end of this task too, honestly reflecting that
+the loop isn't "properly rebuilt" yet in the sense the plan means.
+
+**§A-15 — the volume-shock formula scored full marks for average volume.** `min((live/ma)*35,
+35)` hits its cap at `ratio == 1.0` — a stock trading at exactly its own 20-day average volume
+scored the same 35/35 as one trading at 10x. Replaced with `min(max(0, ratio - 1) * 17.5, 35)`:
+zero at or below average, linear from there, capped at 3x average. Verified with fixtures
+derived algebraically rather than assumed — `rolling(20).mean()` includes the row being
+evaluated, so a naive "19 flat rows + 1 different row" test does not produce the ratio it
+looks like it should.
+
+**The polarity terms were on three different, arbitrary scales.** `net_polarity` summed
+`trend_dist*100`, `macd_dist*1000`, and raw `comp_rs` — three magic multipliers with no
+principled relationship to each other, so `directional_bias`'s sign was decided by whichever
+term happened to land numerically largest, not by which signal was actually strongest.
+Normalised each to a comparable scale using its OWN pre-existing significance threshold as
+the unit (`trend_dist/0.005`, `macd_dist/0.002`, `comp_rs/5.0`, each clipped to `[-3, 3]`) —
+these three threshold values aren't new constants, they're the exact numbers already gating
+each term's own `if abs(x) > threshold` check, reused rather than invented, matching this
+codebase's established normalization idiom (`conviction_scorer.py`'s `_norm` variables).
+
+**`prev_day_high`/`prev_day_low` were misleadingly named**, indexed at `iloc[-1]` (the latest
+fetched bar) rather than provably the prior trading day. Investigated whether Upstox's
+historical endpoint ever includes a still-forming "today" candle and whether the screener is
+provably pre-market-only — neither could be conclusively ruled out (nothing enforces
+`PreMarketScreener` only runs pre-market despite its name; it's a convention, not a guard).
+Per the plan's own instruction to default to the zero-regression fix when evidence is
+ambiguous, renamed to `latest_bar_high`/`latest_bar_low` rather than changing behavior via
+`iloc[-2]`.
+
+**Closed the actual discovery loop** — `_update_watchlist` existed but had zero callers
+anywhere in the repo; the screener's output never reached the monitored watchlist, full stop.
+Added `config/watchlist_policy.yaml` (schema taken verbatim from the design document's own
+illustrative example) and a `select_bounded_watchlist` function enforcing `core` (always
+included), `min_adv_crore` (liquidity floor, using a new `adv_crore` field computed from data
+already fetched), `cluster_cap` (reusing Task 3.2's `cluster_of`/`load_clusters`, not
+reimplemented), and `churn_cap` (a hard ceiling on watchlist turnover per run). Wired into
+`run_scan()`, which now actually calls `_update_watchlist` with the bounded result.
+
+**Found in review, fixed across two rounds:**
+- **`churn_cap` was not actually a hard ceiling.** The selection logic's own post-hoc
+  truncation to fit `dynamic_slots` could evict previous-watchlist symbols that were never
+  counted as "drops" in the first place — reviewer reproduced a case where a 2-swap cap
+  allowed a churn of 4. The implementer's own test only measured "swaps" (pairs), not
+  `adds + drops` (the real quantity the cap is supposed to bound), which is exactly how the
+  bug shipped uncaught. Reworked so any eviction needed to fit capacity draws from the same
+  churn budget instead of bypassing it; re-verified with a 200,000-case randomized fuzz test
+  (zero violations) plus a second fuzz run with the fix's core-exemption deliberately removed,
+  confirming the only remaining exception is a documented, unavoidable structural case (the
+  policy's `dynamic_slots` shrinking between runs).
+- **Core symbols were being counted against `churn_cap`, and could be duplicated in output.**
+  The caller passed the *entire* watchlist file — which always includes core — as the
+  "previous" set for churn comparison, so every core symbol looked like a drop on every run,
+  consuming churn budget it should never touch (with the shipped config, 3 of 4 churn slots
+  were phantom core "drops" every single run) and, in the revert path, could be re-added on
+  top of the core symbols already being included — producing an actual duplicate row.
+  Reviewer reproduced `RELIANCE` appearing twice in one output. Fixed by excluding core from
+  the previous-set comparison at the call site, with tests asserting core never appears in
+  `added`/`dropped` and is never duplicated.
+- **The disabled Discovery button silently re-enabled itself.** Pre-existing dashboard JS
+  unconditionally cleared the `disabled` state on any websocket frame carrying a non-empty
+  playbook payload — which the server broadcasts on every frame from a persisted file, so the
+  button came back within seconds of page load. Clicking it then hit the correctly
+  short-circuited backend (which never actually ran anything) but still showed a false
+  "triggered" success message. Fixed with an explicit `data-permanently-disabled` marker the
+  re-enable logic now respects, and the click handler now branches on the backend's
+  `"disabled"` status instead of assuming success.
+- **The fix for the button surfaced a second, pre-existing dead code path**: the intended
+  "Discovery Disabled" message called `showToast`, a function that doesn't exist anywhere in
+  this codebase (two other call sites had the same defect already, unrelated to this task).
+  Replaced all three call sites inside the affected function with `alert()` — not elegant,
+  but it actually executes, and the button being permanently disabled means this path is
+  effectively dead in normal use regardless.
+
+**Flagged for plan owners, deliberately not fixed here (documented, not silently absorbed):**
+- A **second, independent path** to the exact event-loop-blocking risk Step 0 exists to guard
+  against: `POST /api/run-screener`, wired to a separate button, calls `run_scan()` directly
+  inside the *live tick-ingestion process's* own event loop — arguably more severe than the
+  disabled path, since that's the process handling live market data, not just the reasoning
+  engine. Left untouched because Step 0's scope named specific endpoints/ids only, and — on
+  review — that restraint was the right call here: `run_scan()` is genuinely `await`-based
+  (concurrent gather, `asyncio.to_thread` fetches), so it's a long-running co-tenant of that
+  event loop, not a synchronous blocker the way `generate_intraday_playbook` is.
+- That same endpoint is now, after Step 0, the **only remaining caller of `run_scan()`** —
+  meaning the new watchlist-write path this task built is reachable exclusively from the live
+  ingestion process, which reads its watchlist once at startup and never reloads. A mid-session
+  screener run now silently desyncs `watchlist.csv` from that process's in-memory watchlist
+  until restart. Not a crash, not fabricated data, but a real new side effect — documented with
+  a code comment at the call site rather than fixed (a reload mechanism is separate work).
+- Normalising only the three *technical* polarity terms (as the plan specified) leaves the
+  news/catalyst term on its old, larger, unnormalized scale — so a single high-impact headline
+  can now unilaterally decide `directional_bias` in a way three technical signals combined
+  cannot override, a reversal of the old formula's occasional technicals-outvote-news behavior.
+  Spec-compliant, but a real behavioral shift worth knowing about.
+
+**Verified:** 176 passed / 0 failed after both fix rounds (was 158 before this task).
+
+**Phase 5 status: 5/6 done (5.1-5.5). 5.6 (session review + dead-code removal) remains,
+brief already prepared.**
 
 ---
 
