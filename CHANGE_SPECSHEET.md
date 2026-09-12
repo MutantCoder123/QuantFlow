@@ -1103,9 +1103,37 @@ rounded for display, so the displayed triple can show a ~0.001 mismatch in edge 
 
 **Verified:** 147 passed / 0 failed; review approved with zero fix rounds.
 
-**Phase 5 status: 2/6 done (5.1, 5.2). Paused after 5.2 by explicit request — 5.3 (Exposure
-view), 5.4 (Replay runner), 5.5 (screener + discovery loop), 5.6 (session review + dead-code
-removal) remain, briefs already prepared.**
+### Task 5.3 — Exposure view
+
+**Files:** `api_server.py`, `templates/index.html`, `tests/test_risk_exposure.py`.
+Commits `0adfb3f`, `edeca59` (fix round).
+
+The plan's brief was two lines; the actual work was already sitting there unused. `core/risk.py`
+(Task 3.3) already has `Portfolio.risk_in_cluster()`, and `ReasoningEngine._build_portfolio()`
+(also Task 3.3) already reconstructs a live `Portfolio` from `user_positions` on every sizing
+call — the new `GET /api/risk/exposure` endpoint just reads that same object instead of
+re-deriving cluster exposure independently.
+
+Two rulings kept this narrow: the endpoint reports only clusters that currently carry open
+risk (answers "what am I already loaded on," not a static list of every defined cluster at
+0%), and `pct_of_limit` is deliberately **not** numerically clamped — a cluster can legitimately
+show `150%` if positions were opened before a limit was tightened. Only the UI bar's *visual*
+width clamps at 100%; the percentage text next to it still shows the real number. Getting this
+split backwards (clamping the number instead of just the pixel width) was the main risk named
+before dispatch, and review confirmed both directions were implemented correctly.
+
+**Found in review, fixed in round 1:** the over-limit test asserted `pct_of_limit > 1.0` from a
+hardcoded `qty=3000`, justified only by a comment about what `config/risk.yaml` currently
+contains — a future edit to that file's capital or `max_cluster_risk_pct` could have silently
+flipped the test's pass/fail with no actual code regression. Fixed to read the endpoint's own
+reported `capital`/`max_cluster_risk_pct` first and derive a qty that provably exceeds the limit
+regardless of what's on disk (`int(1.5 * limit / 5.0) + 1`, verified algebraically to always
+overshoot). Also dropped a dead `load_clusters()` call left over from an earlier draft.
+
+**Verified:** 156 passed / 0 failed after the fix round (was 147 before this task).
+
+**Phase 5 status: 3/6 done (5.1, 5.2, 5.3). 5.4 (Replay runner), 5.5 (screener + discovery
+loop), 5.6 (session review + dead-code removal) remain, briefs already prepared.**
 
 ---
 
