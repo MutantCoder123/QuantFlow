@@ -2529,9 +2529,15 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
             }
             // Sort by attention rank descending (ev_r x freshness, §4.6);
             // ties (including two unranked cards) fall back to Priority Score.
+            // Explicit >/</=== comparisons, not subtraction: both operands
+            // can be -Infinity (rejected/unranked), and
+            // -Infinity - (-Infinity) === NaN, which Array.sort handles as
+            // undefined ordering -- jittery re-sorts on every 3s poll for
+            // the common case of two suppressed/unranked cards.
             cardsData.sort((a, b) => {
-                const rankDiff = getAttentionRank(b.symbol) - getAttentionRank(a.symbol);
-                if (rankDiff !== 0) return rankDiff;
+                const rankA = getAttentionRank(a.symbol);
+                const rankB = getAttentionRank(b.symbol);
+                if (rankA !== rankB) return rankA > rankB ? -1 : 1;
                 const scoreA = a.actionData.Priority_Score || 0;
                 const scoreB = b.actionData.Priority_Score || 0;
                 return scoreB - scoreA;
