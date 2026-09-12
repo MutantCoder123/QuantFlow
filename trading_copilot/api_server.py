@@ -199,6 +199,18 @@ async def get_symbol_accuracy():
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@app.get("/api/performance/arms")
+async def get_arm_comparison(days: int = 30):
+    """Shadow-mode both-arm comparison (improved §4.5): math-only vs
+    math+LLM, plus LLM veto precision."""
+    try:
+        from journal.arms import ArmJournal, summarise_arms
+        from paths import SIGNALS_DIR
+        rows = ArmJournal(SIGNALS_DIR / "arms").load_all(days)
+        return {"status": "success", "data": summarise_arms(rows)}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 @app.post("/api/reasoning/instant/{symbol}")
 async def instant_analyze(symbol: str, req: InstantAnalyzeRequest):
     TerminalDashboard.active_states = local_active_states

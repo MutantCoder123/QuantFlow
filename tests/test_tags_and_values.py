@@ -7,12 +7,18 @@ from semantic_tagger import SemanticTagger, state_of
 from conviction_scorer import ConvictionScorer
 
 
-def test_semantic_block_carries_the_scalar_alongside_the_tag():
+def test_semantic_block_carries_the_scalar_alongside_the_tag(monkeypatch):
+    # translate_to_llm_payload zeroes all live microstructure when the market
+    # is closed, so this MUST pin the market-open guard -- otherwise the test
+    # silently passes on a weekday afternoon and fails every weekend (the same
+    # wall-clock fragility Task 0.9 hit).
+    monkeypatch.setattr("pipeline_guard.is_market_open", lambda: True)
     out = SemanticTagger.translate_to_llm_payload(
         {"ltp": 100.0, "vol_z_score_5m": 3.4, "obi": 0.71, "atr_1d": 2.0})
     vr = out["1_live_microstructure"]["volume_regime"]
     assert vr["state"] == "TIME_ADJUSTED_SHOCK"
     assert vr["vol_z"] == 3.4
+    assert out["1_live_microstructure"]["order_book_imbalance_state"]["obi"] == 0.71
 
 
 def test_state_of_accepts_both_shapes():

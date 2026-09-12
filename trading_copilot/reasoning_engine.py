@@ -476,6 +476,12 @@ class ReasoningEngine:
                         "ltp": payload_copy.get("ltp")
                     })
                     
+                    # ---- Shadow mode: journal BOTH arms for every escalation,
+                    # unconditionally on verdict (improved §4.5). Previously only
+                    # CONFIRM/ADJUST reached the ledger, so every ABORT/DEFER
+                    # vanished and "does the LLM actually help?" was unanswerable.
+                    cls._write_arm_record(symbol, math_setup, ticket, risk_params)
+
                     actionable_directives = ["EXECUTE_LONG", "EXECUTE_SHORT", "CLOSE_EXISTING", "REVERSE_POSITION"]
                     if verdict in ("CONFIRM", "ADJUST") and action in actionable_directives:
                         # Phase 10: Record to Signal Ledger for outcome tracking
@@ -519,6 +525,50 @@ class ReasoningEngine:
                 return error_msg
 
     llm_enabled = {} # symbol -> bool
+
+    _arm_journal = None
+
+    @classmethod
+    def _get_arm_journal(cls):
+        if cls._arm_journal is None:
+            from journal.arms import ArmJournal
+            from paths import SIGNALS_DIR
+            cls._arm_journal = ArmJournal(SIGNALS_DIR / "arms")
+        return cls._arm_journal
+
+    @classmethod
+    def _write_arm_record(cls, symbol, math_setup, ticket, risk_params):
+        """One ArmRecord per escalation, whatever the LLM said (§4.5)."""
+        try:
+            from journal.arms import ArmRecord
+            geo = (math_setup or {}).get("execution_geometry") or {}
+            try:
+                from core.policy_config import load_policy
+                cfg_version = load_policy().version
+            except Exception:
+                cfg_version = 0
+            cls._get_arm_journal().write(ArmRecord(
+                symbol=cls._normalize_symbol(symbol),
+                ts=int(time.time()),
+                config_version=cfg_version,
+                math_arm={
+                    "action": (math_setup or {}).get("directional_bias", "NEUTRAL"),
+                    "entry": geo.get("calculated_entry"),
+                    "stop": geo.get("padded_stop"),
+                    "target": geo.get("calculated_target"),
+                    "composite": (math_setup or {}).get("composite_score"),
+                },
+                llm_arm={
+                    "verdict": ticket.get("verdict", "UNKNOWN"),
+                    "action": ticket.get("action_directive", "UNKNOWN"),
+                    "entry": risk_params.get("final_entry"),
+                    "stop": risk_params.get("final_stop"),
+                    "target": risk_params.get("final_target"),
+                },
+                escalated=True,
+            ))
+        except Exception as e:
+            logger.error(f"Failed to journal arm record for {symbol}: {e}")
 
     @classmethod
     def _build_portfolio(cls):
@@ -603,6 +653,29 @@ class ReasoningEngine:
                 await asyncio.to_thread(feature_log.flush)
 
         asyncio.create_task(_feature_flush())
+
+        async def _arm_resolver():
+            """Label both arms of every escalation once its horizon has
+            elapsed, reusing the ledger's cross-process bar bridge (§4.5)."""
+            from journal.arms import resolve_arms
+            from signal_ledger import SignalLedger
+            from diagnostic_ui import TerminalDashboard as _TD
+
+            async def _fetch(sym):
+                token = next((k for k in _TD.active_states if sym and sym in k), sym)
+                return await SignalLedger._fetch_recent_bars(token)
+
+            primary = SignalLedger._measure_at()[-1]
+            while True:
+                await asyncio.sleep(300)
+                try:
+                    await resolve_arms(cls._get_arm_journal(), _fetch,
+                                       horizon_min=primary,
+                                       cost_pct=SignalLedger.ROUND_TRIP_COST_PCT)
+                except Exception as e:
+                    logger.error(f"Arm resolver error: {e}")
+
+        asyncio.create_task(_arm_resolver())
 
         while True:
             for symbol, payload in list(TerminalDashboard.active_states.items()):
