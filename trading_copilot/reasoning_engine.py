@@ -275,9 +275,14 @@ class ReasoningEngine:
                     "PRIME DIRECTIVES:\n\n"
                     "1. MATH IS BASELINE:\n"
                     "Treat `math_setup.execution_geometry` (calculated_entry, padded_stop, calculated_target) "
-                    "and `math_setup.expectancy_matrix` (implied_probability, statistical_edge) as ground truth. "
-                    "Do not recalculate. Only modify if a catastrophic qualitative event demands it, "
-                    "and only within the ADJUSTMENT CONSTRAINTS below.\n\n"
+                    "as the deterministic baseline. Do not recalculate. Only modify if a catastrophic "
+                    "qualitative event demands it, and only within the ADJUSTMENT CONSTRAINTS below.\n"
+                    "`math_setup.expectancy_matrix` is NOT ground truth. `breakeven_probability` and "
+                    "`reward_risk` are derived from the geometry and are reliable, but "
+                    "`implied_probability` and `statistical_edge` are null whenever the system has not "
+                    "yet measured its own hit rate (see `calibration_status`). When they are null, "
+                    "reason from reward:risk and the qualitative blocks -- do NOT invent, assume, or "
+                    "state a win probability.\n\n"
                     "2. HOLISTIC SYNTHESIS (SEEK CONTRADICTIONS):\n"
                     "Cross-reference the math against qualitative context across these blocks. "
                     "Your attention weighting MUST follow the active regime:\n\n"
@@ -431,10 +436,13 @@ class ReasoningEngine:
                     composite_score = math_setup.get("composite_score", 0.0)
                     
                     expectancy_matrix = math_setup.get("expectancy_matrix") or {}
-                    stat_edge = expectancy_matrix.get("statistical_edge", 0.0)
-                    
+                    # None while uncalibrated (§4.2) -- no measured probability,
+                    # so no confidence number is reported rather than an invented one.
+                    stat_edge = expectancy_matrix.get("statistical_edge")
+
                     calc_priority = min(10, int(abs(composite_score) * 20))
-                    calc_confidence = min(10, int(stat_edge * 33)) if stat_edge > 0 else 0
+                    calc_confidence = (min(10, int(stat_edge * 33))
+                                       if stat_edge is not None and stat_edge > 0 else 0)
                     
                     geo_src = (math_setup.get("execution_geometry") or {})
                     geo_err = None
@@ -461,6 +469,8 @@ class ReasoningEngine:
                         "Status_Tag": "LLM_ANALYZED",
                         "llm_authorized": True,
                         "geometry_override": geo_err,
+                        "Edge_Status": expectancy_matrix.get("calibration_status"),
+                        "Reward_Risk": expectancy_matrix.get("reward_risk"),
                         "Generated_Time": payload_copy.get("current_time", "UNKNOWN")
                     }
                     cls.latest_reports[cls._normalize_symbol(symbol)] = json.dumps(ui_data, indent=2)

@@ -288,21 +288,48 @@ class ConvictionScorer:
         effective_risk = risk + slippage + cost_abs
         effective_reward = max(0.0001, reward - slippage - cost_abs)
 
-        import math
-        # Multiply absolute score by 4.5 to stretch the logistic curve
-        raw_prob = 1 / (1 + math.exp(-(abs(composite) * 4.5)))
-        # Dampen slightly to cap absolute perfection at ~92%
-        p_implied = 0.50 + ((raw_prob - 0.50) * 0.85)
-        
-        p_breakeven = effective_risk / (effective_risk + effective_reward)
-        stat_edge = p_implied - p_breakeven
+        # The old `0.50 + 0.85*(sigmoid(4.5*|composite|) - 0.50)` was not a
+        # probability -- just a rescaling of the score with two magic
+        # constants, never fitted against a single realised outcome, yet
+        # rendered as confidence and handed to the LLM as ground truth
+        # (improved §4.2 / C-1). Report the measured probability, or none.
+        from core.calibration import (implied_probability, load_calibration,
+                                      calibration_status)
+        cal = load_calibration()
+        p_implied = implied_probability(composite, regime, cal)
 
-        if stat_edge < 0.05:
-             return self._create_rejected_output(
-                 composite, bias, "INSUFFICIENT_STATISTICAL_EDGE",
-                 geometry={"calculated_entry": round(calculated_entry, 2), "padded_stop": round(padded_stop, 2), "calculated_target": round(target, 2), "effective_risk": round(effective_risk, 2), "effective_reward": round(effective_reward, 2)},
-                 expectancy_matrix={"implied_probability": round(p_implied, 2), "breakeven_probability": round(p_breakeven, 2), "statistical_edge": round(stat_edge, 2)}
-             )
+        # Breakeven comes from the geometry, so it stays measurable either way.
+        p_breakeven = effective_risk / (effective_risk + effective_reward)
+        reward_risk = effective_reward / effective_risk if effective_risk > 0 else 0.0
+        stat_edge = (p_implied - p_breakeven) if p_implied is not None else None
+
+        expectancy = {
+            "implied_probability": round(p_implied, 2) if p_implied is not None else None,
+            "breakeven_probability": round(p_breakeven, 2),
+            "reward_risk": round(reward_risk, 2),
+            "statistical_edge": round(stat_edge, 2) if stat_edge is not None else None,
+            "calibration_status": calibration_status(cal),
+        }
+        geometry = {
+            "calculated_entry": round(calculated_entry, 2),
+            "padded_stop": round(padded_stop, 2),
+            "calculated_target": round(target, 2),
+            "effective_risk": round(effective_risk, 2),
+            "effective_reward": round(effective_reward, 2),
+        }
+
+        # Gate on measured edge when calibrated; on reward:risk alone while
+        # uncalibrated -- never on an invented probability.
+        if stat_edge is not None:
+            if stat_edge < self._cfg_gate("min_stat_edge", 0.05):
+                return self._create_rejected_output(
+                    composite, bias, "INSUFFICIENT_STATISTICAL_EDGE",
+                    geometry=geometry, expectancy_matrix=expectancy)
+        else:
+            if reward_risk < self._cfg_conviction("min_reward_risk", 1.5):
+                return self._create_rejected_output(
+                    composite, bias, "INSUFFICIENT_REWARD_RISK",
+                    geometry=geometry, expectancy_matrix=expectancy)
 
         # Step 7: Output
         return {
@@ -310,19 +337,25 @@ class ConvictionScorer:
             "composite_score": composite,
             "setup_rejected": False,
             "rejection_reason": None,
-            "execution_geometry": {
-                "calculated_entry": round(calculated_entry, 2),
-                "padded_stop": round(padded_stop, 2),
-                "calculated_target": round(target, 2),
-                "effective_risk": round(effective_risk, 2),
-                "effective_reward": round(effective_reward, 2)
-            },
-            "expectancy_matrix": {
-                "implied_probability": round(p_implied, 2),
-                "breakeven_probability": round(p_breakeven, 2),
-                "statistical_edge": round(stat_edge, 2)
-            }
+            "execution_geometry": geometry,
+            "expectancy_matrix": expectancy,
         }
+
+    @staticmethod
+    def _cfg_gate(key: str, default):
+        try:
+            from core.policy_config import load_policy
+            return load_policy().gates.get(key, default)
+        except Exception:
+            return default
+
+    @staticmethod
+    def _cfg_conviction(key: str, default):
+        try:
+            from core.policy_config import load_policy
+            return load_policy().conviction.get(key, default)
+        except Exception:
+            return default
 
     def _create_rejected_output(self, score: float, bias: str, reason: str, geometry: dict = None, expectancy_matrix: dict = None) -> dict:
         return {

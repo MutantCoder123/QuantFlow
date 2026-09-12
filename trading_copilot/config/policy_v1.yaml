@@ -51,6 +51,8 @@ conviction:
   whipsaw_flip_limit: 3         # conviction_scorer.py:159
   whipsaw_penalty: 0.5          # conviction_scorer.py:160
   min_reward_atr15: 1.5         # conviction_scorer.py:237
+  min_reward_risk: 1.5          # Task 4.2 -- the admission gate while UNCALIBRATED
+                                # (no measured probability => no statistical edge)
   entry_offset_atr5: 0.2        # conviction_scorer.py:241,256
   slippage_atr5: 0.1            # conviction_scorer.py:262,263
   atr_mult_by_iv_regime:        # conviction_scorer.py:223-226

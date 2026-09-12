@@ -2263,6 +2263,10 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
             }
 
             const actionClass = data.Action === 'Short' ? 'bg-rose-900/40 text-rose-300 border-rose-700/50' : data.Action === 'Wait' || data.Action === 'Hold' ? 'bg-amber-900/40 text-amber-300 border-amber-700/50' : 'bg-emerald-900/40 text-emerald-300 border-emerald-700/50';
+            // §4.2: while the win probability is unmeasured the card must say so
+            // rather than render an invented confidence score.
+            const edgeUnmeasured = !data.Confidence_Score
+                || (data.Edge_Status || '').startsWith('unmeasured');
             // Build the beautiful UI card
             let actionHtml = `
                     <div class="bg-slate-900 border border-slate-700/80 rounded-xl p-4 shadow-lg relative overflow-hidden flex flex-col shrink-0">
@@ -2293,14 +2297,17 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                             ${data.Risk_Rejection ? `<div class="mb-3 px-2 py-1 rounded text-[11px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30">RISK LAYER BLOCKED: ${data.Risk_Rejection}</div>` : (data.Risk_Amount ? `<div class="mb-3 px-2 py-1 rounded text-[11px] text-slate-400 border border-slate-700/50">Sized risk: ₹${data.Risk_Amount}</div>` : '')}
                             <div class="flex justify-between items-center px-1 mt-2">
                                 <div class="flex items-center gap-1.5">
-                                    <span class="text-xs text-slate-500 uppercase tracking-wider">Confidence:</span>
-                                    <span class="text-sm font-bold text-indigo-400">${data.Confidence_Score ? data.Confidence_Score + '/10' : 'N/A'}</span>
+                                    <span class="text-xs text-slate-500 uppercase tracking-wider">Edge:</span>
+                                    ${edgeUnmeasured
+                                        ? `<span class="text-sm font-bold text-slate-500" title="${data.Edge_Status || ''}">unmeasured${data.Reward_Risk ? ` · R:R ${data.Reward_Risk}` : ''}</span>`
+                                        : `<span class="text-sm font-bold text-indigo-400">${data.Confidence_Score}/10</span>`}
                                 </div>
                                 <div class="flex items-center gap-1.5">
                                     <span class="text-xs text-slate-500 uppercase tracking-wider">Risk:</span>
                                     <span class="text-sm font-bold text-amber-400">${data.Risk_Percentage ? data.Risk_Percentage + '%' : 'N/A'}</span>
                                 </div>
                             </div>
+                            ${edgeUnmeasured ? `<div class="mt-2 px-2 py-1 rounded text-[11px] text-slate-400 border border-slate-700/50">Confidence is not reported: ${data.Edge_Status || 'probability unmeasured'}. Admitted on reward:risk alone.</div>` : ''}
                         </div>
                     </div>`;
             const actionBlock = document.getElementById('reasoning-action-block');

@@ -171,8 +171,13 @@ class IntradayGatekeeper:
         setup_rejected = math_setup.get("setup_rejected", True)
         composite_score = abs(math_setup.get("composite_score", 0.0))
         bias = math_setup.get("directional_bias", "NEUTRAL")
-        stat_edge = (math_setup.get("expectancy_matrix") or {}).get("statistical_edge", 0.0)
-        
+        # statistical_edge is None while the system is uncalibrated (§4.2) --
+        # there is no measured probability to derive an edge from, so fall
+        # back to reward:risk rather than fabricating one.
+        expectancy = math_setup.get("expectancy_matrix") or {}
+        stat_edge = expectancy.get("statistical_edge")
+        reward_risk = float(expectancy.get("reward_risk") or 0.0)
+
         # Extract Geometry and Dynamic Scaling
         geo = math_setup.get("execution_geometry") or {}
         entry = geo.get("calculated_entry")
@@ -181,9 +186,12 @@ class IntradayGatekeeper:
         risk_pct = 0.0
         if entry and geo.get("effective_risk"):
             risk_pct = round((geo["effective_risk"] / entry) * 100, 2)
-            
+
         dyn_priority = min(10, int(composite_score * 20))
-        dyn_confidence = min(10, int(stat_edge * 33)) if stat_edge > 0 else 0
+        # No measured edge => no confidence number. Reporting one would be the
+        # exact fabrication §4.2 removes.
+        dyn_confidence = (min(10, int(stat_edge * 33))
+                          if stat_edge is not None and stat_edge > 0 else 0)
         
         # If ConvictionScorer rejected the setup → suppress LLM
         if setup_rejected:
@@ -205,8 +213,11 @@ class IntradayGatekeeper:
         elif current_regime == "TRANSITIONAL_DRIFT":
             effective_score *= 0.7
             
-        # ENTRY GATE: Authorize LLM only if effective score survives regime dampening
-        if effective_score >= 0.15 and stat_edge >= 0.05:
+        # ENTRY GATE: Authorize LLM only if effective score survives regime
+        # dampening AND the edge test passes -- measured edge when calibrated,
+        # reward:risk while not (§4.2).
+        edge_ok = (stat_edge >= 0.05) if stat_edge is not None else (reward_risk >= 1.5)
+        if effective_score >= 0.15 and edge_ok:
             action = "Long" if bias == "LONG" else "Short"
             return cls._create_response(action, priority=dyn_priority, confidence=dyn_confidence, llm_auth=True, entry=entry, sl=sl, tp=tp, risk=risk_pct)
             
