@@ -226,6 +226,47 @@ async def get_reliability(days: int = 60):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@app.get("/api/risk/exposure")
+async def get_risk_exposure():
+    """Report open risk per cluster against max_cluster_risk_pct limits (Task 5.3)."""
+    try:
+        from core.risk import load_risk_limits, load_clusters
+        book = ReasoningEngine._build_portfolio()
+        limits = load_risk_limits()
+        clusters = load_clusters()
+
+        # Collect unique clusters that have open risk
+        open_clusters = set(p["cluster"] for p in book._open if p.get("risk_amount", 0) > 0)
+
+        # Build response for each cluster with open risk
+        cluster_data = []
+        limit_per_cluster = limits.capital * limits.max_cluster_risk_pct / 100.0
+
+        for cluster_id in open_clusters:
+            open_risk = book.risk_in_cluster(cluster_id)
+            pct_of_limit = open_risk / limit_per_cluster if limit_per_cluster > 0 else 0.0
+
+            cluster_data.append({
+                "cluster": cluster_id,
+                "open_risk": round(open_risk, 2),
+                "limit": round(limit_per_cluster, 2),
+                "pct_of_limit": round(pct_of_limit, 4)
+            })
+
+        # Sort descending by pct_of_limit (highest risk % first)
+        cluster_data.sort(key=lambda x: x["pct_of_limit"], reverse=True)
+
+        return {
+            "status": "success",
+            "data": {
+                "capital": limits.capital,
+                "max_cluster_risk_pct": limits.max_cluster_risk_pct,
+                "clusters": cluster_data
+            }
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 @app.post("/api/reasoning/instant/{symbol}")
 async def instant_analyze(symbol: str, req: InstantAnalyzeRequest):
     TerminalDashboard.active_states = local_active_states

@@ -373,6 +373,23 @@
                 </div>
             </section>
 
+            <!-- CLUSTER EXPOSURE VIEW (Task 5.3) -->
+            <section class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <h2 class="text-base font-bold text-white">Cluster Exposure</h2>
+                        <p class="text-xs text-slate-500">Open risk per cluster against max_cluster_risk_pct limits. Red ≥90%.</p>
+                    </div>
+                    <button onclick="loadExposure()"
+                        class="text-xs px-2 py-1 rounded border border-slate-700 text-slate-300 hover:bg-slate-800">Refresh</button>
+                </div>
+                <div id="exposure-status" class="text-xs text-slate-500 mb-2">Not loaded.</div>
+                <div id="exposure-message" class="hidden mb-3 px-2 py-1 rounded text-[11px] font-bold"></div>
+                <div id="exposure-container" class="space-y-2">
+                    <div class="text-center text-xs text-slate-600">Press Refresh to load.</div>
+                </div>
+            </section>
+
         </div> <!-- End of tab-dashboard -->
         <!-- LIVE ACTION TAB -->
         <div id="tab-live-action" class="hidden space-y-6">
@@ -862,6 +879,54 @@
                 statusEl.textContent = 'Could not load reliability data: ' + e.message;
                 verdictEl.classList.add('hidden');
                 body.innerHTML = `<tr><td colspan="5" class="py-4 text-center text-slate-600">No data.</td></tr>`;
+            }
+        }
+
+        async function loadExposure() {
+            const statusEl = document.getElementById('exposure-status');
+            const messageEl = document.getElementById('exposure-message');
+            const containerEl = document.getElementById('exposure-container');
+            if (!containerEl) return;
+            statusEl.textContent = 'Loading...';
+            messageEl.classList.add('hidden');
+            try {
+                const res = await fetch(`${apiBase}/api/risk/exposure`);
+                const json = await res.json();
+                if (json.status !== 'success') throw new Error(json.message || 'failed');
+                const d = json.data;
+
+                statusEl.textContent = `Capital: ₹${(d.capital / 10000000).toFixed(1)} Cr · Max per cluster: ${d.max_cluster_risk_pct}%`;
+
+                if (!d.clusters || d.clusters.length === 0) {
+                    messageEl.classList.remove('hidden');
+                    messageEl.className = 'mb-3 px-2 py-1 rounded text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30';
+                    messageEl.textContent = 'No open positions. Fully within limits.';
+                    containerEl.innerHTML = '';
+                } else {
+                    messageEl.classList.add('hidden');
+                    containerEl.innerHTML = d.clusters.map(c => {
+                        const barWidth = Math.min(c.pct_of_limit * 100, 100);
+                        const isRed = c.pct_of_limit >= 0.90;
+                        const barColor = isRed ? 'bg-rose-500/70' : 'bg-slate-500/50';
+                        const percentText = (c.pct_of_limit * 100).toFixed(1);
+
+                        return `<div class="border border-slate-800/50 rounded p-3 bg-slate-950/30">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-sm font-semibold text-slate-200">${c.cluster}</span>
+                                <span class="text-xs ${isRed ? 'text-rose-400 font-bold' : 'text-slate-400'}">
+                                    ₹${c.open_risk.toLocaleString()} / ₹${c.limit.toLocaleString()} (${percentText}%)
+                                </span>
+                            </div>
+                            <div class="relative h-3 bg-slate-800 rounded overflow-hidden">
+                                <div class="absolute inset-y-0 left-0 ${barColor} rounded" style="width:${Math.max(0, barWidth)}%"></div>
+                            </div>
+                        </div>`;
+                    }).join('');
+                }
+            } catch (e) {
+                statusEl.textContent = 'Could not load exposure data: ' + e.message;
+                messageEl.classList.add('hidden');
+                containerEl.innerHTML = '<div class="text-center text-xs text-slate-600 py-4">Error loading data.</div>';
             }
         }
 
@@ -2434,6 +2499,7 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
         document.addEventListener('DOMContentLoaded', () => {
             fetchNewsState();
             loadParquetSymbols();
+            loadExposure();
             newsStateInterval = setInterval(fetchNewsState, 5000);
         });
         function renderReasoningReport(reportText) {
