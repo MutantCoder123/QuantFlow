@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 from diagnostic_ui import TerminalDashboard
 from config import load_watchlist_from_csv
-from reasoning_engine import ReasoningEngine
+from reasoning_engine import ReasoningEngine, attention_rank
 from history_manager import HistoryManager
 from paths import INSTITUTIONAL_FLOW_PATH, PLAYBOOK_PATH, WATCHLIST_PATH, ensure_dirs
 
@@ -430,7 +430,19 @@ async def websocket_endpoint(websocket: WebSocket):
                 except Exception as e:
                     logger.error(f"Error building structured payload for {symbol}: {e}")
                     payload_copy["structured_payload"] = dict(payload_copy)
-                    
+
+                # Attention rank (§4.6, Task 5.1): lets the Live Action grid
+                # sort by ev_r x freshness and collapse below the top N
+                # client-side without recomputing it in JS. -inf (rejected
+                # setup) is not valid JSON -- send null so a missing rank
+                # and a rejected one sort identically to the bottom.
+                try:
+                    rank = attention_rank(payload_copy.get("structured_payload") or {})
+                    payload_copy["attention_rank"] = rank if rank != float("-inf") else None
+                except Exception as e:
+                    logger.error(f"Error computing attention rank for {symbol}: {e}")
+                    payload_copy["attention_rank"] = None
+
                 enriched_states[symbol] = payload_copy
 
             payload = {

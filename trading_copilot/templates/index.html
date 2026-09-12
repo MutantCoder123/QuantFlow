@@ -415,6 +415,11 @@
             <div id="live-action-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 <!-- Action Cards go here -->
             </div>
+            <div class="flex justify-center mt-2">
+                <button id="live-action-show-more" onclick="toggleLiveActionShowAll()"
+                    class="hidden px-4 py-2 text-xs font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors">
+                </button>
+            </div>
         </div>
         <!-- DISCOVERY TAB -->
         <div id="tab-screener" class="hidden space-y-6">
@@ -2460,6 +2465,22 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
     <script>
         // Live Action Global State
         window.dismissedLiveReports = {}; // { "RELIANCE": { dismissedAt: timestamp, text: "..." } }
+        // Attention ranking (§4.6): the Live Action grid sorts by attention_rank
+        // (ev_r x freshness, computed server-side per Task 5.1) and collapses
+        // everything past the top N below a "Show more" toggle.
+        const ATTENTION_TOP_N = 5;
+        window.liveActionShowAll = false;
+        function toggleLiveActionShowAll() {
+            window.liveActionShowAll = !window.liveActionShowAll;
+            renderLiveActionGrid(window.latestLiveReports || {});
+        }
+        function getAttentionRank(symbol) {
+            const state = window.latestGlobalState && window.latestGlobalState[symbol];
+            const rank = state && state.attention_rank;
+            // Missing or rejected (server sends null for -inf) sinks to the
+            // bottom, same as a rejected setup.
+            return (typeof rank === 'number' && isFinite(rank)) ? rank : -Infinity;
+        }
         function startLiveActionPolling() {
             if (window.liveActionPollInterval) clearInterval(window.liveActionPollInterval);
             pollLiveActionCards();
@@ -2506,22 +2527,50 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                     // Not valid JSON, ignore
                 }
             }
-            // Sort by Priority Score descending
+            // Sort by attention rank descending (ev_r x freshness, §4.6);
+            // ties (including two unranked cards) fall back to Priority Score.
             cardsData.sort((a, b) => {
+                const rankDiff = getAttentionRank(b.symbol) - getAttentionRank(a.symbol);
+                if (rankDiff !== 0) return rankDiff;
                 const scoreA = a.actionData.Priority_Score || 0;
                 const scoreB = b.actionData.Priority_Score || 0;
                 return scoreB - scoreA;
             });
+
+            const showMoreBtn = document.getElementById('live-action-show-more');
+            const collapsedCount = cardsData.length - ATTENTION_TOP_N;
+            if (showMoreBtn) {
+                if (collapsedCount > 0) {
+                    showMoreBtn.classList.remove('hidden');
+                    showMoreBtn.textContent = window.liveActionShowAll
+                        ? 'Show fewer'
+                        : `Show ${collapsedCount} more`;
+                } else {
+                    showMoreBtn.classList.add('hidden');
+                }
+            }
+
             if (cardsData.length === 0) {
                 grid.innerHTML = `<div class="col-span-full text-center text-slate-500 py-12">No actionable setups detected yet. Turn on Auto-Analyze or hit Instant Analyze on a stock.</div>`;
                 return;
             }
             let html = '';
-            cardsData.forEach(card => {
+            cardsData.forEach((card, idx) => {
                 const d = card.actionData;
                 const score = d.Priority_Score || 0;
                 const isHighPriority = score > 6;
-                const borderGlow = isHighPriority ? 'border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'border-slate-700/80';
+                const isUnstable = !!d.unstable;
+                const borderGlow = isUnstable
+                    ? 'border-slate-700/40 opacity-60'
+                    : (isHighPriority ? 'border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'border-slate-700/80');
+                // Collapse below the attention-rank top N (§4.6) behind the
+                // "Show more" toggle instead of removing them from the DOM.
+                const collapsedClass = (!window.liveActionShowAll && idx >= ATTENTION_TOP_N) ? 'hidden' : '';
+
+                let stabilizingBadge = '';
+                if (isUnstable) {
+                    stabilizingBadge = `<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-slate-800 text-slate-400 border border-slate-600" title="Advice is still flickering -- needs 3 stable ticks before it's actionable.">STABILIZING</span>`;
+                }
 
                 let rejectionBadge = '';
                 let isSuppressed = false;
@@ -2575,7 +2624,7 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                 }
 
                 html += `
-        <div class="bg-slate-900 border rounded-xl p-4 relative overflow-hidden flex flex-col shrink-0 ${borderGlow} transition-all">
+        <div class="bg-slate-900 border rounded-xl p-4 relative overflow-hidden flex flex-col shrink-0 ${borderGlow} transition-all ${collapsedClass}">
             <div class="flex justify-between items-start mb-3">
                 <div class="flex flex-wrap items-center gap-1.5">
                     <h3 class="text-xl font-bold text-white tracking-tight mr-1">${card.symbol.split('|').pop()}</h3>
@@ -2584,6 +2633,7 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                     <span class="px-2 py-0.5 text-xs font-bold rounded ${isHighPriority ? 'bg-emerald-900/60 text-emerald-400 border border-emerald-700' : 'bg-slate-800 text-slate-400 border border-slate-700'}">Pri: ${score}</span>
                     <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-indigo-900/40 text-indigo-300 border border-indigo-700">Conf: ${d.Confidence_Score || '-'}</span>
                     ${rejectionBadge}
+                    ${stabilizingBadge}
                     ${pendingIndicator}
                 </div>
                 <div class="flex items-center gap-2">

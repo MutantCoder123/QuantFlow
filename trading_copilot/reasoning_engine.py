@@ -94,6 +94,35 @@ def _numeric_features(payload: dict) -> dict:
             if isinstance(v, (int, float)) and not isinstance(v, bool)}
 
 
+# Only escalate the top N ranked symbols to the LLM per tick (§4.6, Task 5.1).
+# Not a tunable -- the UI's "collapse below top 5" grid uses the same number.
+ATTENTION_TOP_N = 5
+
+
+def attention_rank(sp: dict) -> float:
+    """Rank a structured payload for the attention queue (improved §4.6).
+
+    Rejected setups rank at -inf so they always sort last -- never
+    escalated, never surfaced at the top of the Live Action grid.
+
+    No calibrated "confidence" field exists post-Task-4.2 (the invented
+    sigmoid probability was deleted -- it was never fitted to real
+    outcomes). ev_r uses the measured statistical_edge when available,
+    else falls back to the reward:risk margin above breakeven -- the same
+    fallback the gate itself uses in conviction_scorer.py.
+    """
+    math_setup = sp.get("math_setup") or {}
+    if math_setup.get("setup_rejected", True):
+        return float("-inf")
+    expectancy = math_setup.get("expectancy_matrix") or {}
+    reward_risk = expectancy.get("reward_risk") or 0.0
+    stat_edge = expectancy.get("statistical_edge")
+    ev_r = stat_edge if stat_edge is not None else (reward_risk - 1.0)
+    age_s = float(sp.get("data_age_s", 0.0) or 0.0)
+    freshness = 1.0 / (1.0 + age_s / 60.0)  # 1.0 at age 0, 0.5 at 60s, ~0.17 at 300s
+    return ev_r * freshness
+
+
 class ReasoningEngine:
     # Throttle concurrent API calls to avoid rate limit bans (Increased for Tier 1)
     llm_semaphore = asyncio.Semaphore(15)
@@ -128,6 +157,55 @@ class ReasoningEngine:
         return s
 
     @classmethod
+    def _advance_debounce(cls, norm_sym: str, current_advice: dict) -> bool:
+        """Update the per-symbol advice-stability counter and report whether
+        it has now held for >=3 consecutive ticks (Task 5.1, §4.6).
+
+        Stability gates escalation to the LLM only -- the caller must still
+        publish to latest_reports on every tick regardless of this result
+        (see `_publish_unstable`); this counter used to also gate the
+        publish via a `continue`, which starved the UI card for the first
+        two ticks of every transition.
+        """
+        debounce_record = cls.advice_debounce.setdefault(norm_sym, {"advice": current_advice, "count": 0})
+        if debounce_record["advice"] == current_advice:
+            debounce_record["count"] += 1
+        else:
+            cls.advice_debounce[norm_sym] = {"advice": current_advice, "count": 1}
+        return cls.advice_debounce[norm_sym]["count"] >= 3
+
+    @classmethod
+    def _publish_unstable(cls, norm_sym: str, gatekeeper_res: dict, payload: dict) -> None:
+        """Publish the current local-gatekeeper read for a symbol whose
+        advice hasn't held stable for 3 consecutive ticks yet (Task 5.1,
+        §4.6 debounce-asymmetry fix). Never escalates to the LLM -- just
+        keeps `latest_reports` fresh instead of stale/missing, with an
+        `unstable` marker so the UI can render it as still stabilizing
+        rather than a firm signal.
+        """
+        gatekeeper_res["unstable"] = True
+        gatekeeper_res["Generated_Time"] = payload.get("current_time", "UNKNOWN")
+        if gatekeeper_res.get("llm_authorized"):
+            if not cls.llm_enabled.get(norm_sym):
+                gatekeeper_res["Status_Tag"] = "REQUIRED LLM ANALYZE"
+                gatekeeper_res["Reason"] = "Local Gatekeeper authorized LLM, but toggle is OFF."
+            else:
+                gatekeeper_res["Status_Tag"] = "STABILIZING"
+        else:
+            gatekeeper_res["Reason"] = gatekeeper_res.get("math_rejection", "Local Gatekeeper active. LLM analysis suppressed.")
+        cls.latest_reports[norm_sym] = json.dumps(gatekeeper_res, indent=2)
+
+    @staticmethod
+    def _top_n_symbols(all_ranks, n: int = None) -> set:
+        """Given [(rank, norm_sym), ...] for every symbol ranked this tick,
+        return the normalized symbols in the top N (§4.6, Task 5.1 Step 5).
+        Rejected setups rank at -inf (see `attention_rank`) so they sink to
+        the bottom and are never selected ahead of a live setup.
+        """
+        n = ATTENTION_TOP_N if n is None else n
+        return {s for _, s in sorted(all_ranks, key=lambda r: r[0], reverse=True)[:n]}
+
+    @classmethod
     def _get_token_for_symbol(cls, symbol: str):
         from api_server import TerminalDashboard
         for token in TerminalDashboard.active_states.keys():
@@ -158,7 +236,13 @@ class ReasoningEngine:
             payload["raw_news"] = catalyst["raw_news"]
             
         tactical_payload = SemanticTagger.translate_to_llm_payload(payload)
-        
+
+        # Carry data_age_s through from the raw tick payload (set by
+        # RollingStateEngine) so attention_rank(sp) can stay a single-arg
+        # function over the structured payload alone (Task 5.1, §4.6) --
+        # SemanticTagger doesn't forward it on its own.
+        tactical_payload["data_age_s"] = payload.get("data_age_s", 0.0)
+
         # Inject Regime
         from regime_manager import RegimeManagerRegistry
         manager = RegimeManagerRegistry.get_or_create(symbol)
@@ -688,14 +772,21 @@ class ReasoningEngine:
         asyncio.create_task(_arm_resolver())
 
         while True:
+            # Escalation is deferred until every symbol's attention rank for
+            # this tick is known (Task 5.1, §4.6: escalate only the top N).
+            # advance_state=True is called at most once per symbol per tick
+            # below (Task 2.2), so ranks are gathered as the single pass
+            # over active_states runs rather than in a second pass.
+            escalation_candidates = []
+            all_ranks = []
             for symbol, payload in list(TerminalDashboard.active_states.items()):
                 token = payload.get('token') or symbol
                 sym = payload.get('symbol') or symbol
-                
+
                 # Skip invalid symbols or broad market indices from individual actionable analysis
                 if not sym or "Nifty 50" in sym or "Nifty Bank" in sym:
                     continue
-                    
+
                 ltp = payload.get("ltp", 0.0)
                 norm_sym = cls._normalize_symbol(sym)
                 # Use canonical normalized key for position lookup
@@ -712,7 +803,13 @@ class ReasoningEngine:
                     # call) reads with the default advance_state=False.
                     structured = cls.build_structured_payload(sym, payload, current_pos,
                                                               advance_state=True)
-                    
+
+                    # Attention rank for this tick (§4.6) -- collected for
+                    # every active symbol so the top-N escalation gate below
+                    # can compare across the whole watchlist.
+                    rank = attention_rank(structured)
+                    all_ranks.append((rank, norm_sym))
+
                     # ---- Pass structured payload to Gatekeeper V2 ----
                     gatekeeper_res = IntradayGatekeeper.evaluate(
                         structured_payload=structured,
@@ -752,49 +849,43 @@ class ReasoningEngine:
                         "has_pos": has_pos
                     }
                     
-                    # --- DEBOUNCE LOGIC ---
-                    debounce_record = cls.advice_debounce.setdefault(norm_sym, {"advice": current_advice, "count": 0})
-                    if debounce_record["advice"] == current_advice:
-                        debounce_record["count"] += 1
-                    else:
-                        cls.advice_debounce[norm_sym] = {"advice": current_advice, "count": 1}
-                        
-                    # Require 3 consecutive ticks of stability to accept state change
-                    if cls.advice_debounce[norm_sym]["count"] < 3:
+                    # --- DEBOUNCE LOGIC (Task 5.1, §4.6) ---
+                    # 3 consecutive ticks of stability are required before we
+                    # ACT on a state change (escalate to the LLM below) -- an
+                    # expensive call that must not fire on a flickering
+                    # signal. Stability is NOT required to publish the
+                    # current local-gatekeeper read: that used to be gated
+                    # by the same counter via a `continue` here, which meant
+                    # latest_reports went stale/missing for the first two
+                    # ticks of every transition. Publishing is cheap and
+                    # must never be starved by this counter.
+                    stable = cls._advance_debounce(norm_sym, current_advice)
+                    gatekeeper_res["unstable"] = not stable
+                    if not stable:
+                        cls._publish_unstable(norm_sym, gatekeeper_res, payload)
                         continue
                     # ----------------------
-                    
+
                     last_advice = cls.last_math_advice.get(norm_sym)
-                    
+
                     if current_advice != last_advice:
                         cls.last_math_advice[norm_sym] = current_advice
-                        
+
                         if gatekeeper_res["llm_authorized"]:
                             if cls.llm_enabled.get(norm_sym):
-                                # Authorized AND toggled ON -> run LLM!
-                                
-                                # Publish the pending state to UI immediately
-                                gatekeeper_res["Status_Tag"] = "PENDING_LLM"
-                                gatekeeper_res["Generated_Time"] = payload.get("current_time", "UNKNOWN")
-                                cls.latest_reports[norm_sym] = json.dumps(gatekeeper_res, indent=2)
-                                
-                                # Avoid parallel duplicate tasks for the same symbol
-                                if norm_sym not in cls.active_loops:
-                                    cls.active_loops[norm_sym] = True
-                                    
-                                    # ---- FIX: Capture by value ----
-                                    async def run_and_unlock(s=norm_sym, p=current_pos, sp=structured):
-                                        try:
-                                            await cls.analyze_stock(
-                                                s, "gemini-2.5-flash", "", 
-                                                user_position=p, 
-                                                is_autonomous=True,
-                                                precomputed_payload=sp
-                                            )
-                                        finally:
-                                            cls.active_loops.pop(s, None)
-                                                
-                                    asyncio.create_task(run_and_unlock())
+                                # Authorized, toggled ON, and stable -- an
+                                # escalation candidate. Defer the actual
+                                # LLM trigger until every symbol's rank for
+                                # this tick is known, so only the top N get
+                                # escalated (§4.6, Task 5.1 Step 5).
+                                escalation_candidates.append({
+                                    "norm_sym": norm_sym,
+                                    "rank": rank,
+                                    "current_pos": current_pos,
+                                    "structured": structured,
+                                    "gatekeeper_res": gatekeeper_res,
+                                    "payload": payload,
+                                })
                             else:
                                 # Authorized BUT toggled OFF -> add Tag and show in UI
                                 gatekeeper_res["Status_Tag"] = "REQUIRED LLM ANALYZE"
@@ -809,10 +900,48 @@ class ReasoningEngine:
                     else:
                         # State unchanged. Preserve UI card, do nothing.
                         pass
-                        
+
                 except Exception as e:
                     logger.error(f"Gatekeeper error for {sym}: {e}")
-                    
+
+            # ---- Top-N attention gate: only escalate the highest-ranked
+            # symbols this tick to the LLM (§4.6, Task 5.1 Step 5). Symbols
+            # authorized+toggled-on+stable but outside the top N still get
+            # their local-gatekeeper card published -- they're just never
+            # escalated. ----
+            top_n_syms = cls._top_n_symbols(all_ranks)
+            for cand in escalation_candidates:
+                norm_sym = cand["norm_sym"]
+                gatekeeper_res = cand["gatekeeper_res"]
+                gen_time = cand["payload"].get("current_time", "UNKNOWN")
+                if norm_sym in top_n_syms:
+                    gatekeeper_res["Status_Tag"] = "PENDING_LLM"
+                    gatekeeper_res["Generated_Time"] = gen_time
+                    cls.latest_reports[norm_sym] = json.dumps(gatekeeper_res, indent=2)
+
+                    # Avoid parallel duplicate tasks for the same symbol
+                    if norm_sym not in cls.active_loops:
+                        cls.active_loops[norm_sym] = True
+
+                        # ---- FIX: Capture by value ----
+                        async def run_and_unlock(s=norm_sym, p=cand["current_pos"], sp=cand["structured"]):
+                            try:
+                                await cls.analyze_stock(
+                                    s, "gemini-2.5-flash", "",
+                                    user_position=p,
+                                    is_autonomous=True,
+                                    precomputed_payload=sp
+                                )
+                            finally:
+                                cls.active_loops.pop(s, None)
+
+                        asyncio.create_task(run_and_unlock())
+                else:
+                    gatekeeper_res["Status_Tag"] = "RANK_GATED"
+                    gatekeeper_res["Reason"] = f"Authorized but outside top {ATTENTION_TOP_N} attention rank this tick."
+                    gatekeeper_res["Generated_Time"] = gen_time
+                    cls.latest_reports[norm_sym] = json.dumps(gatekeeper_res, indent=2)
+
             await asyncio.sleep(10)
 
     @classmethod
