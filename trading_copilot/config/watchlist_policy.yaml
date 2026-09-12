@@ -1,0 +1,11 @@
+# Bounded watchlist selection policy (improved §4.9, Task 5.5).
+# Consumed by screener_engine.select_bounded_watchlist via
+# load_watchlist_policy(). Schema is verbatim from the design document's own
+# illustrative example (improved_architecture_and_features.md, §4.9).
+
+core: [RELIANCE, INFY, KOTAKBANK]   # always monitored, operator-pinned; illustrative starting set
+dynamic_slots: 12                    # screener-managed slots beyond core
+refresh: "08:45"                     # intended pre-open cadence -- schema only; no scheduler is built in this task, nothing consumes this field yet
+cluster_cap: 2                       # max symbols per cluster (reuses config/clusters.yaml, Task 3.2) among the dynamic slots
+min_adv_crore: 50                    # tradability floor: 20d average daily traded value, in rupees crore
+churn_cap: 4                         # max symbols swapped in/out per run vs. the previous watchlist

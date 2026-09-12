@@ -328,9 +328,15 @@ class NewsStartRequest(BaseModel): interval: int = 120; model: str = "gemini-2.5
 
 @app.post("/api/reasoning/playbook/generate")
 async def generate_playbook(req: NewsInstantRequest):
-    import asyncio
-    asyncio.create_task(ReasoningEngine.generate_intraday_playbook(req.model))
-    return {"status": "success", "message": "Playbook generation triggered in background."}
+    # Discovery is temporarily disabled (Task 5.5 step 0): the plan's own
+    # self-review (A-7) found generate_intraday_playbook runs a full-universe
+    # screener sweep synchronously inside the shared asyncio event loop
+    # (blocking it), and enriches candidates against TerminalDashboard's tiny
+    # live-watchlist keyspace so obi/cvd come back "N/A" for nearly everyone.
+    # Fixing screener_engine's scoring (this task) does not fix either of
+    # those -- see CHANGE_SPECSHEET.md, Task 5.5. generate_intraday_playbook
+    # itself is left in place, just no longer called from here.
+    return {"status": "disabled", "message": "Discovery is temporarily disabled -- see CHANGE_SPECSHEET.md, Task 5.5 (A-7 not yet fixed)."}
 
 @app.post("/api/news/instant")
 async def instant_news_fetch(req: NewsInstantRequest): return await proxy_post(8003, "/api/news/instant", {"model": req.model})
