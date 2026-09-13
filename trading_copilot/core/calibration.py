@@ -110,12 +110,22 @@ def reliability_buckets(signals: list, primary_minute: int = 90,
     thinner than `min_n` are marked suppressed (not silently dropped) so the
     operator sees where the evidence runs out.
     """
-    from core.outcome_schema import primary_outcome
+    from core.outcome_schema import measure_at_minutes, primary_outcome
 
-    # `primary_minute` stays the caller-facing knob and the reported x-axis
-    # horizon; `measure_at` is the full checkpoint list that decides whether a
-    # record belongs to this horizon config at all. Left None it comes from the
-    # policy config, whose largest entry IS primary_minute.
+    # `measure_at` is the checkpoint list outcomes are read against. Left None
+    # it comes from the policy config -- but only when that config's primary
+    # horizon is the one the caller asked for; otherwise the caller's
+    # `primary_minute` wins and the curve really is drawn at that horizon.
+    # The reported label is then derived from the list actually used, so it
+    # can never disagree with the curve (`primary_minute=60` against a
+    # [30, 90] config previously returned a 90m curve labelled 60m).
+    if measure_at:
+        mins = sorted({int(m) for m in measure_at})
+    else:
+        policy = measure_at_minutes()
+        mins = policy if policy[-1] == int(primary_minute) else [int(primary_minute)]
+    reported_minute = mins[-1]
+
     width = 1.0 / n_buckets
     buckets = [{"lo": round(i * width, 4), "hi": round((i + 1) * width, 4),
                 "n": 0, "wins": 0} for i in range(n_buckets)]

@@ -121,11 +121,19 @@ class SignalLedger:
         the most recent, most relevant evidence.
         """
         restored = 0
-        mins = cls._measure_at()
+        current = cls._measure_at()
         for rec in cls.load_all_signals(last_n_days=days):
             if rec.get("outcome", {}).get("status") != "PENDING":
                 continue
             ts = rec["timestamp"]
+            # Grade a recovered signal against the checkpoints IT was recorded
+            # under, not whatever the config says now. Re-grading it at new
+            # checkpoints would leave its outcome keys disagreeing with its own
+            # horizon stamp, and core.outcome_schema judges by that stamp --
+            # so a config edit mid-flight would retire a signal that had just
+            # been measured at the horizon in force.
+            stamped = (rec.get("horizon") or {}).get("measure_at_minutes")
+            mins = sorted({int(m) for m in stamped}) if stamped else current
             cls._pending_signals[rec["signal_id"]] = {
                 "record": rec,
                 "targets": {m: ts + m * 60 for m in mins},

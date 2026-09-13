@@ -23,12 +23,14 @@ Attribution, in priority order:
 
 1. ``record["horizon"]["measure_at_minutes"]``, stamped at record time by
    ``SignalLedger.record_signal``. Authoritative; the durable answer for every
-   record written from now on.
+   record written from now on. Only its PRIMARY horizon (the largest entry) is
+   compared -- adding or dropping a diagnostic checkpoint alongside an
+   unchanged primary horizon retires nothing.
 2. For older records, which carry no stamp, two markers date them:
    - any ``ltp_at_*`` key -- written only by the LTP-sampling resolver that
      the bar-accurate rewrite (C-3) replaced, and never by the current one;
-   - any ``directional_correct_{m}m`` for an ``m`` the config no longer
-     measures (e.g. the retired 60m checkpoint).
+   - failing an outcome at the primary horizon, any ``directional_correct_{m}m``
+     for an ``m`` the config no longer measures (e.g. the retired 60m).
 
 Everything excluded is COUNTED, never silently dropped: "no data" must never
 be shown when data exists.
@@ -79,12 +81,29 @@ def _is_early_decided(outcome: dict) -> bool:
 
 
 def _is_retired_schema(signal: dict, outcome: dict, mins: list) -> bool:
+    """Was this record graded against a horizon we no longer measure at?
+
+    Keyed off the PRIMARY horizon, not the full checkpoint list. A record
+    measured at 90m is still measured at 90m whether or not a 15m diagnostic
+    checkpoint was added alongside it, so `[30, 90] -> [15, 30, 90]` must not
+    retire valid history. Comparing the checkpoint sets for equality would
+    make any config edit report "graded at a retired horizon" about records
+    measured at exactly the horizon still in force -- the same false statement
+    the early-close fix removed, mirrored.
+    """
+    primary = mins[-1]
+
     stamped = (signal.get("horizon") or {}).get("measure_at_minutes")
     if stamped:
         # Stamped at record time: the stamp decides, and nothing else does.
-        return sorted({int(m) for m in stamped}) != mins
+        return max(int(m) for m in stamped) != primary
+
     if any(k.startswith(_LEGACY_KEY_PREFIX) for k in outcome):
         return True
+    if f"directional_correct_{primary}m" in outcome:
+        # Measured at the horizon in force; extra checkpoints it also carries
+        # are diagnostics, not grounds for retiring it.
+        return False
     return bool(_checkpoint_minutes(outcome) - set(mins))
 
 

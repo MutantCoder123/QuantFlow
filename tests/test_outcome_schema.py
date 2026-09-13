@@ -150,3 +150,62 @@ def test_normalise_returns_none_for_legacy_and_pending():
     assert normalise(_sig({"status": "PENDING"}), MINS) is None
     assert normalise(_sig({"status": "RESOLVED",
                            "directional_correct_60m": True}), MINS) is None
+
+
+# --------------------------------------------------------------------------
+# Retirement is keyed off the PRIMARY horizon, not the full checkpoint list
+# (fix-round 2). Adding or dropping a diagnostic checkpoint must not retire
+# history measured at a primary horizon that never moved -- that would be the
+# same false "graded at a retired horizon" claim the early-close fix removed,
+# just triggered by a config edit instead.
+# --------------------------------------------------------------------------
+def test_adding_a_diagnostic_checkpoint_does_not_retire_measured_history():
+    """[30, 90] -> [15, 30, 90]: the primary horizon is still 90."""
+    s = _sig({"status": "RESOLVED", "directional_correct_90m": True,
+              "pnl_90m_pct": 1.4, "hit_stop": False, "hit_target": False},
+             horizon={"measure_at_minutes": [30, 90]})
+    assert classify(s, [15, 30, 90]) == MEASURED
+    assert primary_outcome(s, [15, 30, 90])["directional_correct"] is True
+
+
+def test_dropping_a_diagnostic_checkpoint_does_not_retire_measured_history():
+    """[30, 90] -> [90]: still a 90m primary horizon."""
+    s = _sig({"status": "RESOLVED", "directional_correct_90m": True,
+              "pnl_90m_pct": 1.4},
+             horizon={"measure_at_minutes": [30, 90]})
+    assert classify(s, [90]) == MEASURED
+
+
+def test_an_early_close_survives_a_diagnostic_checkpoint_being_added():
+    s = _sig({"status": "RESOLVED_EARLY", "directional_correct_30m": True,
+              "pnl_30m_pct": 2.1, "hit_target": True},
+             horizon={"measure_at_minutes": [30, 90]})
+    assert classify(s, [15, 30, 90]) == MEASURED
+
+
+def test_moving_the_primary_horizon_does_retire_stamped_history():
+    """[30, 90] -> [30, 120] is a real horizon change: a 90m outcome is not a
+    120m one, and mixing them is what the exclusion exists to prevent."""
+    s = _sig({"status": "RESOLVED", "directional_correct_90m": True,
+              "pnl_90m_pct": 1.4},
+             horizon={"measure_at_minutes": [30, 90]})
+    assert classify(s, [30, 120]) == LEGACY
+
+
+def test_unstamped_record_measured_at_the_primary_horizon_survives_extra_keys():
+    """An older unstamped record carrying a valid primary-horizon outcome stays
+    measured even if it also carries a checkpoint the config has since dropped."""
+    s = _sig({"status": "RESOLVED",
+              "directional_correct_60m": True, "pnl_60m_pct": 0.9,
+              "directional_correct_90m": True, "pnl_90m_pct": 1.4})
+    assert classify(s, MINS) == MEASURED
+    assert primary_outcome(s, MINS)["decided_at_min"] == 90
+
+
+def test_unstamped_record_with_only_retired_checkpoints_is_still_legacy():
+    """The guard that must survive the change: no outcome at the horizon in
+    force, and a checkpoint that is no longer measured."""
+    s = _sig({"status": "RESOLVED_EARLY", "directional_correct_30m": True,
+              "pnl_30m_pct": 1.0, "directional_correct_60m": True,
+              "pnl_60m_pct": 1.2, "hit_target": True})
+    assert classify(s, MINS) == LEGACY
