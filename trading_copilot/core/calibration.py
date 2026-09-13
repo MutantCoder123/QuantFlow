@@ -136,7 +136,7 @@ def reliability_buckets(signals: list, primary_minute: int = 90,
         outcome = s.get("outcome") or {}
         if not str(outcome.get("status", "")).startswith("RESOLVED"):
             continue
-        po = primary_outcome(s, measure_at)
+        po = primary_outcome(s, mins)
         if po is None:
             # Resolved, but not attributable to the horizon config in force --
             # graded at a retired checkpoint (the pre-Task-3.4 30m/60m schema)
@@ -181,5 +181,5 @@ def reliability_buckets(signals: list, primary_minute: int = 90,
         "has_discriminative_power": (
             spread is not None and spread >= _DISCRIMINATION_THRESHOLD_PP),
         "min_n": min_n,
-        "primary_minute": primary_minute,
+        "primary_minute": reported_minute,
     }

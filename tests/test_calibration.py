@@ -10,7 +10,8 @@ import json
 import pytest
 
 from core.calibration import (Calibration, implied_probability,
-                              load_calibration, calibration_status, MIN_N)
+                              load_calibration, calibration_status, MIN_N,
+                              reliability_buckets)
 from conviction_scorer import ConvictionScorer
 
 SEMANTIC_FIXTURE = {
@@ -93,6 +94,36 @@ def test_breakeven_is_still_reported_because_geometry_is_known():
     it stays measurable and useful."""
     em = ConvictionScorer().score_setup(SEMANTIC_FIXTURE, FLAT_FIXTURE)["expectancy_matrix"]
     assert 0.0 < em["breakeven_probability"] < 1.0
+
+
+# --------------------------------------------------------------------------
+# reliability_buckets: the reported label must match the curve actually drawn
+# --------------------------------------------------------------------------
+def test_reliability_buckets_label_and_curve_agree_when_primary_minute_disagrees_with_policy():
+    """A `primary_minute` that disagrees with the policy's own primary horizon
+    (default policy is [30, 90]) must not silently borrow the policy's
+    checkpoint list -- a 90m-only record must not be counted, and mislabelled,
+    as a 60m outcome. Reproduces the bug: `primary_minute=60` against a
+    [30, 90] policy previously counted the 90m outcome while claiming a 60m
+    curve. The fix must make one of two things true: either the 90m record is
+    excluded (not attributable to a 60m checkpoint) while the label honestly
+    says 60m, or the record IS read at 90m and the label says 90m. What must
+    never happen is a 90m outcome being counted under a 60m label.
+    """
+    signals = [{"outcome": {"status": "RESOLVED", "directional_correct_90m": True,
+                            "pnl_90m_pct": 1.0},
+                "signal_snapshot": {"composite_score": 0.85}}]
+    out = reliability_buckets(signals, primary_minute=60)
+
+    if out["primary_minute"] == 60:
+        # Labelled 60m -> the 90m-only record must NOT have been counted as
+        # resolved at that horizon (it has no 60m checkpoint at all).
+        assert out["n_resolved"] == 0
+        assert out["n_legacy_excluded"] == 1
+    else:
+        # Otherwise the curve was genuinely drawn at 90m, so it must say so.
+        assert out["primary_minute"] == 90
+        assert out["n_resolved"] == 1
 
 
 def test_poor_reward_risk_is_rejected_while_uncalibrated():
