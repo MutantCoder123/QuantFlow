@@ -68,5 +68,56 @@ class FeatureLog:
         df.to_parquet(out, engine="pyarrow", compression="zstd", index=False)
         return out
 
+    def load_day(self, date_str: str | None = None) -> pd.DataFrame:
+        """Every row written for one IST session date.
+
+        The log is write-only in the hot path; this is the read side the
+        session review needs (Task 5.6). A missing partition is normal (no
+        session, or nothing flushed yet) and yields an empty frame rather
+        than an exception, matching ArmJournal.load_all.
+        """
+        day = date_str or datetime.datetime.now(_IST).strftime("%Y-%m-%d")
+        part = self.data_dir / f"date={day}"
+        if not part.is_dir():
+            return pd.DataFrame()
+        frames = []
+        for f in sorted(part.glob("features_*.parquet")):
+            try:
+                frames.append(pd.read_parquet(f))
+            except Exception:
+                continue          # a partial/corrupt part must not hide the rest
+        if not frames:
+            return pd.DataFrame()
+        return pd.concat(frames, ignore_index=True)
+
     def close(self) -> None:
         self.flush()
+
+
+def staleness_incidents(df: pd.DataFrame) -> dict:
+    """Count the stale-feed shield's rejections in one session's feature log.
+
+    The shield (intraday_gatekeeper, A-12) rejects with math_rejection
+    ``STALE_DATA_<age>s``, which _classify_decision carries into the
+    ``decision`` column as ``GATED_STALE_DATA_<age>s``.
+
+    ``max_stale_microstructure_s`` is None -- not 0.0 -- when the column is
+    absent or empty: no measurement is not a measurement of zero.
+    """
+    empty = {"incidents": 0, "symbols": 0, "max_stale_microstructure_s": None}
+    if df is None or df.empty or "decision" not in df.columns:
+        return empty
+
+    hit = df[df["decision"].astype(str).str.contains("STALE_DATA", na=False)]
+
+    max_stale = None
+    if "stale_microstructure" in df.columns:
+        col = pd.to_numeric(df["stale_microstructure"], errors="coerce").dropna()
+        if not col.empty:
+            max_stale = round(float(col.max()), 2)
+
+    return {
+        "incidents": int(len(hit)),
+        "symbols": int(hit["symbol"].nunique()) if "symbol" in hit.columns else 0,
+        "max_stale_microstructure_s": max_stale,
+    }

@@ -9,7 +9,6 @@ from technical_engine import MathEngine
 from diagnostic_ui import TerminalDashboard
 from paths import CACHE_STATE_PATH, DATA_DIR, MACRO_BASELINES_PATH
 from derivatives_engine import OptionsAnalyzer
-from macro_eod_engine import InstitutionalFlowTracker as LegacyTracker
 try:
     from data_services.macro_worker import InstitutionalFlowTracker
 except ImportError:

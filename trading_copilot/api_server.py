@@ -226,6 +226,44 @@ async def get_reliability(days: int = 60):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@app.get("/api/session/review")
+async def get_session_review(date: str | None = None):
+    """End-of-day review for one session: signals, outcomes at the primary
+    horizon, best/worst regime and cluster, config version, staleness (5.6)."""
+    try:
+        from datetime import datetime, date as _date
+        from zoneinfo import ZoneInfo
+        from signal_ledger import SignalLedger
+        from performance_analyzer import PerformanceAnalyzer
+        from core.policy_config import load_policy
+        from journal.feature_log import FeatureLog, staleness_incidents
+        from paths import FEATURES_DIR
+
+        ist_today = datetime.now(ZoneInfo("Asia/Kolkata")).date()
+        if date:
+            session_date = _date.fromisoformat(date)   # raises on malformed input
+        else:
+            session_date = ist_today
+        session_str = session_date.isoformat()
+
+        # load_all_signals takes a days-back count, so load just far enough to
+        # cover the requested date and filter inside session_review().
+        days_back = max(1, (ist_today - session_date).days + 1)
+        data = PerformanceAnalyzer.session_review(
+            SignalLedger.load_all_signals(days_back), session_str)
+
+        data["config_version"] = load_policy().version
+        try:
+            data["staleness"] = staleness_incidents(
+                FeatureLog(FEATURES_DIR).load_day(session_str))
+        except Exception as e:
+            logger.error(f"Session review: feature log unreadable: {e}")
+            data["staleness"] = {"incidents": None, "symbols": None,
+                                 "max_stale_microstructure_s": None}
+        return {"status": "success", "data": data}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 @app.get("/api/risk/exposure")
 async def get_risk_exposure():
     """Report open risk per cluster against max_cluster_risk_pct limits (Task 5.3)."""
@@ -417,6 +455,41 @@ async def add_to_watchlist(req: WatchlistAddRequest):
     update_req = WatchlistUpdateRequest(items=current_items)
     return await update_watchlist(update_req)
 
+# The dashboard's breadth card is fed either by the real NIFTY-50 A/D ratio
+# (macro_worker.fetch_market_breadth, every ~5 min) or, when that is absent or
+# stale, by a watchlist proxy -- advances/declines over ~27 self-selected
+# symbols, which is NOT NSE-wide breadth. 30 min tolerates several missed
+# fetches without ever presenting yesterday's number as today's.
+AD_RATIO_MAX_AGE_S = 1800
+
+
+def select_ad_ratio(flow_state: dict, watchlist_ad: float, now=None):
+    """(value, source) where source is "NIFTY_50" or "WATCHLIST_PROXY".
+
+    The real value is used only when it carries a fetch timestamp AND that
+    timestamp is inside the freshness window -- a stored ad_ratio with no
+    ad_ratio_ts could be arbitrarily old, so it falls back rather than being
+    shown under an NSE-wide label.
+    """
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    ist = ZoneInfo("Asia/Kolkata")
+
+    raw = (flow_state or {}).get("ad_ratio")
+    ts = (flow_state or {}).get("ad_ratio_ts")
+    if raw is not None and ts:
+        try:
+            stamped = datetime.fromisoformat(str(ts))
+            if stamped.tzinfo is None:
+                stamped = stamped.replace(tzinfo=ist)
+            ref = now or datetime.now(ist)
+            if 0 <= (ref - stamped).total_seconds() <= AD_RATIO_MAX_AGE_S:
+                return float(raw), "NIFTY_50"
+        except Exception:
+            pass
+    return watchlist_ad, "WATCHLIST_PROXY"
+
+
 def make_json_serializable(obj):
     import numpy as np, pandas as pd
     if isinstance(obj, dict): return {str(k): make_json_serializable(v) for k, v in obj.items()}
@@ -456,7 +529,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 elif ltp < pc: declines += 1
                 
             dynamic_ad = advances / declines if declines > 0 else (advances if advances > 0 else 1.0)
-            ad_ratio = dynamic_ad
+            ad_ratio, ad_ratio_source = select_ad_ratio(local_fii_dii_state, dynamic_ad)
             enriched_states = {}
             for instrument_key, payload in local_active_states.items():
                 symbol = instrument_key.split('|')[-1] if '|' in instrument_key else instrument_key
@@ -495,7 +568,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 "global_market_context": local_macro_context,
                 "dashboard_intraday_plays": getattr(TerminalDashboard, "dashboard_intraday_plays", None),
                 "global_state": enriched_states,
-                "macro_state": {"pcr": pcr, "fii_net": fii_net, "dii_net": dii_net, "date": date_str, "ad_ratio": ad_ratio}
+                "macro_state": {"pcr": pcr, "fii_net": fii_net, "dii_net": dii_net, "date": date_str,
+                               "ad_ratio": ad_ratio, "ad_ratio_source": ad_ratio_source}
             }
             await websocket.send_json(make_json_serializable(payload))
             await asyncio.sleep(0.5)

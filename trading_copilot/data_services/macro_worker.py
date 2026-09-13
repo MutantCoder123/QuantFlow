@@ -11,29 +11,56 @@ from pathlib import Path
 from paths import BASE_DIR as _BASE_DIR, INSTITUTIONAL_FLOW_PATH, TOKEN_PATH, ensure_dirs
 ensure_dirs()
 STATE_FILE = INSTITUTIONAL_FLOW_PATH
+import aiohttp
 import upstox_client
 from upstox_client.api.market_api import MarketApi
+from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
+
+_IST = ZoneInfo("Asia/Kolkata")
+
+# Market breadth is an intraday metric -- unlike FII/DII it is worthless once
+# a day old. Fetched on this cadence; NSE is not to be hit more often.
+BREADTH_INTERVAL_S = 300
 
 class InstitutionalFlowTracker:
     @staticmethod
     def save_state(fii_net: float, dii_net: float):
-        # Calculate ad_ratio (market breadth) randomly or leave at 1.0 since it was in nse_feed
-        # We don't have Market Breadth natively from Upstox Market Information yet unless we hit another endpoint.
-        # For now, preserve existing ad_ratio if available
+        # Market breadth comes from NSE's allIndices endpoint on its own
+        # cadence (fetch_market_breadth, below) -- this writer must not
+        # clobber it, so the stored ad_ratio and its fetch time are carried
+        # through untouched.
         existing = InstitutionalFlowTracker.load_state()
-        ad_ratio = existing.get("ad_ratio", 1.0)
-        
-        state = {
-            "timestamp": datetime.now().isoformat(),
+
+        state = dict(existing)
+        state.update({
+            "timestamp": datetime.now(_IST).isoformat(),
             "fii_net": fii_net,
             "dii_net": dii_net,
-            "ad_ratio": ad_ratio
-        }
+        })
+        state.setdefault("ad_ratio", 1.0)
         with open(STATE_FILE, "w") as f:
             json.dump(state, f, indent=4)
-            
+
+    @staticmethod
+    def save_ad_ratio(ad_ratio: float):
+        """Mirror image of save_state: write breadth without touching FII/DII.
+
+        `ad_ratio_ts` stamps THIS value specifically. The general "timestamp"
+        moves whenever FII/DII is written, so it cannot answer "is the breadth
+        on screen fresh?" -- and a three-day-old A/D ratio must never be
+        presented as today's market breadth.
+        """
+        existing = InstitutionalFlowTracker.load_state()
+        state = dict(existing)
+        state.update({
+            "ad_ratio": round(float(ad_ratio), 2),
+            "ad_ratio_ts": datetime.now(_IST).isoformat(),
+        })
+        with open(STATE_FILE, "w") as f:
+            json.dump(state, f, indent=4)
+
     @staticmethod
     def load_state() -> dict:
         if not os.path.exists(STATE_FILE):
@@ -44,15 +71,80 @@ class InstitutionalFlowTracker:
         except:
             return {"fii_net": 0, "dii_net": 0, "ad_ratio": 1.0}
 
+async def fetch_market_breadth():
+    """NIFTY-50 advance/decline from NSE's allIndices endpoint.
+
+    Ported from the retired macro_eod_engine.py (Task 5.6). This is the real
+    NSE-wide breadth; the dashboard previously showed advances/declines over
+    the ~27-symbol watchlist under an "NSE A/D Ratio" label.
+
+    On a non-200 or an exception the stored value is left alone: an old
+    ad_ratio that the UI can detect as stale beats a fabricated fresh one.
+    """
+    logger.info("Fetching NSE Market Breadth (A/D Ratio)...")
+    url = "https://www.nseindia.com/api/allIndices"
+    base_url = "https://www.nseindia.com"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9",
+    }
+
+    try:
+        async with aiohttp.ClientSession(headers=headers) as session:
+            await session.get(base_url, timeout=10)
+            await asyncio.sleep(3)  # Required to bypass Akamai anti-bot protection
+            async with session.get(url, timeout=10) as response:
+                if response.status != 200:
+                    err_text = await response.text()
+                    logger.critical(
+                        f"Failed to fetch Market Breadth. Status Code: {response.status} - {err_text[:100]}")
+                    return
+
+                data = await response.json()
+                indices = data.get("data", [])
+
+                row = next((i for i in indices if i.get("index") == "NIFTY 50"), None)
+                if row is None:
+                    logger.warning("NSE allIndices response carried no NIFTY 50 row.")
+                    return
+
+                advances = float(row.get("advances", 0))
+                declines = float(row.get("declines", 0))
+                if advances == 0 and declines == 0:
+                    ad_ratio = 1.0
+                else:
+                    if declines == 0:
+                        declines = max(1.0, advances / 50.0)
+                    ad_ratio = advances / max(1.0, declines)
+
+                InstitutionalFlowTracker.save_ad_ratio(ad_ratio)
+                logger.info(f"Market Breadth fetched from NIFTY 50. A/D Ratio: {ad_ratio:.2f}")
+    except Exception as e:
+        logger.error(f"Market Breadth Scraper Exception: {e}")
+
+
+async def breadth_poller_loop():
+    """Intraday cadence for market breadth, independent of the once-daily
+    FII/DII fetch so the latter's long sleep cannot starve it."""
+    while True:
+        await fetch_market_breadth()
+        await asyncio.sleep(BREADTH_INTERVAL_S)
+
+
 import pytz
 
 async def macro_poller_loop(api_client):
     """
     Background worker that fetches Upstox FII/DII endpoints natively.
-    Runs once per day at 18:30 IST.
+    Runs once per day at 18:30 IST, and spawns the intraday market-breadth
+    poller (Task 5.6) alongside it.
     """
     market_api = MarketApi(api_client)
     ist = pytz.timezone('Asia/Kolkata')
+
+    # Breadth runs on its own 5-minute task: FII/DII sleeps until 18:30 IST.
+    asyncio.create_task(breadth_poller_loop())
     
     while True:
         try:

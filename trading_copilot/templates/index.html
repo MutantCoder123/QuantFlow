@@ -200,7 +200,9 @@
                         </div>
                         <div class="mt-2">
                             <span id="breadth-val" class="text-2xl font-bold font-mono-custom text-slate-300">--</span>
-                            <p class="text-[10px] text-slate-500 mt-0.5">NSE A/D Ratio</p>
+                            <!-- Task 5.6: the subtitle names the real source. It said
+                                 "NSE A/D Ratio" while showing a watchlist-only proxy. -->
+                            <p id="breadth-source" class="text-[10px] text-slate-500 mt-0.5">A/D Ratio</p>
                         </div>
                     </div>
                 </div>
@@ -388,6 +390,27 @@
                 <div id="exposure-container" class="space-y-2">
                     <div class="text-center text-xs text-slate-600">Press Refresh to load.</div>
                 </div>
+            </section>
+
+            <!-- SESSION REVIEW (Task 5.6) -->
+            <section class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <h2 class="text-base font-bold text-white">Session Review</h2>
+                        <p class="text-xs text-slate-500">End-of-day: what was emitted, what resolved at the
+                            primary horizon, and where it worked.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="date" id="review-date"
+                            class="bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1 focus:outline-none focus:border-indigo-500">
+                        <button onclick="loadSessionReview()"
+                            class="text-xs px-2 py-1 rounded border border-slate-700 text-slate-300 hover:bg-slate-800">Refresh</button>
+                    </div>
+                </div>
+                <div id="review-status" class="text-xs text-slate-500 mb-2">Not loaded.</div>
+                <div id="review-state" class="hidden mb-3 px-2 py-1 rounded text-[11px] font-bold"></div>
+                <div id="review-headline" class="grid grid-cols-2 md:grid-cols-5 gap-2 mb-3"></div>
+                <div id="review-groups" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
             </section>
 
         </div> <!-- End of tab-dashboard -->
@@ -704,6 +727,18 @@
                     const breadthElem = document.getElementById('breadth-val');
                     breadthElem.innerText = adRatio.toFixed(2);
                     breadthElem.className = adRatio >= 1.0 ? 'text-2xl font-bold font-mono-custom text-emerald-400' : 'text-2xl font-bold font-mono-custom text-rose-400';
+                    // A proxy must never be shown under an NSE-wide label (Task 5.6).
+                    const srcElem = document.getElementById('breadth-source');
+                    if (srcElem) {
+                        const real = payload.macro_state.ad_ratio_source === 'NIFTY_50';
+                        srcElem.innerText = real ? 'NIFTY 50 A/D Ratio' : 'Watchlist A/D (proxy)';
+                        srcElem.className = real
+                            ? 'text-[10px] text-slate-500 mt-0.5'
+                            : 'text-[10px] text-amber-500/80 mt-0.5';
+                        srcElem.title = real
+                            ? 'Advances/declines across the NIFTY 50, from NSE allIndices.'
+                            : 'NSE-wide breadth unavailable or stale — showing advances/declines over the active watchlist only.';
+                    }
                 }
 
                 // 5. Update Global Market Context -- render truthfully, never fabricate.
@@ -940,6 +975,107 @@
                 statusEl.textContent = 'Could not load exposure data: ' + e.message;
                 messageEl.classList.add('hidden');
                 containerEl.innerHTML = '<div class="text-center text-xs text-slate-600 py-4">Error loading data.</div>';
+            }
+        }
+
+        // Task 5.6: end-of-day session review. Three states are rendered
+        // distinctly -- no signals, signals-but-none-resolved, and measured.
+        // The middle one must never read as a 0% win rate: the ledger's older
+        // signals were graded at retired horizons and carry no outcome at the
+        // current primary horizon, so "not measured yet" is the truth.
+        async function loadSessionReview() {
+            const statusEl = document.getElementById('review-status');
+            const stateEl = document.getElementById('review-state');
+            const headEl = document.getElementById('review-headline');
+            const groupsEl = document.getElementById('review-groups');
+            if (!statusEl) return;
+
+            const fmtPct = (v) => (v === null || v === undefined) ? 'n/a' : `${v}%`;
+            const tile = (label, value) =>
+                `<div class="border border-slate-800/50 rounded p-2 bg-slate-950/30">
+                    <div class="text-[10px] text-slate-500 uppercase tracking-wider">${label}</div>
+                    <div class="text-lg font-bold font-mono-custom text-slate-200">${value}</div>
+                </div>`;
+            const bestWorst = (title, best, worst) => {
+                const row = (tag, e, cls) => e
+                    ? `<div class="flex justify-between items-center py-1">
+                           <span class="text-[11px] text-slate-500 uppercase tracking-wider">${tag}</span>
+                           <span class="text-xs"><span class="font-semibold text-slate-200">${e.key}</span>
+                           <span class="${cls} font-bold ml-2">${e.win_rate}%</span>
+                           <span class="text-slate-500 ml-1">(n=${e.n})</span></span>
+                       </div>`
+                    : `<div class="flex justify-between items-center py-1">
+                           <span class="text-[11px] text-slate-500 uppercase tracking-wider">${tag}</span>
+                           <span class="text-xs text-slate-600 italic">not measured</span>
+                       </div>`;
+                return `<div class="border border-slate-800/50 rounded p-3 bg-slate-950/30">
+                    <div class="text-xs font-semibold text-slate-300 mb-1">By ${title}</div>
+                    ${row('Best', best, 'text-emerald-400')}
+                    ${row('Worst', worst, 'text-rose-400')}
+                </div>`;
+            };
+
+            const dateVal = (document.getElementById('review-date') || {}).value;
+            statusEl.textContent = 'Loading...';
+            stateEl.classList.add('hidden');
+            headEl.innerHTML = '';
+            groupsEl.innerHTML = '';
+            try {
+                const res = await fetch(`${apiBase}/api/session/review` + (dateVal ? `?date=${dateVal}` : ''));
+                const json = await res.json();
+                if (json.status !== 'success') throw new Error(json.message || 'failed');
+                const d = json.data;
+
+                const st = d.staleness || {};
+                const staleTxt = (st.incidents === null || st.incidents === undefined)
+                    ? 'staleness: unavailable'
+                    : `${st.incidents} stale-feed rejection(s)`
+                      + (st.max_stale_microstructure_s !== null && st.max_stale_microstructure_s !== undefined
+                          ? ` \u00b7 worst feed age ${st.max_stale_microstructure_s}s` : '');
+                statusEl.textContent =
+                    `Session ${d.session_date} \u00b7 policy v${d.config_version} \u00b7 `
+                    + `primary horizon ${d.primary_horizon_min}m \u00b7 ${staleTxt}`
+                    + (d.legacy_excluded
+                        ? ` \u00b7 ${d.legacy_excluded} signal(s) excluded: graded at a retired horizon, no ${d.primary_horizon_min}m outcome`
+                        : '');
+
+                stateEl.classList.remove('hidden');
+                if (d.measurement_state === 'NO_SIGNALS') {
+                    stateEl.className = 'mb-3 px-2 py-1 rounded text-[11px] font-bold bg-slate-800 text-slate-400 border border-slate-700';
+                    stateEl.textContent = 'NO SIGNALS \u2014 nothing was emitted on this session date.';
+                    return;
+                }
+                if (d.measurement_state === 'NONE_RESOLVED') {
+                    stateEl.className = 'mb-3 px-2 py-1 rounded text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30';
+                    stateEl.textContent =
+                        `NOT MEASURED YET \u2014 ${d.total_signals} signal(s) emitted, none resolved at the `
+                        + `${d.primary_horizon_min}-minute horizon. No win rate exists for this session.`;
+                    headEl.innerHTML = tile('Signals emitted', d.total_signals)
+                        + tile('Resolved', '0')
+                        + tile('Win rate', 'n/a')
+                        + tile('Profit factor', 'n/a')
+                        + tile('Stop / target hit', 'n/a');
+                    groupsEl.innerHTML = bestWorst('Regime', null, null) + bestWorst('Cluster', null, null);
+                    return;
+                }
+
+                const o = d.outcomes || {};
+                stateEl.className = 'mb-3 px-2 py-1 rounded text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30';
+                stateEl.textContent =
+                    `MEASURED \u2014 ${d.total_resolved} of ${d.total_signals} signal(s) resolved at the ${d.primary_horizon_min}m horizon.`;
+                headEl.innerHTML = tile('Signals emitted', d.total_signals)
+                    + tile('Resolved', d.total_resolved)
+                    + tile('Win rate', fmtPct(o.win_rate_primary))
+                    + tile('Profit factor', o.profit_factor === undefined ? 'n/a' : o.profit_factor)
+                    + tile('Stop / target hit', `${fmtPct(o.stop_hit_rate)} / ${fmtPct(o.target_hit_rate)}`);
+
+                groupsEl.innerHTML = bestWorst('Regime', d.best_regime, d.worst_regime)
+                    + bestWorst('Cluster', d.best_cluster, d.worst_cluster);
+            } catch (e) {
+                statusEl.textContent = 'Could not load session review: ' + e.message;
+                stateEl.classList.add('hidden');
+                headEl.innerHTML = '';
+                groupsEl.innerHTML = '<div class="text-center text-xs text-slate-600 py-4">No data.</div>';
             }
         }
 
@@ -2528,6 +2664,7 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
             fetchNewsState();
             loadParquetSymbols();
             loadExposure();
+            loadSessionReview();
             newsStateInterval = setInterval(fetchNewsState, 5000);
         });
         function renderReasoningReport(reportText) {

@@ -37,3 +37,54 @@ def test_heterogeneous_feature_sets_do_not_crash(tmp_path):
     df = pd.read_parquet(log.flush())
     assert len(df) == 2
     assert df["f_new_feature"].isna().iloc[0]
+
+
+# --------------------------------------------------------------------------
+# Read side (Task 5.6) -- the log had no reader at all until the session
+# review needed to count stale-feed rejections out of it.
+# --------------------------------------------------------------------------
+from journal.feature_log import staleness_incidents
+
+
+def test_load_day_returns_empty_frame_when_partition_missing(tmp_path):
+    log = FeatureLog(tmp_path, flush_n=1_000_000)
+    df = log.load_day("1999-01-01")
+    assert df.empty
+
+
+def test_load_day_reads_back_what_was_flushed(tmp_path):
+    import datetime
+    from zoneinfo import ZoneInfo
+    today = datetime.datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d")
+    log = FeatureLog(tmp_path, flush_n=1_000_000)
+    log.write(_rec())
+    log.flush()
+    log.write(_rec(symbol="BHEL"))
+    log.flush()                     # second parquet part in the same partition
+    df = log.load_day(today)
+    assert len(df) == 2
+    assert set(df["symbol"]) == {"SAIL", "BHEL"}
+
+
+def test_staleness_incidents_counts_stale_rejections(tmp_path):
+    log = FeatureLog(tmp_path, flush_n=1_000_000)
+    log.write(_rec(decision="GATED_STALE_DATA_22s", staleness={"microstructure": 22.0}))
+    log.write(_rec(symbol="BHEL", decision="GATED_STALE_DATA_31s",
+                   staleness={"microstructure": 31.0}))
+    log.write(_rec(symbol="NMDC", decision="PROPOSED", staleness={"microstructure": 0.4}))
+    log.flush()
+    import datetime
+    from zoneinfo import ZoneInfo
+    today = datetime.datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d")
+
+    out = staleness_incidents(log.load_day(today))
+    assert out["incidents"] == 2
+    assert out["symbols"] == 2
+    assert out["max_stale_microstructure_s"] == 31.0
+
+
+def test_staleness_incidents_on_empty_frame_reports_unknown_not_zero_max(tmp_path):
+    log = FeatureLog(tmp_path, flush_n=1_000_000)
+    out = staleness_incidents(log.load_day("1999-01-01"))
+    assert out["incidents"] == 0
+    assert out["max_stale_microstructure_s"] is None

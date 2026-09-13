@@ -94,6 +94,101 @@ class PerformanceAnalyzer:
             signals, lambda s: s.get("symbol", "UNKNOWN"))
 
     @staticmethod
+    def _cluster_accuracy_from(signals: list) -> dict:
+        """Bucket by correlation cluster, reusing the shared map (Task 3.2)."""
+        from core.risk import cluster_of, load_clusters
+        clusters = load_clusters()
+        return PerformanceAnalyzer._group_accuracy(
+            signals,
+            lambda s: cluster_of(
+                str(s.get("symbol", "UNKNOWN")).split("-")[0].strip().upper(), clusters))
+
+    @staticmethod
+    def _best_worst(grouped: dict) -> tuple:
+        """(best, worst) bucket by primary-horizon win rate, or (None, None).
+
+        `_group_accuracy` has already dropped every bucket with zero resolved
+        signals, so anything left here is genuinely measured. `n` travels with
+        the answer so a one-signal "best regime" can be read for what it is.
+        """
+        scored = [{"key": k, "win_rate": m.get("win_rate_primary"),
+                   "n": m.get("total_resolved", 0)}
+                  for k, m in grouped.items() if m.get("win_rate_primary") is not None]
+        if not scored:
+            return None, None
+        return (max(scored, key=lambda e: e["win_rate"]),
+                min(scored, key=lambda e: e["win_rate"]))
+
+    @staticmethod
+    def session_review(signals: list, session_date: str) -> dict:
+        """End-of-day review for ONE session date (Task 5.6).
+
+        `measurement_state` is the honest bit. A session can be:
+          NO_SIGNALS     -- nothing was emitted,
+          NONE_RESOLVED  -- signals were emitted but none has an outcome at
+                            the primary horizon yet,
+          MEASURED       -- at least one resolved outcome exists.
+        In the first two states `outcomes` is None and the grouped views are
+        empty: there is no win rate to report, and 0.0 would be a lie.
+
+        `legacy_excluded` counts signals resolved under a retired horizon --
+        real evidence, just not evidence about the horizon in force.
+        """
+        today = [s for s in signals if s.get("session_date") == session_date]
+        primary = PerformanceAnalyzer._primary_minute()
+        key = f"directional_correct_{primary}m"
+
+        # A signal RESOLVED under a since-retired horizon (the pre-Task-3.4
+        # 30m/60m schema) carries no outcome at the primary horizon. Folding
+        # it in would score it a loss and report a real-looking 0% win rate --
+        # the exact defect class this project exists to remove. Excluded from
+        # the measured set and counted separately, as core.calibration does.
+        def _is_legacy(s: dict) -> bool:
+            o = s.get("outcome") or {}
+            return str(o.get("status", "")).startswith("RESOLVED") and key not in o
+
+        legacy = [s for s in today if _is_legacy(s)]
+        measurable = [s for s in today if not _is_legacy(s)]
+
+        base = {
+            "session_date": session_date,
+            "primary_horizon_min": primary,
+            "total_signals": len(today),
+            "total_resolved": 0,
+            "legacy_excluded": len(legacy),
+            "measurement_state": "NO_SIGNALS" if not today else "NONE_RESOLVED",
+            "outcomes": None,
+            "by_regime": {},
+            "by_cluster": {},
+            "best_regime": None,
+            "worst_regime": None,
+            "best_cluster": None,
+            "worst_cluster": None,
+        }
+
+        metrics = PerformanceAnalyzer._compute_metrics(measurable)
+        if metrics.get("total_resolved", 0) == 0:
+            return base
+
+        by_regime = PerformanceAnalyzer._regime_accuracy_from(measurable)
+        by_cluster = PerformanceAnalyzer._cluster_accuracy_from(measurable)
+        best_r, worst_r = PerformanceAnalyzer._best_worst(by_regime)
+        best_c, worst_c = PerformanceAnalyzer._best_worst(by_cluster)
+
+        base.update({
+            "total_resolved": metrics["total_resolved"],
+            "measurement_state": "MEASURED",
+            "outcomes": metrics,
+            "by_regime": by_regime,
+            "by_cluster": by_cluster,
+            "best_regime": best_r,
+            "worst_regime": worst_r,
+            "best_cluster": best_c,
+            "worst_cluster": worst_c,
+        })
+        return base
+
+    @staticmethod
     def compute_regime_accuracy(last_n_days: int = 30) -> dict:
         return PerformanceAnalyzer._regime_accuracy_from(SignalLedger.load_all_signals(last_n_days))
 
