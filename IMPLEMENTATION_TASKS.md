@@ -80,14 +80,16 @@ full detail and the still-open question for the user.
 > Note: all 84 resolved signals are **legacy**, graded at the retired 30m/60m horizons, so they carry no
 > 90m outcome and do not count toward the 200 either. The counter effectively restarts from 0.
 
-## Phase 5 — Operator Surfaces  *(in progress — 5/6)*
+## Phase 5 — Operator Surfaces  ✅ *complete — 6/6*
 
 - [x] **5.1** Attention ranking (improved §4.6) — commits `2b5e276`, `d543f7d` (fix round: NaN sort comparator)
 - [x] **5.2** Provenance panel (improved §5.1) — commit `3b265ad`
 - [x] **5.3** Exposure view — commits `0adfb3f`, `edeca59` (fix round: test coupled to live config)
 - [x] **5.4** Replay runner — commits `05aa358`, `5390537` (fix round: report corrections + docstring)
 - [x] **5.5** Fix screener, close discovery loop (fixes A-15) — commits `6916eec`, `2fd3f85`, `23070d0` (2 fix rounds: churn_cap/core-duplication bugs, undefined showToast)
-- [ ] **5.6** Session review + dead-code removal
+- [x] **5.6** Session review + dead-code removal — commits `ffea0c5`, `575aebe`, `5a43261`, `7270263` (2 fix rounds: early-close outcomes wrongly retired, horizon-stamp set equality)
+
+**Phase 5 status:** ✅ complete — 6/6 tasks done. Suite: 125 → 232 tests across the phase.
 
 > Executed via Subagent-Driven Development (fresh implementer per task + task review +
 > fix loop). Ledger: `.superpowers/sdd/2026-09-09-quantflow-remediation-and-measurability/progress.md`.

@@ -1333,8 +1333,109 @@ reimplemented), and `churn_cap` (a hard ceiling on watchlist turnover per run). 
 
 **Verified:** 176 passed / 0 failed after both fix rounds (was 158 before this task).
 
-**Phase 5 status: 5/6 done (5.1-5.5). 5.6 (session review + dead-code removal) remains,
-brief already prepared.**
+### Task 5.6 — Session review and dead-code removal
+
+**Files:** `api_server.py`, `data_services/macro_worker.py`, `journal/feature_log.py`,
+`performance_analyzer.py`, `signal_ledger.py`, `core/outcome_schema.py` (new),
+`core/calibration.py`, `templates/index.html`, `diagnostic_ui.py`, `rolling_state_engine.py`,
+`start_all.bat`, plus 4 new test files. Deleted: six files, 714 lines. Commits `ffea0c5`,
+`575aebe`, `5a43261`, `7270263`.
+
+**`GET /api/session/review` + end-of-day panel.** Signals emitted, outcomes at the primary
+horizon, best/worst by cluster and regime, config version, staleness incidents — all built by
+reusing machinery earlier phases already created (`_compute_metrics`, `_group_accuracy`,
+`_primary_minute`, `cluster_of`/`load_clusters`), not reimplemented. One genuine gap had to be
+filled: `FeatureLog` could only write, never read, so staleness incidents (the gatekeeper's
+`STALE_DATA` rejections, which land in the feature log) were unreachable — a small
+date-partitioned parquet reader now closes that.
+
+**714 lines of dead code deleted** — the Angel One stack (`smart_api_feed.py`,
+`websocket_engine.py`, `auth_manager.py`), the abandoned hot/warm layer design
+(`stitching_engine.py`, `warm_layer_engine.py`), and `macro_eod_engine.py`. Two dead imports
+that would have broken the app at startup were removed with them.
+
+**Salvaged before deleting:** `macro_eod_engine.fetch_market_breadth` was the *correct*
+NIFTY-50 advance/decline fetch, sitting unused in a file marked for deletion, while
+`macro_worker` carried a comment admitting it had no breadth source and just preserved
+whatever stale value it found. Ported it across with a 5-minute cadence (FII/DII stays
+once-daily), gated on market hours, with its own freshness timestamp. The port is *better*
+than the original it replaced: the legacy version wrote a fabricated `ad_ratio = 1.0` when it
+couldn't find the NIFTY 50 row; this one writes nothing.
+
+**The "Market Breadth" card was lying.** Its subtitle read "NSE A/D Ratio" while the number
+underneath was advances/declines across the ~27-symbol watchlist — a sample chosen precisely
+because those names were expected to move. The card now shows the real NIFTY-50 figure when
+it's fresh, falls back to the watchlist proxy when it isn't, and **labels which one you're
+looking at** in both cases.
+
+**Found while validating against the real ledger — the session review was fabricating a 0% win
+rate.** 40 signals from one session were marked `RESOLVED`, but graded under the retired
+30m/60m schema, so the lookup for a 90-minute outcome found nothing and scored all 40 as
+*losses*. Fixed by partitioning legacy-horizon records out explicitly, reusing the rule
+`core/calibration.py` already applied.
+
+**Then review found the same bug in the fix.** The borrowed predicate — "resolved, but no
+primary-horizon key" — also swallowed signals that hit their stop or target *early*, because
+`_resolve_one` stops grading the moment a position closes, so a trade decided at 30 minutes
+never gets a 90-minute key **under the current config, not a retired one**. A target hit — the
+most decisive positive outcome the system produces — was being reported as "not measured yet,
+graded at a retired horizon." Worse, a *mixed* session would have shown a green MEASURED badge
+over a win rate drawn only from trades that hit neither stop nor target inside 90 minutes: a
+survivorship-filtered sample presented as the session's record. Fixed by extracting a shared
+`core/outcome_schema.py` predicate (now used by both the session review and the reliability
+view, so they can't drift), treating an early close as the primary-horizon outcome it is, and
+reading directional correctness from the deciding checkpoint — which preserves the round-trip
+cost floor that deriving "target hit → win" would have silently dropped. `record_signal` now
+stamps the horizon config, so future records carry their own provenance.
+
+A **disputed factual claim** in that review was adjudicated independently: the reviewer said 46
+live records were being wrongly excluded; the implementer showed all 46 carry an `ltp_at_30m`
+field that only the pre-C-3 resolver ever wrote, making them genuinely legacy. A third reviewer
+checked the ledger on disk, traced the field's git history to the commit that removed it, and
+measured the before/after delta — identical. The implementer was right: the defect was real and
+latent, its live impact today zero.
+
+**And once more, in the fix to the fix.** Comparing the horizon stamp by exact set equality
+meant that adding a diagnostic checkpoint (`[30,90]` → `[15,30,90]`) would retire *every*
+previously stamped record, including ones measured at a primary horizon that never moved —
+the same false "retired horizon" claim, reached by a different route. Now keyed off the primary
+horizon alone, with `recover_pending` re-grading against the checkpoints a signal was recorded
+under rather than whatever the config says now. Tests pin both directions: a diagnostic
+checkpoint changing keeps history measured; genuinely *moving* the primary horizon still
+retires it, because a 90m outcome is not a 120m one.
+
+**Verified:** 232 passed / 0 failed (was 176 before this task). Post-deletion imports of every
+main module confirmed; `node --check` clean.
+
+**Phase 5 complete: 6/6 tasks.**
+
+---
+
+## Phase 5 — closing notes
+
+**Suite: 125 → 232 tests** across the phase, green at every commit.
+
+Every Phase 5 task went through the same loop: a fresh implementer subagent working from a
+task brief, an independent reviewer reading the real diff, and a scoped re-review of each fix.
+Reviewers were told explicitly not to trust implementer reports — and that mattered. The
+reviews caught, among others: a `NaN`-producing sort comparator that made the ranked grid
+jitter; a `churn_cap` that wasn't actually a ceiling (verified fixed by a 200,000-case fuzz
+run); core symbols being double-counted and duplicated in the watchlist; a "disabled" button
+that silently re-enabled itself and then reported false success; and twice, a fabricated
+measurement hiding inside a fix for a fabricated measurement.
+
+**Open items carried forward** (see the follow-ups section below for the full list):
+
+- `PerformanceAnalyzer.compute_dashboard` / `compute_regime_accuracy` / `compute_symbol_accuracy`
+  still feed raw signals to `_compute_metrics`, which neither excludes legacy-horizon records
+  nor normalises them — against the real ledger at a wide window that yields a real-looking
+  `win_rate: 0.0` from records the session review correctly refuses to score. `classify` and
+  `normalise` now exist in `core/outcome_schema.py`; this is the last consumer that doesn't use
+  them. **This is the single most valuable follow-up.**
+- Discovery remains disabled (A-7's event-loop-blocking and key-space bugs are untouched), and
+  `POST /api/run-screener` — now the only caller of `run_scan()` — writes `watchlist.csv` from
+  inside the live ingestion process, which never reloads it.
+- Task 4.3 (fit the calibration) is still gated on data, not effort.
 
 ---
 
@@ -1352,6 +1453,18 @@ brief already prepared.**
 - **`_supervise` reconnect not verified against a live drop (Task 2.5):** unknown whether
   `MarketDataStreamerV3.connect()` can be re-invoked on the same instance after disconnect; if not, the
   supervisor needs to recreate the streamer each loop.
+- **`_compute_metrics`'s three remaining callers still score retired-horizon records as losses (Task 5.6,
+  highest-value follow-up):** `PerformanceAnalyzer.compute_dashboard` / `compute_regime_accuracy` /
+  `compute_symbol_accuracy` feed raw `load_all_signals()` straight to `_compute_metrics`, which neither
+  excludes legacy-horizon records nor normalises early closes. Against the real ledger at a wide window this
+  returns `{'total_resolved': 84, 'win_rate_90m': 0.0, 'profit_factor': 999.0}` — a real-looking 0% win rate
+  from the same 84 records `/api/session/review` correctly refuses to score. It doesn't fire at the default
+  30/60-day windows (the June data falls outside them) and `/api/performance/dashboard` plus the LLM's
+  `get_feedback_payload` are the consumers. `core/outcome_schema.classify`/`normalise` now exist and are
+  used by the session review and the reliability view — these three are the last consumers that don't.
+- **Market breadth port is unexercised against live NSE (Task 5.6):** the parsing is a verbatim port of code
+  that ran in production and the failure paths are tested (non-200 and missing-NIFTY-50-row both assert
+  nothing is written), but no test has hit the real endpoint — the market was closed during implementation.
 - **Replay's `data_age_s` is structurally always ~0.0 (Task 5.4):** because `_compute_symbol` runs
   synchronously right after `process_tick` under a clock frozen to that tick's own timestamp, the staleness
   shield (`intraday_gatekeeper.py`'s `age > 15.0` → `STALE_DATA_*`) can never fire in a replay. Fine for the
