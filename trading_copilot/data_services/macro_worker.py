@@ -126,9 +126,20 @@ async def fetch_market_breadth():
 
 async def breadth_poller_loop():
     """Intraday cadence for market breadth, independent of the once-daily
-    FII/DII fetch so the latter's long sleep cannot starve it."""
+    FII/DII fetch so the latter's long sleep cannot starve it.
+
+    Gated on market hours. `ad_ratio_ts` is what gates the truthfulness of the
+    dashboard's label, and it records FETCH time, not DATA time -- so polling
+    overnight and at weekends would keep re-stamping the previous session's
+    closing A/D as if it were minutes old. Skipping when the market is shut
+    also drops ~288 pointless requests/day against an Akamai-protected
+    endpoint. The stamp then ages out naturally and the card falls back to
+    naming its proxy.
+    """
+    from pipeline_guard import is_market_open
     while True:
-        await fetch_market_breadth()
+        if is_market_open():
+            await fetch_market_breadth()
         await asyncio.sleep(BREADTH_INTERVAL_S)
 
 

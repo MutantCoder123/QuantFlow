@@ -153,17 +153,63 @@ def test_endpoint_reports_config_version_and_staleness(monkeypatch):
     assert "staleness" in d and "incidents" in d["staleness"]
 
 
-def test_legacy_horizon_signals_are_excluded_not_scored_as_losses():
-    """A signal RESOLVED at a retired horizon has no primary-horizon outcome.
+def _early(symbol="SAIL", date="2026-09-11", regime="TREND_EXPANSION",
+           target=True, minute=30, correct=None):
+    """A trade closed at the `minute` checkpoint by a stop or target hit.
 
-    Counting it as a loss is how 84 old ledger entries produced a real-looking
-    0% win rate at the 90m horizon. It is excluded and counted instead.
+    _resolve_one stamps RESOLVED_EARLY and breaks out of the checkpoint loop,
+    so there is deliberately no key at the primary horizon.
     """
-    legacy = _sig("SAIL", resolved=True, correct=True, pnl=1.0)
-    legacy["outcome"] = {"status": "RESOLVED", "directional_correct_30m": True,
-                         "pnl_30m_pct": 1.0, "hit_stop": False, "hit_target": True}
+    s = _sig(symbol, date, regime)
+    s["outcome"] = {
+        "status": "RESOLVED_EARLY",
+        f"directional_correct_{minute}m": bool(target if correct is None else correct),
+        f"pnl_{minute}m_pct": 2.1 if target else -1.3,
+        "hit_stop": not target,
+        "hit_target": target,
+    }
+    return s
 
-    out = PerformanceAnalyzer.session_review([legacy], "2026-09-11")
+
+def _old_schema(symbol="SAIL", date="2026-09-11", correct=True):
+    """A pre-C-3 record: graded at the retired 60m checkpoint, and carrying
+    the `ltp_at_*` keys only the old LTP-sampling resolver ever wrote."""
+    s = _sig(symbol, date)
+    s["outcome"] = {
+        "status": "RESOLVED",
+        "directional_correct_30m": correct, "pnl_30m_pct": 1.0, "ltp_at_30m": 101.0,
+        "directional_correct_60m": correct, "pnl_60m_pct": 1.0, "ltp_at_60m": 101.5,
+        "hit_stop": False, "hit_target": False,
+    }
+    return s
+
+
+# --------------------------------------------------------------------------
+# The real invariant: a record is excluded only when it cannot be attributed
+# to the horizon config in force -- NOT merely because it lacks a 90m key.
+# An early stop/target hit lacks one too, and it is measured.
+# --------------------------------------------------------------------------
+def test_early_target_hit_is_measured_not_reported_as_unmeasured():
+    """The trade closed at 30m with a TARGET HIT -- the most decisive positive
+    outcome the system produces. It was being shown as 'not measured yet,
+    graded at a retired horizon', which is simply false."""
+    out = PerformanceAnalyzer.session_review([_early(target=True)], "2026-09-11")
+    assert out["measurement_state"] == "MEASURED"
+    assert out["total_resolved"] == 1
+    assert out["legacy_excluded"] == 0
+    assert out["outcomes"]["win_rate_primary"] == 100.0
+
+
+def test_early_stop_hit_is_measured_as_a_loss():
+    out = PerformanceAnalyzer.session_review([_early(target=False)], "2026-09-11")
+    assert out["measurement_state"] == "MEASURED"
+    assert out["total_resolved"] == 1
+    assert out["outcomes"]["win_rate_primary"] == 0.0
+    assert out["outcomes"]["stop_hit_rate"] == 100.0
+
+
+def test_genuinely_old_schema_records_are_still_excluded():
+    out = PerformanceAnalyzer.session_review([_old_schema()], "2026-09-11")
     assert out["measurement_state"] == "NONE_RESOLVED"
     assert out["total_signals"] == 1
     assert out["total_resolved"] == 0
@@ -171,14 +217,57 @@ def test_legacy_horizon_signals_are_excluded_not_scored_as_losses():
     assert out["outcomes"] is None
 
 
-def test_legacy_signals_do_not_drag_down_a_measured_session():
-    legacy = _sig("BHEL")
-    legacy["outcome"] = {"status": "RESOLVED", "directional_correct_30m": False,
-                         "pnl_30m_pct": -1.0, "hit_stop": True, "hit_target": False}
-    signals = [_sig("SAIL", resolved=True, correct=True, pnl=1.0), legacy]
-
-    out = PerformanceAnalyzer.session_review(signals, "2026-09-11")
-    assert out["measurement_state"] == "MEASURED"
-    assert out["total_resolved"] == 1
+def test_resolved_without_a_primary_key_is_not_read_as_an_early_close():
+    """Only RESOLVED_EARLY with a stop/target hit may be measured below the
+    primary horizon. A plain RESOLVED missing the 90m key was graded under an
+    older schema; reading its 30m result as a 90m one would mix horizons."""
+    s = _sig("SAIL")
+    s["outcome"] = {"status": "RESOLVED", "directional_correct_30m": True,
+                    "pnl_30m_pct": 1.0, "hit_stop": False, "hit_target": False}
+    out = PerformanceAnalyzer.session_review([s], "2026-09-11")
+    assert out["measurement_state"] == "NONE_RESOLVED"
     assert out["legacy_excluded"] == 1
-    assert out["outcomes"]["win_rate_primary"] == 100.0
+
+
+def test_mixed_session_measures_early_closes_and_excludes_only_the_old():
+    """The survivorship trap: if early closes were excluded, the win rate
+    would be computed only from trades that hit NEITHER stop nor target."""
+    signals = [
+        _early("SAIL", target=True),                               # win, closed at 30m
+        _early("NMDC", target=False),                              # loss, stopped at 30m
+        _sig("INFY", resolved=True, correct=True, pnl=1.0),        # win, full 90m
+        _sig("BHEL"),                                              # pending
+        _old_schema("OFSS"),                                       # excluded
+    ]
+    out = PerformanceAnalyzer.session_review(signals, "2026-09-11")
+
+    assert out["measurement_state"] == "MEASURED"
+    assert out["total_signals"] == 5
+    assert out["total_resolved"] == 3        # both early closes counted
+    assert out["legacy_excluded"] == 1
+    assert out["outcomes"]["win_rate_primary"] == round(2 / 3 * 100, 2)
+
+
+def test_early_closes_reach_the_grouped_views():
+    out = PerformanceAnalyzer.session_review(
+        [_early("SAIL", target=True), _early("INFY", regime="CHOP", target=False)],
+        "2026-09-11")
+    assert out["by_regime"]["TREND_EXPANSION"]["total_resolved"] == 1
+    assert out["best_regime"]["key"] == "TREND_EXPANSION"
+    assert out["worst_regime"]["key"] == "CHOP"
+    assert out["by_cluster"]["PSU_METALS_INFRA"]["total_resolved"] == 1
+
+
+def test_a_horizon_stamped_record_is_attributed_by_its_stamp():
+    """record_signal now stamps the horizon config, so future records need no
+    dating heuristic at all."""
+    s = _early("SAIL", target=True)
+    s["horizon"] = {"measure_at_minutes": [30, PRIMARY]}
+    out = PerformanceAnalyzer.session_review([s], "2026-09-11")
+    assert out["measurement_state"] == "MEASURED"
+
+    stale = _early("NMDC", target=True)
+    stale["horizon"] = {"measure_at_minutes": [30, 60]}
+    out2 = PerformanceAnalyzer.session_review([stale], "2026-09-11")
+    assert out2["measurement_state"] == "NONE_RESOLVED"
+    assert out2["legacy_excluded"] == 1

@@ -132,23 +132,35 @@ class PerformanceAnalyzer:
         empty: there is no win rate to report, and 0.0 would be a lie.
 
         `legacy_excluded` counts signals resolved under a retired horizon --
-        real evidence, just not evidence about the horizon in force.
+        real evidence, just not evidence about the horizon in force. A signal
+        stopped out or target-hit EARLY is measured, not excluded: the trade
+        is over, and that is its outcome (core.outcome_schema).
         """
+        from core.outcome_schema import (LEGACY, classify, measure_at_minutes,
+                                          normalise)
+
         today = [s for s in signals if s.get("session_date") == session_date]
         primary = PerformanceAnalyzer._primary_minute()
-        key = f"directional_correct_{primary}m"
+        mins = measure_at_minutes()
 
-        # A signal RESOLVED under a since-retired horizon (the pre-Task-3.4
-        # 30m/60m schema) carries no outcome at the primary horizon. Folding
-        # it in would score it a loss and report a real-looking 0% win rate --
-        # the exact defect class this project exists to remove. Excluded from
-        # the measured set and counted separately, as core.calibration does.
-        def _is_legacy(s: dict) -> bool:
-            o = s.get("outcome") or {}
-            return str(o.get("status", "")).startswith("RESOLVED") and key not in o
-
-        legacy = [s for s in today if _is_legacy(s)]
-        measurable = [s for s in today if not _is_legacy(s)]
+        # A signal that cannot be attributed to the horizon config in force --
+        # graded at a retired checkpoint, or written by the pre-C-3 resolver --
+        # has no outcome at the primary horizon. Folding it in would score it a
+        # loss and report a real-looking 0% win rate: the exact defect class
+        # this project exists to remove. It is excluded and counted.
+        #
+        # An EARLY stop or target hit is the opposite case: the position is
+        # closed, so that hit IS the primary-horizon outcome even though no
+        # 90m key exists. normalise() projects it onto the primary keys so the
+        # shared _compute_metrics reads it. Excluding those instead would leave
+        # a win rate computed only from trades that hit neither stop nor
+        # target -- a survivorship-filtered sample (see core.outcome_schema).
+        legacy, measurable = [], []
+        for s in today:
+            if classify(s, mins) == LEGACY:
+                legacy.append(s)
+            else:
+                measurable.append(normalise(s, mins) or s)   # None => still pending
 
         base = {
             "session_date": session_date,

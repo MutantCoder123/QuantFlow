@@ -73,6 +73,13 @@ class SignalLedger:
             "timestamp": ts,
             "datetime_ist": now.isoformat(),
             "session_date": date_str,
+            # The horizon config this signal is graded against, stamped at
+            # record time (Task 5.6 fix-round 1). Without it, a record that
+            # resolved early -- no key at the primary checkpoint -- is
+            # indistinguishable from one graded under a horizon we have since
+            # retired, and core.outcome_schema has to fall back on dating the
+            # record by its outcome keys.
+            "horizon": {"measure_at_minutes": cls._measure_at()},
             "signal_snapshot": {
                 "ltp_at_signal": ltp,
                 "regime": market_regime.get("current_regime", "UNKNOWN"),

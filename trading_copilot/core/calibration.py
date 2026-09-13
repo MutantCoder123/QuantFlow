@@ -99,7 +99,8 @@ _DISCRIMINATION_THRESHOLD_PP = 10.0
 
 
 def reliability_buckets(signals: list, primary_minute: int = 90,
-                        n_buckets: int = 10, min_n: int = 10) -> dict:
+                        n_buckets: int = 10, min_n: int = 10,
+                        measure_at=None) -> dict:
     """Realised win rate per |composite| decile (Task 4.4).
 
     The x-axis is |composite| rather than a predicted probability because
@@ -109,7 +110,12 @@ def reliability_buckets(signals: list, primary_minute: int = 90,
     thinner than `min_n` are marked suppressed (not silently dropped) so the
     operator sees where the evidence runs out.
     """
-    key = f"directional_correct_{primary_minute}m"
+    from core.outcome_schema import primary_outcome
+
+    # `primary_minute` stays the caller-facing knob and the reported x-axis
+    # horizon; `measure_at` is the full checkpoint list that decides whether a
+    # record belongs to this horizon config at all. Left None it comes from the
+    # policy config, whose largest entry IS primary_minute.
     width = 1.0 / n_buckets
     buckets = [{"lo": round(i * width, 4), "hi": round((i + 1) * width, 4),
                 "n": 0, "wins": 0} for i in range(n_buckets)]
@@ -120,12 +126,19 @@ def reliability_buckets(signals: list, primary_minute: int = 90,
         outcome = s.get("outcome") or {}
         if not str(outcome.get("status", "")).startswith("RESOLVED"):
             continue
-        if key not in outcome:
-            # Resolved, but graded at a horizon we have since retired (the
-            # pre-Task-3.4 30m/60m schema). Counted separately rather than
-            # folded in -- a 60m outcome is not a 90m outcome, and silently
+        po = primary_outcome(s, measure_at)
+        if po is None:
+            # Resolved, but not attributable to the horizon config in force --
+            # graded at a retired checkpoint (the pre-Task-3.4 30m/60m schema)
+            # or written by the pre-C-3 resolver. Counted separately rather
+            # than folded in: a 60m outcome is not a 90m outcome, and silently
             # mixing them would corrupt the curve. Counted rather than
             # dropped, so "no data" is never shown when data exists.
+            #
+            # A trade stopped out or target-hit EARLY is NOT in this bucket --
+            # it is closed, so its hit is its primary-horizon outcome
+            # (core.outcome_schema). Excluding those would have left the curve
+            # drawn only from trades that hit neither stop nor target.
             n_legacy_excluded += 1
             continue
         try:
@@ -134,7 +147,7 @@ def reliability_buckets(signals: list, primary_minute: int = 90,
             continue
         idx = min(int(x / width), n_buckets - 1)
         buckets[idx]["n"] += 1
-        buckets[idx]["wins"] += 1 if outcome.get(key) else 0
+        buckets[idx]["wins"] += 1 if po["directional_correct"] else 0
         n_resolved += 1
 
     populated = []
