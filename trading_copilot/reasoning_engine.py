@@ -459,13 +459,26 @@ class ReasoningEngine:
                     from performance_analyzer import PerformanceAnalyzer
                     feedback = PerformanceAnalyzer.get_feedback_payload(last_n_days=14)
                     if feedback and feedback.get("total_signals", 0) >= 20:
+                        # Every field is read with .get and rendered as a
+                        # string: this whole block sits inside a bare
+                        # `except Exception: pass`, so ONE missing key silently
+                        # deletes the calibration evidence from the prompt
+                        # instead of raising. That is exactly what happened to
+                        # `win_rate_60m` -- Task 3.4 retired the 60m checkpoint
+                        # and stopped returning the key, and this block has not
+                        # reached the LLM since. Report the primary horizon the
+                        # system is actually measured on, and render an
+                        # undefined profit factor as unmeasured rather than
+                        # interpolating the literal "None".
+                        _pf = feedback.get("profit_factor")
+                        _primary = feedback.get("primary_horizon_min", "?")
                         feedback_block = (
-                            f"\n\nHISTORICAL CALIBRATION (last 14 days, {feedback['total_signals']} signals):\n"
-                            f"- Overall 30m directional accuracy: {feedback['win_rate_30m']}%\n"
-                            f"- Overall 60m directional accuracy: {feedback['win_rate_60m']}%\n"
-                            f"- Profit factor: {feedback['profit_factor']}\n"
-                            f"- Best regime: {feedback['best_regime']} ({feedback['best_regime_wr']}% win rate)\n"
-                            f"- Worst regime: {feedback['worst_regime']} ({feedback['worst_regime_wr']}% win rate)\n"
+                            f"\n\nHISTORICAL CALIBRATION (last 14 days, {feedback.get('total_signals')} signals):\n"
+                            f"- Overall 30m directional accuracy: {feedback.get('win_rate_30m')}%\n"
+                            f"- Overall {_primary}m directional accuracy: {feedback.get('win_rate_primary')}%\n"
+                            f"- Profit factor: {_pf if _pf is not None else 'unmeasured (no losing trade)'}\n"
+                            f"- Best regime: {feedback.get('best_regime')} ({feedback.get('best_regime_wr')}% win rate)\n"
+                            f"- Worst regime: {feedback.get('worst_regime')} ({feedback.get('worst_regime_wr')}% win rate)\n"
                             "Calibrate your conviction_modifier accordingly. Be MORE aggressive in regimes "
                             "where historical accuracy is high, and MORE cautious where it is low."
                         )
