@@ -39,3 +39,6 @@ tab_html3.txt
 
 # Runtime debug dumps
 trading_copilot/cache/derivatives_debug.json
+
+# Dev-phase tracking docs (kept locally, not pushed)
+dev-notes/

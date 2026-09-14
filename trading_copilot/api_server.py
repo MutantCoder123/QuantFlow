@@ -377,10 +377,10 @@ async def generate_playbook(req: NewsInstantRequest):
     # screener sweep synchronously inside the shared asyncio event loop
     # (blocking it), and enriches candidates against TerminalDashboard's tiny
     # live-watchlist keyspace so obi/cvd come back "N/A" for nearly everyone.
-    # Fixing screener_engine's scoring (this task) does not fix either of
-    # those -- see CHANGE_SPECSHEET.md, Task 5.5. generate_intraday_playbook
-    # itself is left in place, just no longer called from here.
-    return {"status": "disabled", "message": "Discovery is temporarily disabled -- see CHANGE_SPECSHEET.md, Task 5.5 (A-7 not yet fixed)."}
+    # Fixing screener_engine's scoring alone does not fix either of those.
+    # generate_intraday_playbook itself is left in place, just no longer
+    # called from here.
+    return {"status": "disabled", "message": "Discovery is temporarily disabled: it blocks the shared event loop and enriches candidates outside the live watchlist (A-7 not yet fixed)."}
 
 @app.post("/api/news/instant")
 async def instant_news_fetch(req: NewsInstantRequest): return await proxy_post(8003, "/api/news/instant", {"model": req.model})
