@@ -1275,6 +1275,15 @@ already fetched), `cluster_cap` (reusing Task 3.2's `cluster_of`/`load_clusters`
 reimplemented), and `churn_cap` (a hard ceiling on watchlist turnover per run). Wired into
 `run_scan()`, which now actually calls `_update_watchlist` with the bounded result.
 
+**Correction (final whole-branch review):** "closed the loop" overstated what is reachable.
+`run_scan()`'s only trigger is `POST /api/run-screener`, and that endpoint's only client-side
+caller is a handler bound to `document.getElementById('btn-screener')` — **an element that
+does not exist in `index.html`** (only `tab-btn-screener`, the tab nav button). That handler
+and the modals it drives are dead code, so today the bounded selection runs only if someone
+hand-issues the HTTP POST. The selection logic is correct and tested; the *trigger* for it is
+missing. Adding a live screener control was out of scope for Task 5.5 and remains open — and
+note the related hazard below is correspondingly less likely to fire than its note implies.
+
 **Found in review, fixed across two rounds:**
 - **`churn_cap` was not actually a hard ceiling.** The selection logic's own post-hoc
   truncation to fit `dynamic_slots` could evict previous-watchlist symbols that were never

@@ -125,8 +125,15 @@ def _isolated(tokens: list[str]):
     from conviction_scorer import ConvictionScorerRegistry
     from diagnostic_ui import TerminalDashboard
     from microstructure_engine import MicrostructureEngine
+    from performance_analyzer import PerformanceAnalyzer
+    from reasoning_engine import ReasoningEngine
     from regime_manager import RegimeManagerRegistry
     from rolling_state_engine import RollingStateEngine
+
+    # The scorer/regime registries are keyed by the canonical bare symbol
+    # (ReasoningEngine._normalize_symbol), not by the websocket token the
+    # replay iterates.
+    reg_keys = sorted({ReasoningEngine._normalize_symbol(t) for t in tokens})
 
     saved_dashboard = (TerminalDashboard.active_states,
                        TerminalDashboard.catalyst_cache,
@@ -134,13 +141,34 @@ def _isolated(tokens: list[str]):
     saved_engine = (RollingStateEngine.live_options_state,
                     RollingStateEngine.daily_metrics_cache)
     saved_scorers = {t: ConvictionScorerRegistry._scorers.pop(t)
-                     for t in tokens if t in ConvictionScorerRegistry._scorers}
+                     for t in reg_keys if t in ConvictionScorerRegistry._scorers}
     saved_managers = {t: RegimeManagerRegistry._managers.pop(t)
-                      for t in tokens if t in RegimeManagerRegistry._managers}
+                      for t in reg_keys if t in RegimeManagerRegistry._managers}
     saved_micro = {}
     for name in _MICRO_STATE:
         d = getattr(MicrostructureEngine, name)
         saved_micro[name] = {t: d.pop(t) for t in tokens if t in d}
+
+    # A replay's component weights must be a function of the tape and the
+    # config, nothing else. ConvictionScorer._get_adaptive_weights reaches
+    # through PerformanceAnalyzer.get_feedback_payload into the LIVE signal
+    # ledger and memoises the answer in a process-global 300s TTL cache, so
+    # without this the same tape scored differently depending on what sat in
+    # data/ and on whether the cache happened to be warm. Saved, cleared, and
+    # restored like every other piece of ambient state here.
+    saved_perf_cache = (PerformanceAnalyzer._cache, PerformanceAnalyzer._cache_ts)
+    PerformanceAnalyzer.invalidate_cache()
+
+    # The remaining process-wide caches (costs, risk limits, cluster map) are
+    # lru_cache'd pure functions of a config file on disk, so they carry no
+    # run-to-run state of their own -- but a cache warmed before an edit would
+    # still serve the pre-edit file. Cleared on entry and on exit so a replay
+    # reads the configs as they are now, and leaves nothing warmed behind.
+    from core.costs import load_costs
+    from core.risk import load_clusters, load_risk_limits
+    _config_caches = (load_costs, load_clusters, load_risk_limits)
+    for _fn in _config_caches:
+        _fn.cache_clear()
 
     TerminalDashboard.active_states = {}
     TerminalDashboard.catalyst_cache = {}
@@ -154,7 +182,10 @@ def _isolated(tokens: list[str]):
          TerminalDashboard.global_market_context) = saved_dashboard
         (RollingStateEngine.live_options_state,
          RollingStateEngine.daily_metrics_cache) = saved_engine
-        for t in tokens:
+        PerformanceAnalyzer._cache, PerformanceAnalyzer._cache_ts = saved_perf_cache
+        for _fn in _config_caches:
+            _fn.cache_clear()
+        for t in reg_keys:
             ConvictionScorerRegistry._scorers.pop(t, None)
             RegimeManagerRegistry._managers.pop(t, None)
         ConvictionScorerRegistry._scorers.update(saved_scorers)

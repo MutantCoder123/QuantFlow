@@ -132,6 +132,7 @@ def reliability_buckets(signals: list, primary_minute: int = 90,
 
     n_resolved = 0
     n_legacy_excluded = 0
+    n_missing_composite = 0
     for s in signals or []:
         outcome = s.get("outcome") or {}
         if not str(outcome.get("status", "")).startswith("RESOLVED"):
@@ -151,9 +152,19 @@ def reliability_buckets(signals: list, primary_minute: int = 90,
             # drawn only from trades that hit neither stop nor target.
             n_legacy_excluded += 1
             continue
+        # A resolved signal whose composite was never recorded has no place on
+        # a curve whose x-axis IS the composite. `or 0.0` would have binned it
+        # at 0.0 and counted it in n_resolved -- a fabricated coordinate inside
+        # the one view built to prove the score is honest. Excluded and
+        # counted, exactly like the legacy records above.
+        raw_composite = (s.get("signal_snapshot") or {}).get("composite_score")
+        if raw_composite is None:
+            n_missing_composite += 1
+            continue
         try:
-            x = abs(float((s.get("signal_snapshot") or {}).get("composite_score") or 0.0))
+            x = abs(float(raw_composite))
         except (TypeError, ValueError):
+            n_missing_composite += 1
             continue
         idx = min(int(x / width), n_buckets - 1)
         buckets[idx]["n"] += 1
@@ -176,6 +187,7 @@ def reliability_buckets(signals: list, primary_minute: int = 90,
         "buckets": buckets,
         "n_resolved": n_resolved,
         "n_legacy_excluded": n_legacy_excluded,
+        "n_missing_composite": n_missing_composite,
         "populated_buckets": len(populated),
         "win_rate_spread": spread,
         "has_discriminative_power": (

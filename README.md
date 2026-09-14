@@ -154,16 +154,11 @@ trading_copilot/
 ├── screener_engine.py         # Universe screening & ranking
 ├── mtf_extractor.py           # Multi-timeframe data extraction
 ├── news_engine.py             # News catalyst analysis (Gemini sentiment)
-├── macro_eod_engine.py        # End-of-day macro metrics
 ├── pipeline_guard.py          # Circuit breaker & safety checks
 ├── diagnostic_ui.py           # Shared state singleton (TerminalDashboard)
 ├── history_manager.py         # Trade ledger persistence
-├── auth_manager.py            # Upstox OAuth2 PKCE authentication
 ├── scrip_master_engine.py     # NSE instrument master download
-├── warm_layer_engine.py       # Historical warmup data fetcher
 ├── historical_engine.py       # Nifty baseline + per-symbol LTF/HTF fetch
-├── stitching_engine.py        # Data stitching utilities
-├── websocket_engine.py        # WebSocket connection management
 │
 ├── scripts/
 │   ├── master_bootstrap.py    # EOD derivatives backfill (offline, hours)

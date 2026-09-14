@@ -77,7 +77,13 @@ def select_bounded_watchlist(candidates: list, previous_symbols: list,
     least token/symbol/exchange (the shape `_update_watchlist` expects).
     """
     if token_resolver is None:
-        from scrip_master_engine import get_instrument_key as token_resolver
+        # The numeric exchange_token, NOT get_instrument_key's
+        # "NSE_EQ|INE002A01018" -- scored candidates carry the numeric form,
+        # and watchlist.csv's Token column is keyed on by both
+        # config.load_watchlist_from_csv and upstox_feed. Resolving the core
+        # and carry-over rows with the other format would put two key formats
+        # in one column.
+        from scrip_master_engine import get_exchange_token as token_resolver
 
     core_symbols = [str(s).upper() for s in (policy.get("core") or [])]
     dynamic_slots = int(policy.get("dynamic_slots", 0))

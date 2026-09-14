@@ -388,7 +388,7 @@
                 <div id="exposure-status" class="text-xs text-slate-500 mb-2">Not loaded.</div>
                 <div id="exposure-message" class="hidden mb-3 px-2 py-1 rounded text-[11px] font-bold"></div>
                 <div id="exposure-container" class="space-y-2">
-                    <div class="text-center text-xs text-slate-600">Press Refresh to load.</div>
+                    <div class="text-center text-xs text-slate-600">Loading…</div>
                 </div>
             </section>
 
@@ -945,13 +945,34 @@
 
                 statusEl.textContent = `Capital: ₹${(d.capital / 10000000).toFixed(1)} Cr · Max per cluster: ${d.max_cluster_risk_pct}%`;
 
+                // Positions the book could not size (missing qty/entry/stop)
+                // carry UNKNOWN risk, not zero. Claiming "fully within limits"
+                // over them would be a reassurance about exactly the exposure
+                // we failed to measure.
+                const unsizeable = d.unsizeable_positions || [];
+
                 if (!d.clusters || d.clusters.length === 0) {
                     messageEl.classList.remove('hidden');
-                    messageEl.className = 'mb-3 px-2 py-1 rounded text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30';
-                    messageEl.textContent = 'No open positions. Fully within limits.';
+                    if (unsizeable.length) {
+                        messageEl.className = 'mb-3 px-2 py-1 rounded text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30';
+                        messageEl.textContent =
+                            `No measurable exposure, but ${unsizeable.length} open position(s) could not be sized `
+                            + `(missing qty/entry/stop): ${unsizeable.join(', ')}. Risk unknown, not zero.`;
+                    } else {
+                        messageEl.className = 'mb-3 px-2 py-1 rounded text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30';
+                        messageEl.textContent = 'No open positions. Fully within limits.';
+                    }
                     containerEl.innerHTML = '';
                 } else {
-                    messageEl.classList.add('hidden');
+                    if (unsizeable.length) {
+                        messageEl.classList.remove('hidden');
+                        messageEl.className = 'mb-3 px-2 py-1 rounded text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30';
+                        messageEl.textContent =
+                            `${unsizeable.length} open position(s) excluded from these bars `
+                            + `(missing qty/entry/stop): ${unsizeable.join(', ')}.`;
+                    } else {
+                        messageEl.classList.add('hidden');
+                    }
                     containerEl.innerHTML = d.clusters.map(c => {
                         const barWidth = Math.min(c.pct_of_limit * 100, 100);
                         const isRed = c.pct_of_limit >= 0.90;
@@ -1066,7 +1087,7 @@
                 headEl.innerHTML = tile('Signals emitted', d.total_signals)
                     + tile('Resolved', d.total_resolved)
                     + tile('Win rate', fmtPct(o.win_rate_primary))
-                    + tile('Profit factor', o.profit_factor === undefined ? 'n/a' : o.profit_factor)
+                    + tile('Profit factor', o.profit_factor == null ? 'n/a' : o.profit_factor)
                     + tile('Stop / target hit', `${fmtPct(o.stop_hit_rate)} / ${fmtPct(o.target_hit_rate)}`);
 
                 groupsEl.innerHTML = bestWorst('Regime', d.best_regime, d.worst_regime)
@@ -2663,6 +2684,7 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
         document.addEventListener('DOMContentLoaded', () => {
             fetchNewsState();
             loadParquetSymbols();
+            loadReliability();
             loadExposure();
             loadSessionReview();
             newsStateInterval = setInterval(fetchNewsState, 5000);

@@ -103,6 +103,37 @@ def _search_scrip_sync(query: str, limit: int):
 async def search_scrip_tokens(query: str, limit: int = 15):
     return await asyncio.to_thread(_search_scrip_sync, query, limit)
 
+def get_exchange_token(symbol: str) -> str:
+    """A generic symbol -> the numeric exchange_token ('RELIANCE' -> '2885').
+
+    This is the format watchlist.csv's Token column has always carried (see
+    _get_all_fno_equities_sync and _search_scrip_sync, which both prefer
+    exchange_token and fall back to instrument_key only when it is null).
+    `get_instrument_key` returns the OTHER format ('NSE_EQ|INE002A01018'), so
+    resolving a watchlist row with it mixes two key formats into one column
+    that both config.load_watchlist_from_csv and upstox_feed key off.
+
+    Falls back to the instrument key when no numeric token exists, which is
+    the same fallback the two functions above already make.
+    """
+    df = _get_df()
+    if df.empty:
+        return f"NSE_EQ|{symbol}"
+
+    full_sym = str(symbol).upper()
+    clean_sym = full_sym.split('-')[0]
+    for candidate in (full_sym, clean_sym):
+        mask = (df['exchange'] == 'NSE_EQ') & (df['tradingsymbol'] == candidate)
+        matches = df[mask]
+        if not matches.empty:
+            row = matches.iloc[0]
+            if pd.notnull(row['exchange_token']):
+                return str(int(row['exchange_token']))
+            return row['instrument_key']
+
+    return get_instrument_key(symbol)
+
+
 def get_instrument_key(symbol: str) -> str:
     """Helper to convert a generic symbol (e.g. 'RELIANCE') to an ISIN (NSE_EQ|INE002A01018)"""
     df = _get_df()

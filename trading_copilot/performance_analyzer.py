@@ -50,7 +50,13 @@ class PerformanceAnalyzer:
         pnl_sum_win = sum(s["outcome"][p_pnl] for s in resolved if s["outcome"].get(p_pnl, 0) > 0)
         pnl_sum_loss = sum(s["outcome"][p_pnl] for s in resolved if s["outcome"].get(p_pnl, 0) < 0)
 
-        profit_factor = round(pnl_sum_win / abs(pnl_sum_loss), 2) if pnl_sum_loss != 0 else 999.0
+        # No losing trade means the profit factor is UNDEFINED, not enormous.
+        # This used to be 999.0 -- a sentinel with nothing behind it, rendered
+        # to the operator as a measured "999" on a panel whose whole point is
+        # that unmeasured things must not show as numbers. None propagates and
+        # the UI renders it as n/a.
+        profit_factor = (round(pnl_sum_win / abs(pnl_sum_loss), 2)
+                         if pnl_sum_loss != 0 else None)
 
         hit_stop = sum(1 for s in resolved if s["outcome"].get("hit_stop", False))
         hit_target = sum(1 for s in resolved if s["outcome"].get("hit_target", False))
@@ -224,7 +230,31 @@ class PerformanceAnalyzer:
         if cls._cache is not None and (now - cls._cache_ts) < cls._TTL:
             return cls._cache
         try:
-            signals = SignalLedger.load_all_signals(last_n_days)   # ONE load
+            from core.outcome_schema import (LEGACY, classify, measure_at_minutes,
+                                             normalise)
+
+            raw = SignalLedger.load_all_signals(last_n_days)       # ONE load
+            mins = measure_at_minutes()
+
+            # This payload is not a report -- conviction_scorer feeds it back
+            # into the LIVE component weights. A record that cannot be
+            # attributed to the horizon config in force carries no
+            # `directional_correct_{primary}m` key, and _compute_metrics reads
+            # a missing key as False: every such record was being scored a
+            # LOSS, deflating regime win rates that then scale the dominant
+            # component weight by up to +/-30% on every scored symbol. The same
+            # records also padded the sample count past the `< 30` gate in
+            # _get_adaptive_weights, so they helped open the gate they then
+            # poisoned. Excluded and counted, exactly as the session review and
+            # the reliability curve do (core.outcome_schema).
+            legacy, measurable = [], []
+            for s in raw:
+                if classify(s, mins) == LEGACY:
+                    legacy.append(s)
+                else:
+                    measurable.append(normalise(s, mins) or s)   # None => still pending
+
+            signals = measurable
             metrics = cls._compute_metrics(signals)
 
             if metrics.get("total_resolved", 0) == 0:
@@ -249,7 +279,12 @@ class PerformanceAnalyzer:
                         worst_regime = r
 
             payload = {
+                # The sample gate in ConvictionScorer._get_adaptive_weights
+                # reads this key. It counts attributable resolved records
+                # only -- legacy_excluded is reported alongside, never folded
+                # in.
                 "total_signals": metrics["total_resolved"],
+                "legacy_excluded": len(legacy),
                 "primary_horizon_min": metrics.get("primary_horizon_min"),
                 "win_rate_primary": metrics.get("win_rate_primary"),
                 "win_rate_30m": metrics["win_rate_30m"],

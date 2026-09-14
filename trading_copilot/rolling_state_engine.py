@@ -137,6 +137,26 @@ class RollingStateEngine:
             logger.error(f"Failed to hydrate from cache: {e}")
             return False
 
+    def _resolve_symbol(self, token: str) -> str:
+        """The bare stock name for a tick key (e.g. "NSE_EQ|SAIL" -> "SAIL").
+
+        `self.watchlist` is the CSV map built in data_services.upstox_feed: it
+        is keyed by the numeric CSV *Token* and its rows carry a capital-S
+        ``"Symbol"`` holding "SAIL-EQ". The tokens flowing through this engine
+        are websocket keys ("NSE_EQ|SAIL"), so the old
+        ``self.watchlist.get(token, {}).get("symbol", "")`` lookup missed on
+        both counts and returned "" for every symbol. That emptied
+        ``payload['symbol']``, which made ReasoningEngine's decision loop fall
+        back on the instrument key and key its ConvictionScorer/RegimeManager
+        registries by "NSE_EQ|SAIL" while the display path keyed them by
+        "SAIL" -- two objects per stock, one advanced and one never advanced.
+        """
+        row = self.watchlist.get(token) or self.watchlist.get(str(token)) or {}
+        raw = row.get("Symbol") or row.get("symbol") or ""
+        if not raw:
+            raw = str(token or "")
+        return raw.split('|')[-1].split('-')[0]
+
     def _load_parquet_metrics(self):
         import os
         import pandas as pd
@@ -148,7 +168,7 @@ class RollingStateEngine:
         self.daily_metrics_cache['Nifty 50'] = {'pcr': 1.0, 'max_pain': 0.0, 'atm_iv': 0.0}
         
         for token, token_data in self.dfs.items():
-            parent_symbol = self.watchlist.get(token, {}).get("symbol", "").split('-')[0]
+            parent_symbol = self._resolve_symbol(token)
             if not parent_symbol:
                 continue
                 
@@ -425,7 +445,7 @@ class RollingStateEngine:
         final_payload['timestamp'] = int(time.time() * 1000)
         final_payload['ltp'] = phantom['close']
 
-        parent_symbol = self.watchlist.get(token, {}).get("symbol", "").split('-')[0]
+        parent_symbol = self._resolve_symbol(token)
         final_payload['symbol'] = parent_symbol
 
         ist = datetime.timezone(datetime.timedelta(hours=5, minutes=30))

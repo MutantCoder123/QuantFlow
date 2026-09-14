@@ -298,7 +298,13 @@ async def get_risk_exposure():
             "data": {
                 "capital": limits.capital,
                 "max_cluster_risk_pct": limits.max_cluster_risk_pct,
-                "clusters": cluster_data
+                "clusters": cluster_data,
+                # Positions held but missing a qty/entry/stop, so their risk
+                # could not be computed. Without this an empty `clusters` is
+                # indistinguishable from "flat", and the panel would reassure
+                # the operator they are within limits over exactly the
+                # positions it failed to measure.
+                "unsizeable_positions": ReasoningEngine._unsizeable_positions(),
             }
         }
     except Exception as e:

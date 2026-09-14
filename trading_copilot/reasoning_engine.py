@@ -231,6 +231,19 @@ class ReasoningEngine:
             payload["global_market_context"] = TerminalDashboard.global_market_context
             
         clean_sym = symbol.split('|')[-1]
+        # Canonical per-symbol key for the process-wide scorer/regime
+        # registries below. Callers hand this method different spellings of
+        # the same stock -- the display refresh passes "SAIL", the decision
+        # loop passes whatever payload['symbol'] holds and falls back on the
+        # instrument key "NSE_EQ|SAIL" -- and keying two plain dicts by the
+        # raw string gave each surface its OWN ConvictionScorer and
+        # RegimeManager. The read-only display copy then never advanced, so
+        # its regime sat at the constructor's TRANSITIONAL_DRIFT forever and
+        # every number shipped to the operator (composite, bias, expectancy,
+        # the Task 5.2 contributions provenance, the Task 5.1 attention rank)
+        # was computed under weights the gatekeeper never used. One key per
+        # stock, so both surfaces read the object the system actually acts on.
+        registry_key = cls._normalize_symbol(symbol)
         catalyst = TerminalDashboard.catalyst_cache.get(clean_sym)
         if catalyst and "raw_news" in catalyst:
             payload["raw_news"] = catalyst["raw_news"]
@@ -245,14 +258,14 @@ class ReasoningEngine:
 
         # Inject Regime
         from regime_manager import RegimeManagerRegistry
-        manager = RegimeManagerRegistry.get_or_create(symbol)
+        manager = RegimeManagerRegistry.get_or_create(registry_key)
         regime_metadata = (manager.determine_regime(tactical_payload) if advance_state
                            else manager.peek_regime())
         tactical_payload["market_regime"] = regime_metadata
 
         # Inject Conviction Score & Math Setup
         from conviction_scorer import ConvictionScorerRegistry
-        scorer = ConvictionScorerRegistry.get_or_create(symbol)
+        scorer = ConvictionScorerRegistry.get_or_create(registry_key)
         math_setup = scorer.score_setup(tactical_payload, payload, advance_state=advance_state)
         tactical_payload["math_setup"] = math_setup
             
@@ -690,6 +703,31 @@ class ReasoningEngine:
             if qty > 0 and entry > 0 and stop > 0:
                 book.add_open(sym, cluster_of(sym, clusters), qty * abs(entry - stop))
         return book
+
+    @classmethod
+    def _unsizeable_positions(cls) -> list:
+        """Symbols the operator holds that _build_portfolio cannot size.
+
+        A position missing a quantity, an entry or a stop contributes no risk
+        to the book -- correctly, since its risk is genuinely unknown. But an
+        exposure view that only reports the book then answers "am I loaded?"
+        with silence about exactly the positions it could not measure. These
+        are named so the panel can say "unmeasured", not "none".
+        """
+        out = []
+        for sym, pos in list(cls.user_positions.items()):
+            if not isinstance(pos, dict):
+                continue
+            try:
+                qty = float(pos.get("qty") or pos.get("entry_qty") or 0)
+                entry = float(pos.get("entry_price") or pos.get("entry") or 0)
+                stop = float(pos.get("stoploss") or pos.get("stop") or 0)
+            except (TypeError, ValueError):
+                out.append(sym)
+                continue
+            if not (qty > 0 and entry > 0 and stop > 0):
+                out.append(sym)
+        return out
 
     @classmethod
     def _attach_sizing(cls, gatekeeper_res, symbol, math_setup, regime_meta, payload):

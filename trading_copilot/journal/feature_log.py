@@ -101,12 +101,16 @@ def staleness_incidents(df: pd.DataFrame) -> dict:
     ``STALE_DATA_<age>s``, which _classify_decision carries into the
     ``decision`` column as ``GATED_STALE_DATA_<age>s``.
 
-    ``max_stale_microstructure_s`` is None -- not 0.0 -- when the column is
-    absent or empty: no measurement is not a measurement of zero.
+    Every field is None -- not 0 -- when there is nothing to count: no
+    measurement is not a measurement of zero. A session with no feature log
+    (none written, or nothing flushed yet) has an UNKNOWN number of stale-feed
+    rejections, and reporting "0 stale-feed rejections" for it tells the
+    operator the feed was clean when nobody looked. A present-but-clean
+    session is different: 0 there is a real count, and stays 0.
     """
-    empty = {"incidents": 0, "symbols": 0, "max_stale_microstructure_s": None}
     if df is None or df.empty or "decision" not in df.columns:
-        return empty
+        return {"incidents": None, "symbols": None,
+                "max_stale_microstructure_s": None}
 
     hit = df[df["decision"].astype(str).str.contains("STALE_DATA", na=False)]
 
