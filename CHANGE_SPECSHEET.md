@@ -1433,14 +1433,67 @@ run); core symbols being double-counted and duplicated in the watchlist; a "disa
 that silently re-enabled itself and then reported false success; and twice, a fabricated
 measurement hiding inside a fix for a fabricated measurement.
 
+### Final whole-branch review (commits `8ff34df`, `29dafe2`)
+
+After all six tasks were individually reviewed, one review looked *across* them — the thing a
+task-scoped review structurally cannot do. It found a defect that belonged to no single task
+and so had been invisible to every review before it.
+
+**The display path and the decision path were scoring different objects.** `build_structured_payload`
+keys the ConvictionScorer and RegimeManager registries per symbol, but its two callers passed
+different spellings of the same stock: the decision loop passed `payload['symbol']` — which was
+*always* empty, because the lookup that fills it used a lowercase `"symbol"` field against a map
+keyed by numeric CSV token, while the tokens flowing through are websocket keys like
+`NSE_EQ|SAIL` — and so fell back to the instrument key, while the 2 Hz display refresh passed the
+bare `SAIL`. Two scorer objects and two regime managers per stock. Only the decision path ever
+advanced state, so the display copy's regime sat at its constructor default `TRANSITIONAL_DRIFT`
+forever, and **every number the dashboard showed — composite, bias, expectancy, Task 5.2's whole
+provenance decomposition, Task 5.1's attention ranking — was computed under weights the
+gatekeeper never used.** The panel built to answer "why is this score what it is" was decomposing
+a score the system never acted on. Fixed at both layers: the symbol lookup, and a canonical
+registry key inside `build_structured_payload` so two callers cannot diverge again.
+
+Also fixed in the same wave: legacy-horizon records were still being counted as *losses* inside
+`get_feedback_payload` and fed into live component-weight adaptation (±30% on the dominant
+weight, every scored symbol) — and they padded the sample count past the very gate they then
+poisoned; `staleness_incidents` reported a measured `0` for a session with no feature log at all;
+`profit_factor` propagated a `999.0` sentinel the operator read as a number; `reliability_buckets`
+binned a missing composite at `0.0` inside the one view built to prove the score is honest; the
+exposure panel announced "fully within limits" over positions it had failed to size; and `replay()`
+read the live ledger through a process-global cache, so a tape didn't score the same twice across
+processes.
+
+**And chasing the smallest of those surfaced the quietest bug in the phase.** Making `profit_factor`
+`None` would have interpolated the literal string "None" into the LLM's calibration prompt — which
+led to the eight lines around it, where the HISTORICAL CALIBRATION block subscripts
+`feedback['win_rate_60m']`, a key Task 3.4 stopped returning. The block is assembled inside a bare
+`except Exception: pass`, so that `KeyError` has been swallowed on every single call since Phase 4:
+**the calibration evidence has not reached the LLM for an entire phase, and nothing reported it.**
+Now every read is a `.get`, the retired 60m line reports the primary horizon instead, and tests
+assert the block may only read keys the payload actually produces — with a fixture-staleness guard
+so that check can't quietly rot the same way.
+
+Documentation was corrected where it claimed things the code no longer does: README and the
+architecture summary still listed the six deleted modules; the summary still called `start_all.bat`
+broken when Task 0.11 had fixed it; and this specsheet's own claim that Task 5.5 "closed the
+discovery loop" overstated it — the loop's only UI trigger, `#btn-screener`, does not exist in the
+page.
+
 **Open items carried forward** (see the follow-ups section below for the full list):
 
-- `PerformanceAnalyzer.compute_dashboard` / `compute_regime_accuracy` / `compute_symbol_accuracy`
+- **(Partially closed, then parked.)** `get_feedback_payload` — the one caller that fed live
+  component-weight adaptation — now excludes legacy-horizon records. But
+  `PerformanceAnalyzer.compute_dashboard` / `compute_regime_accuracy` / `compute_symbol_accuracy`
   still feed raw signals to `_compute_metrics`, which neither excludes legacy-horizon records
   nor normalises them — against the real ledger at a wide window that yields a real-looking
   `win_rate: 0.0` from records the session review correctly refuses to score. `classify` and
-  `normalise` now exist in `core/outcome_schema.py`; this is the last consumer that doesn't use
-  them. **This is the single most valuable follow-up.**
+  `normalise` now exist in `core/outcome_schema.py`; these are the last consumers that don't use
+  them. Parked rather than fixed in the final wave because migrating them means changing
+  `_compute_metrics`' shared behaviour for four callers with different semantics — a task, not a
+  fix. Verified safe to park *today*: nothing in `index.html` references
+  `/api/performance/dashboard`, `/regime` or `/symbols`, so no operator surface can render the
+  fabricated number — but any future client that calls them would. **Still the single most
+  valuable follow-up.**
 - Discovery remains disabled (A-7's event-loop-blocking and key-space bugs are untouched), and
   `POST /api/run-screener` — now the only caller of `run_scan()` — writes `watchlist.csv` from
   inside the live ingestion process, which never reloads it.
