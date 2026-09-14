@@ -37,6 +37,13 @@ class IntradayGatekeeper:
         if market_state != "LIVE":
             return {"Action": "Wait", "Priority_Score": 0, "Confidence_Score": 0, "llm_authorized": False}
 
+        # 1b. STALE FEED SHIELD (A-12): never act on a frozen tick. data_age_s
+        # is published by RollingStateEngine._compute_symbol.
+        age = float(raw_payload.get("data_age_s", 0.0) or 0.0)
+        if age > 15.0:
+            return {"Action": "Wait", "Priority_Score": 0, "Confidence_Score": 0,
+                    "llm_authorized": False, "math_rejection": f"STALE_DATA_{int(age)}s"}
+
         # 2. TIME OVERRIDE
         # If local machine time >= 15:15 IST (Auto-Square off time for intraday)
         current_time_utc = datetime.datetime.utcnow()
@@ -57,8 +64,9 @@ class IntradayGatekeeper:
         current_regime = regime.get("current_regime", "TRANSITIONAL_DRIFT")
         session_phase = regime.get("session_phase", "UNKNOWN")
         
-        # Read SemanticTagger's clean states
-        flow_divergence = micro.get("flow_divergence_state", "EQUILIBRIUM_CHOP")
+        # Read SemanticTagger's clean states (may be {"state": tag, ...} now)
+        from semantic_tagger import state_of
+        flow_divergence = state_of(micro.get("flow_divergence_state")) or "EQUILIBRIUM_CHOP"
         
         # Read raw whale CVD for polarity check (not available in semantic payload)
         try:
@@ -103,13 +111,25 @@ class IntradayGatekeeper:
                     res["Alert_Log"] = "Whipsaw Filtered: SemanticTagger confirms institutional distribution."
                     return res
                     
-            # If whale_cvd_ema_1h completely flips polarity against the trade direction
-            polarity_flipped = False
-            if direction == "Long" and whale_cvd_ema_1h < 0:
-                polarity_flipped = True
-            elif direction == "Short" and whale_cvd_ema_1h > 0:
-                polarity_flipped = True
-                
+            # Adverse whale-flow CHANGE since entry, normalised by average daily
+            # volume so the threshold is comparable across a Rs.20 stock and a
+            # Rs.10,000 one. Previously this tested the SIGN of the cumulative
+            # level, not a flip -- for any net-selling name (cumulative whale
+            # CVD negative essentially all day) that force-closed every held
+            # long on the very next gatekeeper tick regardless of price action.
+            FLIP_THRESHOLD_ADV_FRAC = 0.03  # 3% of ADV moved against the position
+            try:
+                entry_whale = float(position.get("whale_cvd_at_entry") or 0.0)
+            except (ValueError, TypeError):
+                entry_whale = 0.0
+            adv = max(1.0, float(raw_payload.get("adv_shares") or 0.0))
+            delta_norm = (whale_cvd_ema_1h - entry_whale) / adv
+
+            polarity_flipped = (
+                (direction == "Long" and delta_norm < -FLIP_THRESHOLD_ADV_FRAC) or
+                (direction == "Short" and delta_norm > FLIP_THRESHOLD_ADV_FRAC)
+            )
+
             if stop_proximity_hit or polarity_flipped:
                 return cls._create_response("Close", priority=10, confidence=9, llm_auth=True)
                 
@@ -117,9 +137,11 @@ class IntradayGatekeeper:
             if time_in_trade_minutes > 45 and -0.5 <= pnl_pct <= 0.1:
                 return cls._create_response("Wait", priority=7, confidence=6, llm_auth=True)
                 
-            # STAGNATION GATE
+            # STAGNATION GATE -- aligned to >=2/3 of the 90m primary horizon
+            # (improved §4.4). Was 30m, which killed trades before they had a
+            # fair chance to run the horizon the system is graded on.
             drift_pct = abs(ltp - entry_price) / entry_price * 100 if entry_price > 0 else 0
-            if time_in_trade_minutes > 30 and drift_pct < 0.2:
+            if time_in_trade_minutes > 60 and drift_pct < 0.2:
                 # Suppress LLM to save tokens
                 return cls._create_response("Hold", priority=2, confidence=5, llm_auth=False)
                 
@@ -127,13 +149,35 @@ class IntradayGatekeeper:
             return cls._create_response("Hold", priority=1, confidence=5, llm_auth=False)
             
         # 4. PATH B: ENTRY EVALUATION (No Active Position)
-        
+
+        # HORIZON CUTOFF (improved §4.4): do not OPEN a new trade that cannot
+        # run its full primary horizon before square-off. One config value
+        # (policy_v1.yaml horizon.entry_cutoff_ist) now governs this, the
+        # ledger's measurement points, and the prompt.
+        cutoff = "13:45"
+        try:
+            from core.policy_config import load_policy
+            cutoff = str(load_policy().horizon.get("entry_cutoff_ist", "13:45"))
+            ch, cm = (int(x) for x in cutoff.split(":"))
+            cutoff_decimal = ch + cm / 60.0
+        except Exception:
+            cutoff_decimal = 13.75
+        if current_decimal >= cutoff_decimal:
+            res = cls._create_response("Wait", priority=0, confidence=0, llm_auth=False)
+            res["math_rejection"] = f"ENTRY_CUTOFF_{cutoff.replace(':', '')}"
+            return res
+
         # Read ConvictionScorer output directly
         setup_rejected = math_setup.get("setup_rejected", True)
         composite_score = abs(math_setup.get("composite_score", 0.0))
         bias = math_setup.get("directional_bias", "NEUTRAL")
-        stat_edge = (math_setup.get("expectancy_matrix") or {}).get("statistical_edge", 0.0)
-        
+        # statistical_edge is None while the system is uncalibrated (§4.2) --
+        # there is no measured probability to derive an edge from, so fall
+        # back to reward:risk rather than fabricating one.
+        expectancy = math_setup.get("expectancy_matrix") or {}
+        stat_edge = expectancy.get("statistical_edge")
+        reward_risk = float(expectancy.get("reward_risk") or 0.0)
+
         # Extract Geometry and Dynamic Scaling
         geo = math_setup.get("execution_geometry") or {}
         entry = geo.get("calculated_entry")
@@ -142,9 +186,12 @@ class IntradayGatekeeper:
         risk_pct = 0.0
         if entry and geo.get("effective_risk"):
             risk_pct = round((geo["effective_risk"] / entry) * 100, 2)
-            
+
         dyn_priority = min(10, int(composite_score * 20))
-        dyn_confidence = min(10, int(stat_edge * 33)) if stat_edge > 0 else 0
+        # No measured edge => no confidence number. Reporting one would be the
+        # exact fabrication §4.2 removes.
+        dyn_confidence = (min(10, int(stat_edge * 33))
+                          if stat_edge is not None and stat_edge > 0 else 0)
         
         # If ConvictionScorer rejected the setup → suppress LLM
         if setup_rejected:
@@ -156,7 +203,7 @@ class IntradayGatekeeper:
         # REGIME-AWARE SUPPRESSION
         effective_score = composite_score
         if session_phase == "LUNCH_CHOP":
-            vol_regime = micro.get("volume_regime", "NORMAL_DRIFT")
+            vol_regime = state_of(micro.get("volume_regime")) or "NORMAL_DRIFT"
             if vol_regime in ("TIME_ADJUSTED_SHOCK", "ELEVATED_ACCUMULATION"):
                 effective_score *= 0.85  # High volume during lunch = real move
             else:
@@ -166,8 +213,11 @@ class IntradayGatekeeper:
         elif current_regime == "TRANSITIONAL_DRIFT":
             effective_score *= 0.7
             
-        # ENTRY GATE: Authorize LLM only if effective score survives regime dampening
-        if effective_score >= 0.15 and stat_edge >= 0.05:
+        # ENTRY GATE: Authorize LLM only if effective score survives regime
+        # dampening AND the edge test passes -- measured edge when calibrated,
+        # reward:risk while not (§4.2).
+        edge_ok = (stat_edge >= 0.05) if stat_edge is not None else (reward_risk >= 1.5)
+        if effective_score >= 0.15 and edge_ok:
             action = "Long" if bias == "LONG" else "Short"
             return cls._create_response(action, priority=dyn_priority, confidence=dyn_confidence, llm_auth=True, entry=entry, sl=sl, tp=tp, risk=risk_pct)
             

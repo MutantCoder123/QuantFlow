@@ -23,7 +23,9 @@ except ImportError:
     from pipeline_guard import is_market_open, PRODUCTION_LIVE
 
 from dotenv import load_dotenv
-load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.env'))
+from paths import REPO_ROOT, TOKEN_PATH, WATCHLIST_PATH, DATA_DIR, ensure_dirs
+ensure_dirs()
+load_dotenv(REPO_ROOT / '.env')
 
 import pyotp
 import requests
@@ -50,9 +52,7 @@ class UpstoxAuthenticator:
         self.pin = os.getenv("UPSTOX_PIN")
         self.totp_key = os.getenv("UPSTOX_TOTP_KEY")
         # Support both the root dir and the trading_copilot dir
-        root_token = Path("upstox_token.json")
-        copilot_token = Path(__file__).parent.parent / "upstox_token.json"
-        self.token_file = copilot_token if copilot_token.exists() else root_token
+        self.token_file = TOKEN_PATH
     
     def _is_token_valid(self):
         if not self.token_file.exists():
@@ -215,6 +215,59 @@ class UpstoxAuthenticator:
 
 import upstox_client
 
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class Tick:
+    token: str
+    timestamp_ms: int
+    price: float
+    volume: float
+    oi: float
+    greeks: dict | None
+    bids: list
+    asks: list
+
+
+def parse_tick(instrument_key: str, feed_data: dict, reverse_map: dict) -> "Tick | None":
+    """Flatten one Upstox protobuf-dict feed entry into a Tick, or None if it
+    carries no usable price.
+
+    Pure function (module-level, no self) so it is unit-testable and so the
+    WebSocket callback threads do nothing but parse-and-enqueue -- the actual
+    mutation of phantom_candles / ltf_df happens on the single asyncio
+    consumer (RollingStateEngine.ingest_loop). Fixes the three-OS-threads-
+    mutate-shared-state hazard that was previously defended only by an
+    incorrect "GIL makes this safe" comment (improved §4.10).
+    """
+    full = feed_data.get("fullFeed", {}) or {}
+    idx = feed_data.get("indexFF", {}) or {}
+    mff = full.get("marketFF", {}) or {}
+    ltpc = mff.get("ltpc", idx.get("ltpc", {})) or {}
+    ltp = float(ltpc.get("ltp", 0) or 0)
+    if ltp <= 0:
+        return None
+
+    bids, asks = [], []
+    level = full.get("marketLevel", mff.get("marketLevel", {})) or {}
+    for q in level.get("bidAskQuote", []) or []:
+        bids.append({"quantity": int(q.get("bq", q.get("bidQ", 0)) or 0),
+                     "price": float(q.get("bp", q.get("bidP", 0)) or 0)})
+        asks.append({"quantity": int(q.get("aq", q.get("askQ", 0)) or 0),
+                     "price": float(q.get("ap", q.get("askP", 0)) or 0)})
+
+    return Tick(
+        token=reverse_map.get(instrument_key, instrument_key),
+        timestamp_ms=int(time.time() * 1000),
+        price=ltp,
+        volume=float(full.get("vtt", mff.get("vtt", 0)) or 0),
+        oi=float(mff.get("oi", 0) or 0),
+        greeks=feed_data.get("optionGreeks", full.get("optionGreeks")) or None,
+        bids=bids, asks=asks,
+    )
+
+
 class UpstoxStreamManager:
     live_market_data = {}
 
@@ -222,6 +275,10 @@ class UpstoxStreamManager:
         self.access_token = access_token
         self.rolling_engine = rolling_engine
         self.reverse_map = reverse_map or {}
+        # Set in start_multiplexer (which runs on the event loop) before any
+        # WS thread starts; the callback threads use it to hop back onto the
+        # loop safely.
+        self.loop = None
         
         # Configure Upstox API Client
         configuration = upstox_client.Configuration()
@@ -234,73 +291,28 @@ class UpstoxStreamManager:
         self.stream_options = upstox_client.MarketDataStreamerV3(api_client=self.api_client)
 
     def _on_market_update(self, message):
-        # Callback for all streams
-        # 1. THE EXCHANGE TIME GATEWALK
+        # Callback for all streams. Runs on a WebSocket OS thread -- it must
+        # NOT touch phantom_candles / ltf_df directly (that was the unsafe
+        # part). Parse only, then hand the Tick to the single asyncio
+        # consumer via the thread-safe loop hop.
         if not is_market_open():
             return
-            
-        # Expected protobuf dictionary parsed internally by Upstox SDK
+
         feeds = message.get("feeds")
-        if feeds and isinstance(feeds, dict):
-            for instrument_key, feed_data in feeds.items():
-                if instrument_key not in UpstoxStreamManager.live_market_data:
-                    UpstoxStreamManager.live_market_data[instrument_key] = {}
-                if isinstance(feed_data, dict):
-                    UpstoxStreamManager.live_market_data[instrument_key].update(feed_data)
-                    
-                    # Update O(1) Phantom Candle in Rolling Engine
-                    if self.rolling_engine:
-                        # Upstox protobuf to dict parser
-                        # Check for various feed types (fullFeed, indexFF, optionGreeks)
-                        full_feed = feed_data.get("fullFeed", {})
-                        index_feed = feed_data.get("indexFF", {})
-                        
-                        market_ff = full_feed.get("marketFF", {})
-                        index_ltpc = index_feed.get("ltpc", {})
-                        
-                        ltpc = market_ff.get("ltpc", index_ltpc)
-                        
-                        ltp = ltpc.get("ltp", 0)
-                        
-                        # Volume is at the root of marketFF as vtt, or inside marketFF depending on mode
-                        vol = full_feed.get("vtt", market_ff.get("vtt", 0))
-                        
-                        # OI is typically inside marketFF
-                        oi = market_ff.get("oi", 0)
-                        
-                        ts = int(time.time() * 1000)
-                        
-                        # Option Greeks might be at the root of feed_data (if optionGreeks mode) or inside fullFeed
-                        greeks = feed_data.get("optionGreeks", full_feed.get("optionGreeks", {}))
-                        
-                        bids = []
-                        asks = []
-                        market_level = full_feed.get("marketLevel", market_ff.get("marketLevel", {}))
-                        if market_level:
-                            bid_ask_quote = market_level.get("bidAskQuote", [])
-                            for quote in bid_ask_quote:
-                                bids.append({'quantity': int(quote.get('bq', quote.get('bidQ', 0))), 'price': float(quote.get('bp', quote.get('bidP', 0)))})
-                                asks.append({'quantity': int(quote.get('aq', quote.get('askQ', 0))), 'price': float(quote.get('ap', quote.get('askP', 0)))})
-                        
-                        # Map back to ws_token (e.g. NSE_EQ|SAIL) for the state engine
-                        mapped_token = self.reverse_map.get(instrument_key, instrument_key)
-                        
-                        if ltp > 0:
-                            # Pass directly, thread safe because Python dictionary updates are protected by GIL
-                            self.rolling_engine.process_tick(
-                                token=mapped_token,
-                                timestamp_ms=ts,
-                                price=float(ltp),
-                                volume=float(vol),
-                                oi=float(oi),
-                                greeks=greeks,
-                                bids=bids,
-                                asks=asks
-                            )
-                            
-        else:
-            # Likely a status message or heartbeat
+        if not isinstance(feeds, dict):
             logger.debug(f"Stream status message: {message}")
+            return
+
+        if self.rolling_engine is None or self.loop is None:
+            return
+
+        for ikey, feed in feeds.items():
+            if not isinstance(feed, dict):
+                continue
+            tick = parse_tick(ikey, feed, self.reverse_map)
+            if tick is not None:
+                self.loop.call_soon_threadsafe(
+                    self.rolling_engine.tick_q.put_nowait, tick)
 
     def _on_error(self, message):
         logger.error(f"Streamer Error: {message}")
@@ -312,35 +324,59 @@ class UpstoxStreamManager:
         def _on_open():
             logger.info(f"{name} stream connected! Subscribing to {len(instrument_keys)} keys in {mode} mode.")
             streamer.subscribe(instrument_keys, mode)
-        
+
         streamer.on("open", _on_open)
         streamer.on("message", self._on_market_update)
         streamer.on("error", self._on_error)
         streamer.on("close", self._on_close)
 
+    async def _supervise(self, name, streamer, keys, mode):
+        """Keep one stream alive. streamer.connect() blocks its thread until
+        the socket drops; when the thread exits we reconnect with capped
+        exponential backoff. Previously a dropped stream was silent and
+        permanent -- the UI kept showing the last frozen frame forever (A-12).
+        """
+        import threading
+        backoff = 1
+        while True:
+            try:
+                self._setup_stream(streamer, name, keys, mode)
+                t = threading.Thread(target=streamer.connect, daemon=True)
+                t.start()
+                while t.is_alive():
+                    await asyncio.sleep(1)
+                    backoff = 1                      # healthy — reset
+            except Exception as e:
+                logger.error(f"{name} supervisor error: {e}", exc_info=True)
+            logger.error(f"{name} stream died; reconnecting in {backoff}s")
+            await asyncio.sleep(backoff)
+            backoff = min(backoff * 2, 60)
+
     async def start_multiplexer(self, indices, equities, options):
         logger.info("Initializing Tri-Stream Multiplexer...")
-        
+
+        # Capture the running loop BEFORE any producer starts, so the WS
+        # callback threads (and the mock loop) always have a valid target
+        # for call_soon_threadsafe.
+        self.loop = asyncio.get_running_loop()
+
         if not PRODUCTION_LIVE:
             logger.warning("PRODUCTION_LIVE is False! Entering Safe Testing Mode. Bypassing Upstox WebSocket.")
             asyncio.create_task(self._mock_feed_loop(indices, equities, options))
             return
-            
-        self._setup_stream(self.stream_macro, "Macro Pulse (Indices)", indices, "full")
-        self._setup_stream(self.stream_equity, "Equity Tape", equities, "full_d30")
-        self._setup_stream(self.stream_options, "Derivatives Matrix", options, "option_greeks")
-        # Let them connect concurrently without blocking the main event loop
-        import threading
-        threading.Thread(target=self.stream_macro.connect).start()
-        threading.Thread(target=self.stream_equity.connect).start()
-        threading.Thread(target=self.stream_options.connect).start()
-        
+
+        # Each stream gets its own supervisor task -- a drop on one reconnects
+        # it without touching the other two.
+        asyncio.create_task(self._supervise("Macro Pulse (Indices)", self.stream_macro, indices, "full"))
+        asyncio.create_task(self._supervise("Equity Tape", self.stream_equity, equities, "full_d30"))
+        asyncio.create_task(self._supervise("Derivatives Matrix", self.stream_options, options, "option_greeks"))
+
         logger.info("[SYSTEM] Upstox Tri-Stream separated. Macro Polling ENGAGED.")
 
     async def _mock_feed_loop(self, indices, equities, options):
         """Simulates incoming Upstox protobuf ticks using a static mock file."""
         import os, json, time, random
-        mock_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'mock_ticks.json')
+        mock_file = str(DATA_DIR / 'mock_ticks.json')
         
         if not os.path.exists(mock_file):
             logger.error(f"Safe Testing Mode Active, but {mock_file} not found. Cannot mock ticks.")
@@ -400,7 +436,40 @@ def make_json_serializable(obj):
 @app.get("/state")
 async def get_state():
     from diagnostic_ui import TerminalDashboard
-    return make_json_serializable({"active_states": TerminalDashboard.active_states})
+    eng = getattr(app.state, "rolling_engine", None)
+    return make_json_serializable({
+        "active_states": TerminalDashboard.active_states,
+        "queue_depth": eng.queue_depth if eng is not None else -1,
+    })
+
+
+def build_bars_response(df, n: int = 300) -> dict:
+    """Serialise the tail of an ltf_df for the /api/bars endpoint.
+
+    Extracted as a pure function so it's unit-testable without a running
+    FastAPI app or a live RollingStateEngine (Task 1.5, C-3b/c): the
+    outcome resolver runs in the main.py process, while ltf_df lives only
+    in this (upstox_feed.py) process's memory — this endpoint is the bridge
+    that lets label_outcome see real bar highs/lows instead of the 60s LTP
+    samples that were silently understating stop-hit rates.
+    """
+    if df is None or df.empty:
+        return {"bars": []}
+    tail = df.tail(n).copy()
+    tail["timestamp"] = tail["timestamp"].astype(str)
+    cols = [c for c in ("timestamp", "open", "high", "low", "close", "volume") if c in tail.columns]
+    return {"bars": tail[cols].to_dict(orient="records")}
+
+
+@app.get("/api/bars")
+async def get_bars(token: str, request: Request, n: int = 300):
+    """Recent LTF bars for one token — used by SignalLedger's outcome
+    resolver to label outcomes against real bar highs/lows (C-3b)."""
+    eng = getattr(request.app.state, "rolling_engine", None)
+    if eng is None:
+        return {"bars": []}
+    df = (eng.dfs.get(token) or {}).get("ltf_df")
+    return make_json_serializable(build_bars_response(df, n))
 
 @app.post("/api/watchlist/update")
 async def update_watchlist(request: Request):
@@ -487,7 +556,7 @@ async def start_upstox_service():
     # Load Watchlist
     WATCHLIST = {}
     try:
-        csv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "watchlist.csv")
+        csv_path = str(WATCHLIST_PATH)
         if os.path.exists(csv_path):
             with open(csv_path, mode='r') as file:
                 reader = csv.DictReader(file)
@@ -543,6 +612,10 @@ async def start_upstox_service():
     from derivatives_worker import derivatives_poller_loop
     asyncio.create_task(derivatives_poller_loop(upstox_api_client, list(WATCHLIST.keys()), HistoricalFetcher.upstox_eq_map))
     
+    # Single consumer: drains rolling_engine.tick_q and is the ONLY thing
+    # that calls process_tick (improved §4.10). Start it before the
+    # multiplexer so no enqueued tick waits on a not-yet-running consumer.
+    asyncio.create_task(rolling_engine.ingest_loop())
     asyncio.create_task(stream_manager.start_multiplexer(indices, equities, options))
     asyncio.create_task(rolling_engine.calculate_technicals_loop())
     
@@ -550,9 +623,17 @@ async def start_upstox_service():
         while True:
             await asyncio.sleep(300) # Every 5 minutes
             if is_market_open():
-                rolling_engine.save_cache()
+                # ~6 MB JSON dump -- off the event loop thread (D-2).
+                await asyncio.to_thread(rolling_engine.save_cache)
                 
     asyncio.create_task(state_persistence_worker())
+
+    async def tick_flush_worker():
+        while True:
+            await asyncio.sleep(30)
+            await asyncio.to_thread(rolling_engine.recorder.flush)
+
+    asyncio.create_task(tick_flush_worker())
     
     config = uvicorn.Config(app, host="127.0.0.1", port=8001, log_level="warning")
     server = uvicorn.Server(config)

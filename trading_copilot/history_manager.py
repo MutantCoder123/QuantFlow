@@ -5,12 +5,14 @@ import threading
 import logging
 from datetime import datetime
 
+from paths import TRADE_HISTORY_PATH
+
 logger = logging.getLogger(__name__)
 
 class HistoryManager:
     _instance = None
     _lock = threading.Lock()
-    _history_file = os.path.join(os.path.dirname(__file__), "data", "trade_history.json")
+    _history_file = str(TRADE_HISTORY_PATH)
 
     def __new__(cls):
         with cls._lock:

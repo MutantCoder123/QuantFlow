@@ -11,6 +11,118 @@ from diagnostic_ui import TerminalDashboard
 
 logger = logging.getLogger(__name__)
 
+
+def clamp_risk_parameters(risk_params: dict, geo: dict, atr15: float, bias: str):
+    """Enforce the adjustment bounds the prompt states but cannot guarantee (A-10).
+
+    The prompt tells the LLM it may only nudge risk_parameters within small
+    bounds around the deterministic math geometry, but nothing previously
+    enforced that — a hallucinated stop or target reached the UI as an
+    actionable price. This clamps every field to the stated bounds and
+    rejects an internally inconsistent geometry outright.
+
+    Returns (clamped_params, error). On error (or when risk_params is empty/
+    missing), the deterministic geometry is returned unchanged so the
+    operator never sees a hallucinated price.
+    """
+    fallback = {"final_entry": geo["calculated_entry"],
+                "final_stop": geo["padded_stop"],
+                "final_target": geo["calculated_target"]}
+    if not risk_params:
+        return fallback, None
+
+    def _f(key, default):
+        try:
+            v = float(risk_params.get(key))
+            return v if v > 0 else default
+        except (TypeError, ValueError):
+            return default
+
+    entry_raw = _f("final_entry", geo["calculated_entry"])
+    stop_raw = _f("final_stop", geo["padded_stop"])
+    target_raw = _f("final_target", geo["calculated_target"])
+
+    lo_e, hi_e = geo["calculated_entry"] * 0.997, geo["calculated_entry"] * 1.003
+    entry = min(max(entry_raw, lo_e), hi_e)
+
+    # Reject on the RAW stop/target against the (already-bounded) entry, not
+    # on the post-clamp values: the stop's own ATR band sits entirely below
+    # the entry's clamp band in every normal configuration, so checking
+    # ordering after clamping the stop makes this branch unreachable — a
+    # stop hallucinated on the wrong side of the position would silently
+    # clamp into a plausible-looking (but never-intended) number instead of
+    # being rejected. Checking the raw value here is what actually catches
+    # "stop above entry for a long" while still tolerating an entry nudge
+    # that legitimately needed reining in.
+    if bias == "LONG":
+        ordered = stop_raw < entry < target_raw
+    else:
+        ordered = target_raw < entry < stop_raw
+    if not ordered:
+        return fallback, "LLM_GEOMETRY_REJECTED"
+
+    lo_s, hi_s = sorted((geo["padded_stop"] - 1.0 * atr15,
+                         geo["padded_stop"] + 0.5 * atr15))
+    stop = min(max(stop_raw, lo_s), hi_s)
+
+    if bias == "LONG":
+        target = max(target_raw, geo["calculated_target"] - 0.5 * atr15)
+    else:
+        target = min(target_raw, geo["calculated_target"] + 0.5 * atr15)
+
+    return {"final_entry": round(entry, 2), "final_stop": round(stop, 2),
+            "final_target": round(target, 2)}, None
+
+
+def _classify_decision(math_setup: dict, gatekeeper_res: dict) -> str:
+    """PROPOSED | REJECTED_<reason> | GATED_<reason> — feeds FeatureLog (1.4)."""
+    if math_setup.get("setup_rejected", True):
+        return f"REJECTED_{math_setup.get('rejection_reason', 'UNKNOWN')}"
+    elif gatekeeper_res.get("llm_authorized"):
+        return "PROPOSED"
+    else:
+        return f"GATED_{gatekeeper_res.get('math_rejection', 'UNKNOWN')}"
+
+
+def _numeric_features(payload: dict) -> dict:
+    """Flatten a payload to its numeric fields only, for FeatureLog (1.4).
+
+    bool is excluded even though it's an int subclass — True/False is not a
+    feature value.
+    """
+    return {k: float(v) for k, v in payload.items()
+            if isinstance(v, (int, float)) and not isinstance(v, bool)}
+
+
+# Only escalate the top N ranked symbols to the LLM per tick (§4.6, Task 5.1).
+# Not a tunable -- the UI's "collapse below top 5" grid uses the same number.
+ATTENTION_TOP_N = 5
+
+
+def attention_rank(sp: dict) -> float:
+    """Rank a structured payload for the attention queue (improved §4.6).
+
+    Rejected setups rank at -inf so they always sort last -- never
+    escalated, never surfaced at the top of the Live Action grid.
+
+    No calibrated "confidence" field exists post-Task-4.2 (the invented
+    sigmoid probability was deleted -- it was never fitted to real
+    outcomes). ev_r uses the measured statistical_edge when available,
+    else falls back to the reward:risk margin above breakeven -- the same
+    fallback the gate itself uses in conviction_scorer.py.
+    """
+    math_setup = sp.get("math_setup") or {}
+    if math_setup.get("setup_rejected", True):
+        return float("-inf")
+    expectancy = math_setup.get("expectancy_matrix") or {}
+    reward_risk = expectancy.get("reward_risk") or 0.0
+    stat_edge = expectancy.get("statistical_edge")
+    ev_r = stat_edge if stat_edge is not None else (reward_risk - 1.0)
+    age_s = float(sp.get("data_age_s", 0.0) or 0.0)
+    freshness = 1.0 / (1.0 + age_s / 60.0)  # 1.0 at age 0, 0.5 at 60s, ~0.17 at 300s
+    return ev_r * freshness
+
+
 class ReasoningEngine:
     # Throttle concurrent API calls to avoid rate limit bans (Increased for Tier 1)
     llm_semaphore = asyncio.Semaphore(15)
@@ -45,6 +157,55 @@ class ReasoningEngine:
         return s
 
     @classmethod
+    def _advance_debounce(cls, norm_sym: str, current_advice: dict) -> bool:
+        """Update the per-symbol advice-stability counter and report whether
+        it has now held for >=3 consecutive ticks (Task 5.1, §4.6).
+
+        Stability gates escalation to the LLM only -- the caller must still
+        publish to latest_reports on every tick regardless of this result
+        (see `_publish_unstable`); this counter used to also gate the
+        publish via a `continue`, which starved the UI card for the first
+        two ticks of every transition.
+        """
+        debounce_record = cls.advice_debounce.setdefault(norm_sym, {"advice": current_advice, "count": 0})
+        if debounce_record["advice"] == current_advice:
+            debounce_record["count"] += 1
+        else:
+            cls.advice_debounce[norm_sym] = {"advice": current_advice, "count": 1}
+        return cls.advice_debounce[norm_sym]["count"] >= 3
+
+    @classmethod
+    def _publish_unstable(cls, norm_sym: str, gatekeeper_res: dict, payload: dict) -> None:
+        """Publish the current local-gatekeeper read for a symbol whose
+        advice hasn't held stable for 3 consecutive ticks yet (Task 5.1,
+        §4.6 debounce-asymmetry fix). Never escalates to the LLM -- just
+        keeps `latest_reports` fresh instead of stale/missing, with an
+        `unstable` marker so the UI can render it as still stabilizing
+        rather than a firm signal.
+        """
+        gatekeeper_res["unstable"] = True
+        gatekeeper_res["Generated_Time"] = payload.get("current_time", "UNKNOWN")
+        if gatekeeper_res.get("llm_authorized"):
+            if not cls.llm_enabled.get(norm_sym):
+                gatekeeper_res["Status_Tag"] = "REQUIRED LLM ANALYZE"
+                gatekeeper_res["Reason"] = "Local Gatekeeper authorized LLM, but toggle is OFF."
+            else:
+                gatekeeper_res["Status_Tag"] = "STABILIZING"
+        else:
+            gatekeeper_res["Reason"] = gatekeeper_res.get("math_rejection", "Local Gatekeeper active. LLM analysis suppressed.")
+        cls.latest_reports[norm_sym] = json.dumps(gatekeeper_res, indent=2)
+
+    @staticmethod
+    def _top_n_symbols(all_ranks, n: int = None) -> set:
+        """Given [(rank, norm_sym), ...] for every symbol ranked this tick,
+        return the normalized symbols in the top N (§4.6, Task 5.1 Step 5).
+        Rejected setups rank at -inf (see `attention_rank`) so they sink to
+        the bottom and are never selected ahead of a live setup.
+        """
+        n = ATTENTION_TOP_N if n is None else n
+        return {s for _, s in sorted(all_ranks, key=lambda r: r[0], reverse=True)[:n]}
+
+    @classmethod
     def _get_token_for_symbol(cls, symbol: str):
         from api_server import TerminalDashboard
         for token in TerminalDashboard.active_states.keys():
@@ -55,7 +216,8 @@ class ReasoningEngine:
         return None
 
     @classmethod
-    def build_structured_payload(cls, symbol: str, payload: dict, user_position: dict = None, user_intent: dict = None) -> dict:
+    def build_structured_payload(cls, symbol: str, payload: dict, user_position: dict = None,
+                                 user_intent: dict = None, *, advance_state: bool = False) -> dict:
         from mtf_extractor import sanitize_for_json
         from semantic_tagger import SemanticTagger
         import time
@@ -69,22 +231,42 @@ class ReasoningEngine:
             payload["global_market_context"] = TerminalDashboard.global_market_context
             
         clean_sym = symbol.split('|')[-1]
+        # Canonical per-symbol key for the process-wide scorer/regime
+        # registries below. Callers hand this method different spellings of
+        # the same stock -- the display refresh passes "SAIL", the decision
+        # loop passes whatever payload['symbol'] holds and falls back on the
+        # instrument key "NSE_EQ|SAIL" -- and keying two plain dicts by the
+        # raw string gave each surface its OWN ConvictionScorer and
+        # RegimeManager. The read-only display copy then never advanced, so
+        # its regime sat at the constructor's TRANSITIONAL_DRIFT forever and
+        # every number shipped to the operator (composite, bias, expectancy,
+        # the Task 5.2 contributions provenance, the Task 5.1 attention rank)
+        # was computed under weights the gatekeeper never used. One key per
+        # stock, so both surfaces read the object the system actually acts on.
+        registry_key = cls._normalize_symbol(symbol)
         catalyst = TerminalDashboard.catalyst_cache.get(clean_sym)
         if catalyst and "raw_news" in catalyst:
             payload["raw_news"] = catalyst["raw_news"]
             
         tactical_payload = SemanticTagger.translate_to_llm_payload(payload)
-        
+
+        # Carry data_age_s through from the raw tick payload (set by
+        # RollingStateEngine) so attention_rank(sp) can stay a single-arg
+        # function over the structured payload alone (Task 5.1, §4.6) --
+        # SemanticTagger doesn't forward it on its own.
+        tactical_payload["data_age_s"] = payload.get("data_age_s", 0.0)
+
         # Inject Regime
         from regime_manager import RegimeManagerRegistry
-        manager = RegimeManagerRegistry.get_or_create(symbol)
-        regime_metadata = manager.determine_regime(tactical_payload)
+        manager = RegimeManagerRegistry.get_or_create(registry_key)
+        regime_metadata = (manager.determine_regime(tactical_payload) if advance_state
+                           else manager.peek_regime())
         tactical_payload["market_regime"] = regime_metadata
-        
+
         # Inject Conviction Score & Math Setup
         from conviction_scorer import ConvictionScorerRegistry
-        scorer = ConvictionScorerRegistry.get_or_create(symbol)
-        math_setup = scorer.score_setup(tactical_payload, payload)
+        scorer = ConvictionScorerRegistry.get_or_create(registry_key)
+        math_setup = scorer.score_setup(tactical_payload, payload, advance_state=advance_state)
         tactical_payload["math_setup"] = math_setup
             
         if user_position:
@@ -190,9 +372,14 @@ class ReasoningEngine:
                     "PRIME DIRECTIVES:\n\n"
                     "1. MATH IS BASELINE:\n"
                     "Treat `math_setup.execution_geometry` (calculated_entry, padded_stop, calculated_target) "
-                    "and `math_setup.expectancy_matrix` (implied_probability, statistical_edge) as ground truth. "
-                    "Do not recalculate. Only modify if a catastrophic qualitative event demands it, "
-                    "and only within the ADJUSTMENT CONSTRAINTS below.\n\n"
+                    "as the deterministic baseline. Do not recalculate. Only modify if a catastrophic "
+                    "qualitative event demands it, and only within the ADJUSTMENT CONSTRAINTS below.\n"
+                    "`math_setup.expectancy_matrix` is NOT ground truth. `breakeven_probability` and "
+                    "`reward_risk` are derived from the geometry and are reliable, but "
+                    "`implied_probability` and `statistical_edge` are null whenever the system has not "
+                    "yet measured its own hit rate (see `calibration_status`). When they are null, "
+                    "reason from reward:risk and the qualitative blocks -- do NOT invent, assume, or "
+                    "state a win probability.\n\n"
                     "2. HOLISTIC SYNTHESIS (SEEK CONTRADICTIONS):\n"
                     "Cross-reference the math against qualitative context across these blocks. "
                     "Your attention weighting MUST follow the active regime:\n\n"
@@ -272,13 +459,26 @@ class ReasoningEngine:
                     from performance_analyzer import PerformanceAnalyzer
                     feedback = PerformanceAnalyzer.get_feedback_payload(last_n_days=14)
                     if feedback and feedback.get("total_signals", 0) >= 20:
+                        # Every field is read with .get and rendered as a
+                        # string: this whole block sits inside a bare
+                        # `except Exception: pass`, so ONE missing key silently
+                        # deletes the calibration evidence from the prompt
+                        # instead of raising. That is exactly what happened to
+                        # `win_rate_60m` -- Task 3.4 retired the 60m checkpoint
+                        # and stopped returning the key, and this block has not
+                        # reached the LLM since. Report the primary horizon the
+                        # system is actually measured on, and render an
+                        # undefined profit factor as unmeasured rather than
+                        # interpolating the literal "None".
+                        _pf = feedback.get("profit_factor")
+                        _primary = feedback.get("primary_horizon_min", "?")
                         feedback_block = (
-                            f"\n\nHISTORICAL CALIBRATION (last 14 days, {feedback['total_signals']} signals):\n"
-                            f"- Overall 30m directional accuracy: {feedback['win_rate_30m']}%\n"
-                            f"- Overall 60m directional accuracy: {feedback['win_rate_60m']}%\n"
-                            f"- Profit factor: {feedback['profit_factor']}\n"
-                            f"- Best regime: {feedback['best_regime']} ({feedback['best_regime_wr']}% win rate)\n"
-                            f"- Worst regime: {feedback['worst_regime']} ({feedback['worst_regime_wr']}% win rate)\n"
+                            f"\n\nHISTORICAL CALIBRATION (last 14 days, {feedback.get('total_signals')} signals):\n"
+                            f"- Overall 30m directional accuracy: {feedback.get('win_rate_30m')}%\n"
+                            f"- Overall {_primary}m directional accuracy: {feedback.get('win_rate_primary')}%\n"
+                            f"- Profit factor: {_pf if _pf is not None else 'unmeasured (no losing trade)'}\n"
+                            f"- Best regime: {feedback.get('best_regime')} ({feedback.get('best_regime_wr')}% win rate)\n"
+                            f"- Worst regime: {feedback.get('worst_regime')} ({feedback.get('worst_regime_wr')}% win rate)\n"
                             "Calibrate your conviction_modifier accordingly. Be MORE aggressive in regimes "
                             "where historical accuracy is high, and MORE cautious where it is low."
                         )
@@ -346,12 +546,28 @@ class ReasoningEngine:
                     composite_score = math_setup.get("composite_score", 0.0)
                     
                     expectancy_matrix = math_setup.get("expectancy_matrix") or {}
-                    stat_edge = expectancy_matrix.get("statistical_edge", 0.0)
-                    
+                    # None while uncalibrated (§4.2) -- no measured probability,
+                    # so no confidence number is reported rather than an invented one.
+                    stat_edge = expectancy_matrix.get("statistical_edge")
+
                     calc_priority = min(10, int(abs(composite_score) * 20))
-                    calc_confidence = min(10, int(stat_edge * 33)) if stat_edge > 0 else 0
+                    calc_confidence = (min(10, int(stat_edge * 33))
+                                       if stat_edge is not None and stat_edge > 0 else 0)
                     
-                    risk_params = ticket.get("risk_parameters") or {}
+                    geo_src = (math_setup.get("execution_geometry") or {})
+                    geo_err = None
+                    if geo_src:
+                        atr15 = float(payload_copy.get("atr_15m")
+                                      or payload_copy.get("ltp", 100.0) * 0.005)
+                        risk_params, geo_err = clamp_risk_parameters(
+                            ticket.get("risk_parameters") or {}, geo_src, atr15,
+                            math_setup.get("directional_bias", "LONG"))
+                    else:
+                        # No deterministic geometry to clamp against (e.g. a
+                        # CLOSE/HOLD ticket) — never pass the raw LLM numbers
+                        # through unvalidated.
+                        risk_params = {"final_entry": 0.0, "final_stop": 0.0,
+                                       "final_target": 0.0}
                     ui_data = {
                         "Action": ui_action,
                         "Reason": ticket.get("institutional_rationale", verdict),
@@ -362,6 +578,9 @@ class ReasoningEngine:
                         "Priority_Score": calc_priority,
                         "Status_Tag": "LLM_ANALYZED",
                         "llm_authorized": True,
+                        "geometry_override": geo_err,
+                        "Edge_Status": expectancy_matrix.get("calibration_status"),
+                        "Reward_Risk": expectancy_matrix.get("reward_risk"),
                         "Generated_Time": payload_copy.get("current_time", "UNKNOWN")
                     }
                     cls.latest_reports[cls._normalize_symbol(symbol)] = json.dumps(ui_data, indent=2)
@@ -377,6 +596,12 @@ class ReasoningEngine:
                         "ltp": payload_copy.get("ltp")
                     })
                     
+                    # ---- Shadow mode: journal BOTH arms for every escalation,
+                    # unconditionally on verdict (improved §4.5). Previously only
+                    # CONFIRM/ADJUST reached the ledger, so every ABORT/DEFER
+                    # vanished and "does the LLM actually help?" was unanswerable.
+                    cls._write_arm_record(symbol, math_setup, ticket, risk_params)
+
                     actionable_directives = ["EXECUTE_LONG", "EXECUTE_SHORT", "CLOSE_EXISTING", "REVERSE_POSITION"]
                     if verdict in ("CONFIRM", "ADJUST") and action in actionable_directives:
                         # Phase 10: Record to Signal Ledger for outcome tracking
@@ -421,6 +646,137 @@ class ReasoningEngine:
 
     llm_enabled = {} # symbol -> bool
 
+    _arm_journal = None
+
+    @classmethod
+    def _get_arm_journal(cls):
+        if cls._arm_journal is None:
+            from journal.arms import ArmJournal
+            from paths import SIGNALS_DIR
+            cls._arm_journal = ArmJournal(SIGNALS_DIR / "arms")
+        return cls._arm_journal
+
+    @classmethod
+    def _write_arm_record(cls, symbol, math_setup, ticket, risk_params):
+        """One ArmRecord per escalation, whatever the LLM said (§4.5)."""
+        try:
+            from journal.arms import ArmRecord
+            geo = (math_setup or {}).get("execution_geometry") or {}
+            try:
+                from core.policy_config import load_policy
+                cfg_version = load_policy().version
+            except Exception:
+                cfg_version = 0
+            cls._get_arm_journal().write(ArmRecord(
+                symbol=cls._normalize_symbol(symbol),
+                ts=int(time.time()),
+                config_version=cfg_version,
+                math_arm={
+                    "action": (math_setup or {}).get("directional_bias", "NEUTRAL"),
+                    "entry": geo.get("calculated_entry"),
+                    "stop": geo.get("padded_stop"),
+                    "target": geo.get("calculated_target"),
+                    "composite": (math_setup or {}).get("composite_score"),
+                },
+                llm_arm={
+                    "verdict": ticket.get("verdict", "UNKNOWN"),
+                    "action": ticket.get("action_directive", "UNKNOWN"),
+                    "entry": risk_params.get("final_entry"),
+                    "stop": risk_params.get("final_stop"),
+                    "target": risk_params.get("final_target"),
+                },
+                escalated=True,
+            ))
+        except Exception as e:
+            logger.error(f"Failed to journal arm record for {symbol}: {e}")
+
+    @classmethod
+    def _build_portfolio(cls):
+        """Reconstruct an L3 Portfolio from the tracked user positions.
+
+        Each position contributes qty*|entry-stop| of risk to its cluster
+        when it carries a numeric quantity AND a stoploss; positions
+        missing either contribute nothing (they cannot be sized). There is
+        no realised-P&L feed in this process, so realized_loss_today stays
+        0.0 -- the daily-loss breaker is a documented no-op here until a
+        P&L source is wired (Phase 4/5).
+        """
+        from core.risk import Portfolio, cluster_of, load_clusters
+        book = Portfolio()
+        clusters = load_clusters()
+        for sym, pos in list(cls.user_positions.items()):
+            if not isinstance(pos, dict):
+                continue
+            try:
+                qty = float(pos.get("qty") or pos.get("entry_qty") or 0)
+                entry = float(pos.get("entry_price") or pos.get("entry") or 0)
+                stop = float(pos.get("stoploss") or pos.get("stop") or 0)
+            except (TypeError, ValueError):
+                continue
+            if qty > 0 and entry > 0 and stop > 0:
+                book.add_open(sym, cluster_of(sym, clusters), qty * abs(entry - stop))
+        return book
+
+    @classmethod
+    def _unsizeable_positions(cls) -> list:
+        """Symbols the operator holds that _build_portfolio cannot size.
+
+        A position missing a quantity, an entry or a stop contributes no risk
+        to the book -- correctly, since its risk is genuinely unknown. But an
+        exposure view that only reports the book then answers "am I loaded?"
+        with silence about exactly the positions it could not measure. These
+        are named so the panel can say "unmeasured", not "none".
+        """
+        out = []
+        for sym, pos in list(cls.user_positions.items()):
+            if not isinstance(pos, dict):
+                continue
+            try:
+                qty = float(pos.get("qty") or pos.get("entry_qty") or 0)
+                entry = float(pos.get("entry_price") or pos.get("entry") or 0)
+                stop = float(pos.get("stoploss") or pos.get("stop") or 0)
+            except (TypeError, ValueError):
+                out.append(sym)
+                continue
+            if not (qty > 0 and entry > 0 and stop > 0):
+                out.append(sym)
+        return out
+
+    @classmethod
+    def _attach_sizing(cls, gatekeeper_res, symbol, math_setup, regime_meta, payload):
+        """Size an authorised proposal and stamp qty / risk / rejection onto
+        the UI card (improved §4.3)."""
+        try:
+            from core.risk import size, load_risk_limits
+            from core.types import Proposal
+            geo = math_setup.get("execution_geometry") or {}
+            entry = float(geo.get("calculated_entry") or 0)
+            stop = float(geo.get("padded_stop") or 0)
+            target = float(geo.get("calculated_target") or 0)
+            if entry <= 0 or stop <= 0:
+                gatekeeper_res["Qty"] = 0
+                gatekeeper_res["Risk_Rejection"] = "NO_GEOMETRY"
+                return
+            prop = Proposal(
+                symbol=symbol, bias=math_setup.get("directional_bias", "LONG"),
+                entry=entry, stop=stop, target=target,
+                composite=float(math_setup.get("composite_score") or 0.0),
+                regime=regime_meta.get("current_regime", "UNKNOWN"))
+            adv = float(payload.get("adv_shares") or 0.0)
+            out = size(prop, cls._build_portfolio(), load_risk_limits(), adv)
+            if getattr(out, "reason", None):
+                gatekeeper_res["Qty"] = 0
+                gatekeeper_res["Risk_Amount"] = 0.0
+                gatekeeper_res["Risk_Rejection"] = out.reason
+            else:
+                gatekeeper_res["Qty"] = out.qty
+                gatekeeper_res["Risk_Amount"] = round(out.risk_amount, 2)
+                gatekeeper_res["Risk_Rejection"] = None
+        except Exception as e:
+            logger.error(f"L3 sizing failed for {symbol}: {e}")
+            gatekeeper_res["Qty"] = 0
+            gatekeeper_res["Risk_Rejection"] = "SIZING_ERROR"
+
     @classmethod
     async def start_global_gatekeeper_loop(cls):
         logger.info("Starting Global Gatekeeper Loop (runs every 10s)")
@@ -430,16 +786,58 @@ class ReasoningEngine:
         
         from signal_ledger import SignalLedger
         asyncio.create_task(SignalLedger.start_outcome_resolver())
-        
+
+        from journal.feature_log import FeatureLog, FeatureRecord
+        from paths import FEATURES_DIR
+        feature_log = FeatureLog(FEATURES_DIR)
+        cls._feature_log = feature_log
+
+        async def _feature_flush():
+            while True:
+                await asyncio.sleep(60)
+                await asyncio.to_thread(feature_log.flush)
+
+        asyncio.create_task(_feature_flush())
+
+        async def _arm_resolver():
+            """Label both arms of every escalation once its horizon has
+            elapsed, reusing the ledger's cross-process bar bridge (§4.5)."""
+            from journal.arms import resolve_arms
+            from signal_ledger import SignalLedger
+            from diagnostic_ui import TerminalDashboard as _TD
+
+            async def _fetch(sym):
+                token = next((k for k in _TD.active_states if sym and sym in k), sym)
+                return await SignalLedger._fetch_recent_bars(token)
+
+            primary = SignalLedger._measure_at()[-1]
+            while True:
+                await asyncio.sleep(300)
+                try:
+                    await resolve_arms(cls._get_arm_journal(), _fetch,
+                                       horizon_min=primary,
+                                       cost_pct=SignalLedger.ROUND_TRIP_COST_PCT)
+                except Exception as e:
+                    logger.error(f"Arm resolver error: {e}")
+
+        asyncio.create_task(_arm_resolver())
+
         while True:
+            # Escalation is deferred until every symbol's attention rank for
+            # this tick is known (Task 5.1, §4.6: escalate only the top N).
+            # advance_state=True is called at most once per symbol per tick
+            # below (Task 2.2), so ranks are gathered as the single pass
+            # over active_states runs rather than in a second pass.
+            escalation_candidates = []
+            all_ranks = []
             for symbol, payload in list(TerminalDashboard.active_states.items()):
                 token = payload.get('token') or symbol
                 sym = payload.get('symbol') or symbol
-                
+
                 # Skip invalid symbols or broad market indices from individual actionable analysis
                 if not sym or "Nifty 50" in sym or "Nifty Bank" in sym:
                     continue
-                    
+
                 ltp = payload.get("ltp", 0.0)
                 norm_sym = cls._normalize_symbol(sym)
                 # Use canonical normalized key for position lookup
@@ -448,8 +846,21 @@ class ReasoningEngine:
                     current_pos = {}
                 try:
                     # ---- NEW: Run Math Engine FIRST for every symbol ----
-                    structured = cls.build_structured_payload(sym, payload, current_pos)
-                    
+                    # This is the ONE authoritative decision loop -- the only
+                    # call site permitted to advance regime/whipsaw state
+                    # (A-4). Every other caller (the 2Hz display refresh in
+                    # api_server.py, and the on-demand /api/reasoning/instant
+                    # endpoint via analyze_stock's own build_structured_payload
+                    # call) reads with the default advance_state=False.
+                    structured = cls.build_structured_payload(sym, payload, current_pos,
+                                                              advance_state=True)
+
+                    # Attention rank for this tick (§4.6) -- collected for
+                    # every active symbol so the top-N escalation gate below
+                    # can compare across the whole watchlist.
+                    rank = attention_rank(structured)
+                    all_ranks.append((rank, norm_sym))
+
                     # ---- Pass structured payload to Gatekeeper V2 ----
                     gatekeeper_res = IntradayGatekeeper.evaluate(
                         structured_payload=structured,
@@ -458,6 +869,30 @@ class ReasoningEngine:
                         ltp=ltp
                     )
                     
+                    # ---- Log a feature vector for THIS symbol/tick, whether
+                    # it gets proposed, rejected, or gated — before the
+                    # debounce `continue` below, so a debounced-out tick is
+                    # still recorded (Task 1.4). ----
+                    math_setup_fl = structured.get("math_setup", {}) or {}
+                    regime_meta_fl = structured.get("market_regime", {}) or {}
+                    feature_log.write(FeatureRecord(
+                        ts=int(time.time()),
+                        symbol=norm_sym,
+                        config_version=getattr(cls, "_config_version", 0),
+                        features=_numeric_features(payload),
+                        staleness={"microstructure": float(payload.get("data_age_s", 0.0))},
+                        regime=regime_meta_fl.get("current_regime", "UNKNOWN"),
+                        session_phase=regime_meta_fl.get("session_phase", "UNKNOWN"),
+                        composite=math_setup_fl.get("composite_score"),
+                        decision=_classify_decision(math_setup_fl, gatekeeper_res),
+                    ))
+
+                    # ---- L3 risk layer: every authorised proposal gets a
+                    # quantity and a rupee risk, or a risk rejection (A-4.3). ----
+                    if gatekeeper_res.get("llm_authorized"):
+                        cls._attach_sizing(gatekeeper_res, sym, math_setup_fl,
+                                           regime_meta_fl, payload)
+
                     has_pos = bool(current_pos)
                     current_advice = {
                         "action": gatekeeper_res.get("Action", ""),
@@ -465,49 +900,43 @@ class ReasoningEngine:
                         "has_pos": has_pos
                     }
                     
-                    # --- DEBOUNCE LOGIC ---
-                    debounce_record = cls.advice_debounce.setdefault(norm_sym, {"advice": current_advice, "count": 0})
-                    if debounce_record["advice"] == current_advice:
-                        debounce_record["count"] += 1
-                    else:
-                        cls.advice_debounce[norm_sym] = {"advice": current_advice, "count": 1}
-                        
-                    # Require 3 consecutive ticks of stability to accept state change
-                    if cls.advice_debounce[norm_sym]["count"] < 3:
+                    # --- DEBOUNCE LOGIC (Task 5.1, §4.6) ---
+                    # 3 consecutive ticks of stability are required before we
+                    # ACT on a state change (escalate to the LLM below) -- an
+                    # expensive call that must not fire on a flickering
+                    # signal. Stability is NOT required to publish the
+                    # current local-gatekeeper read: that used to be gated
+                    # by the same counter via a `continue` here, which meant
+                    # latest_reports went stale/missing for the first two
+                    # ticks of every transition. Publishing is cheap and
+                    # must never be starved by this counter.
+                    stable = cls._advance_debounce(norm_sym, current_advice)
+                    gatekeeper_res["unstable"] = not stable
+                    if not stable:
+                        cls._publish_unstable(norm_sym, gatekeeper_res, payload)
                         continue
                     # ----------------------
-                    
+
                     last_advice = cls.last_math_advice.get(norm_sym)
-                    
+
                     if current_advice != last_advice:
                         cls.last_math_advice[norm_sym] = current_advice
-                        
+
                         if gatekeeper_res["llm_authorized"]:
                             if cls.llm_enabled.get(norm_sym):
-                                # Authorized AND toggled ON -> run LLM!
-                                
-                                # Publish the pending state to UI immediately
-                                gatekeeper_res["Status_Tag"] = "PENDING_LLM"
-                                gatekeeper_res["Generated_Time"] = payload.get("current_time", "UNKNOWN")
-                                cls.latest_reports[norm_sym] = json.dumps(gatekeeper_res, indent=2)
-                                
-                                # Avoid parallel duplicate tasks for the same symbol
-                                if norm_sym not in cls.active_loops:
-                                    cls.active_loops[norm_sym] = True
-                                    
-                                    # ---- FIX: Capture by value ----
-                                    async def run_and_unlock(s=norm_sym, p=current_pos, sp=structured):
-                                        try:
-                                            await cls.analyze_stock(
-                                                s, "gemini-2.5-flash", "", 
-                                                user_position=p, 
-                                                is_autonomous=True,
-                                                precomputed_payload=sp
-                                            )
-                                        finally:
-                                            cls.active_loops.pop(s, None)
-                                                
-                                    asyncio.create_task(run_and_unlock())
+                                # Authorized, toggled ON, and stable -- an
+                                # escalation candidate. Defer the actual
+                                # LLM trigger until every symbol's rank for
+                                # this tick is known, so only the top N get
+                                # escalated (§4.6, Task 5.1 Step 5).
+                                escalation_candidates.append({
+                                    "norm_sym": norm_sym,
+                                    "rank": rank,
+                                    "current_pos": current_pos,
+                                    "structured": structured,
+                                    "gatekeeper_res": gatekeeper_res,
+                                    "payload": payload,
+                                })
                             else:
                                 # Authorized BUT toggled OFF -> add Tag and show in UI
                                 gatekeeper_res["Status_Tag"] = "REQUIRED LLM ANALYZE"
@@ -522,10 +951,48 @@ class ReasoningEngine:
                     else:
                         # State unchanged. Preserve UI card, do nothing.
                         pass
-                        
+
                 except Exception as e:
                     logger.error(f"Gatekeeper error for {sym}: {e}")
-                    
+
+            # ---- Top-N attention gate: only escalate the highest-ranked
+            # symbols this tick to the LLM (§4.6, Task 5.1 Step 5). Symbols
+            # authorized+toggled-on+stable but outside the top N still get
+            # their local-gatekeeper card published -- they're just never
+            # escalated. ----
+            top_n_syms = cls._top_n_symbols(all_ranks)
+            for cand in escalation_candidates:
+                norm_sym = cand["norm_sym"]
+                gatekeeper_res = cand["gatekeeper_res"]
+                gen_time = cand["payload"].get("current_time", "UNKNOWN")
+                if norm_sym in top_n_syms:
+                    gatekeeper_res["Status_Tag"] = "PENDING_LLM"
+                    gatekeeper_res["Generated_Time"] = gen_time
+                    cls.latest_reports[norm_sym] = json.dumps(gatekeeper_res, indent=2)
+
+                    # Avoid parallel duplicate tasks for the same symbol
+                    if norm_sym not in cls.active_loops:
+                        cls.active_loops[norm_sym] = True
+
+                        # ---- FIX: Capture by value ----
+                        async def run_and_unlock(s=norm_sym, p=cand["current_pos"], sp=cand["structured"]):
+                            try:
+                                await cls.analyze_stock(
+                                    s, "gemini-2.5-flash", "",
+                                    user_position=p,
+                                    is_autonomous=True,
+                                    precomputed_payload=sp
+                                )
+                            finally:
+                                cls.active_loops.pop(s, None)
+
+                        asyncio.create_task(run_and_unlock())
+                else:
+                    gatekeeper_res["Status_Tag"] = "RANK_GATED"
+                    gatekeeper_res["Reason"] = f"Authorized but outside top {ATTENTION_TOP_N} attention rank this tick."
+                    gatekeeper_res["Generated_Time"] = gen_time
+                    cls.latest_reports[norm_sym] = json.dumps(gatekeeper_res, indent=2)
+
             await asyncio.sleep(10)
 
     @classmethod
@@ -654,8 +1121,8 @@ class ReasoningEngine:
             TerminalDashboard.dashboard_intraday_plays = playbook_json
             
             try:
-                playbook_path = os.path.join("trading_copilot", "playbook_state.json")
-                with open(playbook_path, "w") as f:
+                from paths import PLAYBOOK_PATH
+                with open(PLAYBOOK_PATH, "w") as f:
                     json.dump(playbook_json, f, indent=2)
             except Exception as e:
                 logger.error(f"Failed to save playbook to disk: {e}")

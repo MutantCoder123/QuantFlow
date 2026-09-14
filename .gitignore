@@ -5,6 +5,10 @@ env/
 venv/
 ENV/
 
+# Secrets / credentials
+upstox_token.json
+trading_copilot/upstox_token.json
+
 # Python cache/compilation
 __pycache__/
 *.py[cod]
@@ -13,3 +17,28 @@ __pycache__/
 # Logs
 logs/
 *.log
+
+# Scratch / debug artefacts
+scratch/
+temp.js
+scratch_script_*.js
+script_test_*.js
+test_*.py
+grep_transcript.txt
+current_diff.txt
+*.tex
+output.json
+response.json
+index_edits.txt
+tab_html3.txt
+
+# Note: test_*.py at the REPO ROOT are ad-hoc scratch scripts, distinct from
+# tests/test_*.py which are tracked (that directory is explicitly excluded
+# by !tests/ below since "test_*.py" would otherwise also match inside it).
+!tests/test_*.py
+
+# Runtime debug dumps
+trading_copilot/cache/derivatives_debug.json
+
+# Dev-phase tracking docs (kept locally, not pushed)
+dev-notes/

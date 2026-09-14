@@ -100,6 +100,8 @@
             </div>
         </div>
     </header>
+    <!-- Stale-feed banner (A-12): shown only when a LIVE symbol has not ticked in >15s -->
+    <div id="stale-banner" class="hidden bg-amber-600 text-black font-bold p-2 text-center"></div>
     <!-- Main Container -->
     <main class="flex-1 max-w-[90rem] w-full mx-auto p-6 space-y-6">
 
@@ -124,9 +126,6 @@
                         <button id="btn-edit-watchlist" onclick="openWatchlistModal()"
                             class="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] uppercase font-bold py-1 px-3 rounded shadow transition-colors border border-emerald-400/30">📋
                             Edit Watchlist</button>
-                        <button id="btn-map-tokens"
-                            class="bg-purple-600 hover:bg-purple-500 text-white text-[10px] uppercase font-bold py-1 px-3 rounded shadow transition-colors border border-purple-400/30">🔗
-                            Map Option Tokens</button>
                     </div>
                     <span id="macro-date" class="text-xs text-slate-500 font-mono-custom">Date: N/A</span>
                 </div>
@@ -201,7 +200,9 @@
                         </div>
                         <div class="mt-2">
                             <span id="breadth-val" class="text-2xl font-bold font-mono-custom text-slate-300">--</span>
-                            <p class="text-[10px] text-slate-500 mt-0.5">NSE A/D Ratio</p>
+                            <!-- Task 5.6: the subtitle names the real source. It said
+                                 "NSE A/D Ratio" while showing a watchlist-only proxy. -->
+                            <p id="breadth-source" class="text-[10px] text-slate-500 mt-0.5">A/D Ratio</p>
                         </div>
                     </div>
                 </div>
@@ -343,6 +344,75 @@
                 </div>
             </section>
 
+            <!-- RELIABILITY VIEW (Task 4.4) -->
+            <section class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <h2 class="text-base font-bold text-white">Score Reliability</h2>
+                        <p class="text-xs text-slate-500">Realised win rate per |composite| decile. A flat
+                            curve means the score predicts nothing.</p>
+                    </div>
+                    <button onclick="loadReliability()"
+                        class="text-xs px-2 py-1 rounded border border-slate-700 text-slate-300 hover:bg-slate-800">Refresh</button>
+                </div>
+                <div id="reliability-status" class="text-xs text-slate-500 mb-2">Not loaded.</div>
+                <div id="reliability-verdict" class="hidden mb-3 px-2 py-1 rounded text-[11px] font-bold"></div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs">
+                        <thead>
+                            <tr class="text-slate-500 uppercase tracking-wider border-b border-slate-800">
+                                <th class="text-left py-1.5 px-2">|Composite| bucket</th>
+                                <th class="text-right py-1.5 px-2">n</th>
+                                <th class="text-right py-1.5 px-2">Realised win %</th>
+                                <th class="text-right py-1.5 px-2">Diagonal ref</th>
+                                <th class="text-left py-1.5 px-2 w-1/3">Curve</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reliability-body">
+                            <tr><td colspan="5" class="py-4 text-center text-slate-600">Press Refresh.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- CLUSTER EXPOSURE VIEW (Task 5.3) -->
+            <section class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <h2 class="text-base font-bold text-white">Cluster Exposure</h2>
+                        <p class="text-xs text-slate-500">Open risk per cluster against max_cluster_risk_pct limits. Red ≥90%.</p>
+                    </div>
+                    <button onclick="loadExposure()"
+                        class="text-xs px-2 py-1 rounded border border-slate-700 text-slate-300 hover:bg-slate-800">Refresh</button>
+                </div>
+                <div id="exposure-status" class="text-xs text-slate-500 mb-2">Not loaded.</div>
+                <div id="exposure-message" class="hidden mb-3 px-2 py-1 rounded text-[11px] font-bold"></div>
+                <div id="exposure-container" class="space-y-2">
+                    <div class="text-center text-xs text-slate-600">Loading…</div>
+                </div>
+            </section>
+
+            <!-- SESSION REVIEW (Task 5.6) -->
+            <section class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <h2 class="text-base font-bold text-white">Session Review</h2>
+                        <p class="text-xs text-slate-500">End-of-day: what was emitted, what resolved at the
+                            primary horizon, and where it worked.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="date" id="review-date"
+                            class="bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1 focus:outline-none focus:border-indigo-500">
+                        <button onclick="loadSessionReview()"
+                            class="text-xs px-2 py-1 rounded border border-slate-700 text-slate-300 hover:bg-slate-800">Refresh</button>
+                    </div>
+                </div>
+                <div id="review-status" class="text-xs text-slate-500 mb-2">Not loaded.</div>
+                <div id="review-state" class="hidden mb-3 px-2 py-1 rounded text-[11px] font-bold"></div>
+                <div id="review-headline" class="grid grid-cols-2 md:grid-cols-5 gap-2 mb-3"></div>
+                <div id="review-groups" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+            </section>
+
         </div> <!-- End of tab-dashboard -->
         <!-- LIVE ACTION TAB -->
         <div id="tab-live-action" class="hidden space-y-6">
@@ -385,6 +455,11 @@
             <div id="live-action-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 <!-- Action Cards go here -->
             </div>
+            <div class="flex justify-center mt-2">
+                <button id="live-action-show-more" onclick="toggleLiveActionShowAll()"
+                    class="hidden px-4 py-2 text-xs font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors">
+                </button>
+            </div>
         </div>
         <!-- DISCOVERY TAB -->
         <div id="tab-screener" class="hidden space-y-6">
@@ -399,17 +474,22 @@
                     </h2>
                     <p class="text-sm text-slate-400 mt-1">AI-driven technical and fundamentals breakout scanner</p>
                 </div>
-                <button id="btn-run-discovery" onclick="generateIntradayPlaybook()"
-                    class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow-lg shadow-indigo-500/20 transition-all flex items-center gap-2 border border-indigo-500/50">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z">
-                        </path>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    Run Discovery Engine
-                </button>
+                <div class="flex flex-col items-end gap-1">
+                    <button id="btn-run-discovery" onclick="generateIntradayPlaybook()" disabled
+                        data-permanently-disabled="true"
+                        title="Temporarily disabled -- event-loop-blocking and stale key-space bugs (A-7) are still open; screener scoring was fixed in Task 5.5 but the playbook pipeline itself was not rebuilt."
+                        class="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-lg shadow-lg shadow-indigo-500/20 transition-all flex items-center gap-2 border border-indigo-500/50 opacity-50 cursor-not-allowed">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z">
+                            </path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Run Discovery Engine
+                    </button>
+                    <p class="text-xs text-slate-500 max-w-xs text-right">Disabled: event-loop-blocking and stale key-space bugs (A-7) are still open (Task 5.5 fixed the screener's scoring, not the playbook pipeline).</p>
+                </div>
             </div>
 
             <!-- Discovery Status -->
@@ -471,6 +551,9 @@
                     <button id="tab-btn-catalyst" onclick="switchModalTab('catalyst')"
                         class="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-t-lg bg-transparent text-slate-500 hover:text-slate-300 transition-colors">News
                         Catalyst</button>
+                    <button id="tab-btn-provenance" onclick="switchModalTab('provenance')"
+                        class="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-t-lg bg-transparent text-slate-500 hover:text-slate-300 transition-colors">Score
+                        Provenance</button>
                     <button id="tab-btn-telemetry" onclick="switchModalTab('telemetry')"
                         class="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-t-lg bg-transparent text-slate-500 hover:text-slate-300 transition-colors">Raw
                         Telemetry</button>
@@ -592,6 +675,13 @@
                         <pre><code id="catalyst-report-block" class="text-xs font-mono-custom text-slate-300 whitespace-pre-wrap">Loading catalyst data...</code></pre>
                     </div>
                 </div>
+                <!-- Tab Content: Provenance -->
+                <div id="tab-content-provenance" class="hidden flex-col gap-4 flex-1 overflow-y-auto pr-2">
+                    <div class="bg-[#0d1117] border border-slate-800 rounded-lg p-4">
+                        <h4 class="text-xs font-bold text-slate-500 mb-3 uppercase">Signal Provenance</h4>
+                        <div id="provenance-block" class="text-sm text-slate-300">Loading...</div>
+                    </div>
+                </div>
                 <!-- Tab Content: Telemetry -->
                 <div id="tab-content-telemetry" class="hidden flex-col gap-4 flex-1 overflow-y-auto pr-2">
                     <div class="bg-[#0d1117] border border-slate-800 rounded-lg p-4 h-[400px] overflow-y-auto">
@@ -630,46 +720,65 @@
                 const payload = JSON.parse(event.data);
                 updateMacroWeather(payload.macro_state);
                 updateMarketMatrix(payload.global_state);
+                updateStaleBanner(payload.global_state);
                 // 4. Update Market Breadth
                 if (payload.macro_state && payload.macro_state.ad_ratio !== undefined) {
                     const adRatio = parseFloat(payload.macro_state.ad_ratio);
                     const breadthElem = document.getElementById('breadth-val');
                     breadthElem.innerText = adRatio.toFixed(2);
                     breadthElem.className = adRatio >= 1.0 ? 'text-2xl font-bold font-mono-custom text-emerald-400' : 'text-2xl font-bold font-mono-custom text-rose-400';
+                    // A proxy must never be shown under an NSE-wide label (Task 5.6).
+                    const srcElem = document.getElementById('breadth-source');
+                    if (srcElem) {
+                        const real = payload.macro_state.ad_ratio_source === 'NIFTY_50';
+                        srcElem.innerText = real ? 'NIFTY 50 A/D Ratio' : 'Watchlist A/D (proxy)';
+                        srcElem.className = real
+                            ? 'text-[10px] text-slate-500 mt-0.5'
+                            : 'text-[10px] text-amber-500/80 mt-0.5';
+                        srcElem.title = real
+                            ? 'Advances/declines across the NIFTY 50, from NSE allIndices.'
+                            : 'NSE-wide breadth unavailable or stale — showing advances/declines over the active watchlist only.';
+                    }
                 }
 
-                // MOCK DATA FALLBACK FOR GLOBAL MARKET CONTEXT
-                if (!payload.global_market_context) {
-                    payload.global_market_context = {
-                        summary: "Global markets are showing strong resilience with cooling inflation data out of the US and steady domestic inflows in Indian markets. FII selling pressure seems to have absorbed. Key focus remains on upcoming Fed commentary and RBI policy alignment.",
-                        sentiment: "BULLISH",
-                        timestamp: Math.floor(Date.now() / 1000)
-                    };
-                }
-
-                // 5. Update Global Market Context
-                if (payload.global_market_context) {
+                // 5. Update Global Market Context -- render truthfully, never fabricate.
+                // Previously a hardcoded BULLISH narrative filled this panel whenever the
+                // real context was absent (news_feed not running, GEMINI_API_KEY missing,
+                // or simply the first ~30 minutes of a session before the macro news loop
+                // completes its first cycle) -- stamped with the current timestamp, making
+                // it indistinguishable from a genuine Gemini-generated macro read.
+                {
                     const ctx = payload.global_market_context;
                     const badge = document.getElementById('macro-sentiment-badge');
                     const summary = document.getElementById('macro-summary');
                     const timeElem = document.getElementById('macro-time');
 
-                    if (summary) summary.innerText = ctx.summary || "No summary available.";
-                    if (badge) badge.innerText = ctx.sentiment || "NEUTRAL";
-
-                    if (ctx.timestamp && timeElem) {
-                        timeElem.innerText = "Updated: " + new Date(ctx.timestamp * 1000).toLocaleTimeString();
+                    if (!ctx) {
+                        if (summary) summary.textContent =
+                            'Macro context unavailable — news_feed (:8003) has not reported yet.';
+                        if (badge) {
+                            badge.textContent = 'UNAVAILABLE';
+                            badge.className = 'px-2 py-0.5 text-[10px] font-bold rounded border ' +
+                                              'bg-slate-800 text-slate-500 border-slate-700';
+                        }
+                        if (timeElem) timeElem.textContent = '';
+                    } else {
+                        if (summary) summary.textContent = ctx.summary || 'No summary available.';
+                        if (badge) badge.textContent = ctx.sentiment || 'NEUTRAL';
+                        if (ctx.timestamp && timeElem) {
+                            timeElem.textContent = 'Updated: ' +
+                                new Date(ctx.timestamp * 1000).toLocaleTimeString();
+                        }
+                        let bgClass = 'bg-slate-800', textClass = 'text-slate-400', borderClass = 'border-slate-700';
+                        if (ctx.sentiment === 'BULLISH') {
+                            bgClass = 'bg-emerald-500/20'; textClass = 'text-emerald-400'; borderClass = 'border-emerald-500/30';
+                        } else if (ctx.sentiment === 'BEARISH') {
+                            bgClass = 'bg-rose-500/20'; textClass = 'text-rose-400'; borderClass = 'border-rose-500/30';
+                        } else if (ctx.sentiment === 'MIXED') {
+                            bgClass = 'bg-purple-500/20'; textClass = 'text-purple-400'; borderClass = 'border-purple-500/30';
+                        }
+                        if (badge) badge.className = `px-2 py-0.5 text-[10px] font-bold rounded border ${bgClass} ${textClass} ${borderClass}`;
                     }
-
-                    let bgClass = 'bg-slate-800', textClass = 'text-slate-400', borderClass = 'border-slate-700';
-                    if (ctx.sentiment === 'BULLISH') {
-                        bgClass = 'bg-emerald-500/20'; textClass = 'text-emerald-400'; borderClass = 'border-emerald-500/30';
-                    } else if (ctx.sentiment === 'BEARISH') {
-                        bgClass = 'bg-rose-500/20'; textClass = 'text-rose-400'; borderClass = 'border-rose-500/30';
-                    } else if (ctx.sentiment === 'MIXED') {
-                        bgClass = 'bg-purple-500/20'; textClass = 'text-purple-400'; borderClass = 'border-purple-500/30';
-                    }
-                    if (badge) badge.className = `px-2 py-0.5 text-[10px] font-bold rounded border ${bgClass} ${textClass} ${borderClass}`;
                 }
 
                 // 6. Update AI Intraday Playbook
@@ -677,11 +786,19 @@
                     const plays = payload.dashboard_intraday_plays;
                     const items = Array.isArray(plays) ? plays : plays.watchlist;
                     if (items && items.length > 0) {
-                        // Hide spinner and re-enable button
+                        // Hide spinner and re-enable button -- but never
+                        // re-enable Discovery itself (Task 5.5 step 0): it's
+                        // permanently disabled pending the A-7 fix, and a
+                        // stray websocket frame carrying old
+                        // dashboard_intraday_plays (e.g. from a persisted
+                        // playbook_state.json) must not silently flip it
+                        // back on.
                         const status = document.getElementById('screener-status');
                         if (status) { status.classList.add('hidden'); status.classList.remove('block'); }
                         const btn = document.getElementById('btn-run-discovery');
-                        if (btn) { btn.disabled = false; btn.classList.remove('opacity-50'); }
+                        if (btn && btn.dataset.permanentlyDisabled !== 'true') {
+                            btn.disabled = false; btn.classList.remove('opacity-50');
+                        }
 
                         // Forward playbook data to the Discovery UI render function
                         renderDiscoveryCards(items);
@@ -748,6 +865,251 @@
             }
 
             document.getElementById('macro-date').innerText = `Date: ${dateStr}`;
+        }
+        // Task 4.4: reliability view. Renders the realised win rate per
+        // |composite| decile against the diagonal a calibrated score would sit
+        // on, and says plainly when the curve is flat (= no predictive power).
+        async function loadReliability() {
+            const statusEl = document.getElementById('reliability-status');
+            const verdictEl = document.getElementById('reliability-verdict');
+            const body = document.getElementById('reliability-body');
+            if (!body) return;
+            statusEl.textContent = 'Loading...';
+            try {
+                const res = await fetch(`${apiBase}/api/performance/reliability`);
+                const json = await res.json();
+                if (json.status !== 'success') throw new Error(json.message || 'failed');
+                const d = json.data;
+
+                statusEl.textContent =
+                    `${d.n_resolved} resolved signal(s) at the ${d.primary_minute}m horizon · `
+                    + `${d.calibration_status} · buckets with n < ${d.min_n} are suppressed`
+                    + (d.n_legacy_excluded
+                        ? ` · ${d.n_legacy_excluded} older signal(s) excluded: graded at a retired horizon, no ${d.primary_minute}m outcome`
+                        : '');
+
+                verdictEl.classList.remove('hidden');
+                if (d.populated_buckets < 2) {
+                    verdictEl.className = 'mb-3 px-2 py-1 rounded text-[11px] font-bold bg-slate-800 text-slate-400 border border-slate-700';
+                    verdictEl.textContent = 'NOT ENOUGH DATA — fewer than two buckets clear the minimum count. No conclusion can be drawn yet.';
+                } else if (d.has_discriminative_power) {
+                    verdictEl.className = 'mb-3 px-2 py-1 rounded text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30';
+                    verdictEl.textContent = `SCORE SEPARATES OUTCOMES — ${d.win_rate_spread} pp between best and worst bucket.`;
+                } else {
+                    verdictEl.className = 'mb-3 px-2 py-1 rounded text-[11px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30';
+                    verdictEl.textContent = `FLAT CURVE — only ${d.win_rate_spread} pp between best and worst bucket. The composite score is not separating winners from losers.`;
+                }
+
+                body.innerHTML = d.buckets.map(b => {
+                    const label = `${b.lo.toFixed(1)} – ${b.hi.toFixed(1)}`;
+                    if (b.suppressed) {
+                        return `<tr class="border-b border-slate-800/50 text-slate-600">
+                            <td class="py-1.5 px-2">${label}</td>
+                            <td class="py-1.5 px-2 text-right">${b.n}</td>
+                            <td class="py-1.5 px-2 text-right italic">suppressed</td>
+                            <td class="py-1.5 px-2 text-right">${b.reference}%</td>
+                            <td class="py-1.5 px-2"></td></tr>`;
+                    }
+                    const above = b.win_rate >= b.reference;
+                    return `<tr class="border-b border-slate-800/50">
+                        <td class="py-1.5 px-2 text-slate-300">${label}</td>
+                        <td class="py-1.5 px-2 text-right text-slate-400">${b.n}</td>
+                        <td class="py-1.5 px-2 text-right font-bold ${above ? 'text-emerald-400' : 'text-rose-400'}">${b.win_rate}%</td>
+                        <td class="py-1.5 px-2 text-right text-slate-500">${b.reference}%</td>
+                        <td class="py-1.5 px-2">
+                            <div class="relative h-2 bg-slate-800 rounded">
+                                <div class="absolute inset-y-0 left-0 ${above ? 'bg-emerald-500/70' : 'bg-rose-500/70'} rounded" style="width:${Math.max(0, Math.min(100, b.win_rate))}%"></div>
+                                <div class="absolute inset-y-0 w-px bg-slate-400" style="left:${Math.max(0, Math.min(100, b.reference))}%" title="calibrated diagonal"></div>
+                            </div>
+                        </td></tr>`;
+                }).join('');
+            } catch (e) {
+                statusEl.textContent = 'Could not load reliability data: ' + e.message;
+                verdictEl.classList.add('hidden');
+                body.innerHTML = `<tr><td colspan="5" class="py-4 text-center text-slate-600">No data.</td></tr>`;
+            }
+        }
+
+        async function loadExposure() {
+            const statusEl = document.getElementById('exposure-status');
+            const messageEl = document.getElementById('exposure-message');
+            const containerEl = document.getElementById('exposure-container');
+            if (!containerEl) return;
+            statusEl.textContent = 'Loading...';
+            messageEl.classList.add('hidden');
+            try {
+                const res = await fetch(`${apiBase}/api/risk/exposure`);
+                const json = await res.json();
+                if (json.status !== 'success') throw new Error(json.message || 'failed');
+                const d = json.data;
+
+                statusEl.textContent = `Capital: ₹${(d.capital / 10000000).toFixed(1)} Cr · Max per cluster: ${d.max_cluster_risk_pct}%`;
+
+                // Positions the book could not size (missing qty/entry/stop)
+                // carry UNKNOWN risk, not zero. Claiming "fully within limits"
+                // over them would be a reassurance about exactly the exposure
+                // we failed to measure.
+                const unsizeable = d.unsizeable_positions || [];
+
+                if (!d.clusters || d.clusters.length === 0) {
+                    messageEl.classList.remove('hidden');
+                    if (unsizeable.length) {
+                        messageEl.className = 'mb-3 px-2 py-1 rounded text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30';
+                        messageEl.textContent =
+                            `No measurable exposure, but ${unsizeable.length} open position(s) could not be sized `
+                            + `(missing qty/entry/stop): ${unsizeable.join(', ')}. Risk unknown, not zero.`;
+                    } else {
+                        messageEl.className = 'mb-3 px-2 py-1 rounded text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30';
+                        messageEl.textContent = 'No open positions. Fully within limits.';
+                    }
+                    containerEl.innerHTML = '';
+                } else {
+                    if (unsizeable.length) {
+                        messageEl.classList.remove('hidden');
+                        messageEl.className = 'mb-3 px-2 py-1 rounded text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30';
+                        messageEl.textContent =
+                            `${unsizeable.length} open position(s) excluded from these bars `
+                            + `(missing qty/entry/stop): ${unsizeable.join(', ')}.`;
+                    } else {
+                        messageEl.classList.add('hidden');
+                    }
+                    containerEl.innerHTML = d.clusters.map(c => {
+                        const barWidth = Math.min(c.pct_of_limit * 100, 100);
+                        const isRed = c.pct_of_limit >= 0.90;
+                        const barColor = isRed ? 'bg-rose-500/70' : 'bg-slate-500/50';
+                        const percentText = (c.pct_of_limit * 100).toFixed(1);
+
+                        return `<div class="border border-slate-800/50 rounded p-3 bg-slate-950/30">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-sm font-semibold text-slate-200">${c.cluster}</span>
+                                <span class="text-xs ${isRed ? 'text-rose-400 font-bold' : 'text-slate-400'}">
+                                    ₹${c.open_risk.toLocaleString()} / ₹${c.limit.toLocaleString()} (${percentText}%)
+                                </span>
+                            </div>
+                            <div class="relative h-3 bg-slate-800 rounded overflow-hidden">
+                                <div class="absolute inset-y-0 left-0 ${barColor} rounded" style="width:${Math.max(0, barWidth)}%"></div>
+                            </div>
+                        </div>`;
+                    }).join('');
+                }
+            } catch (e) {
+                statusEl.textContent = 'Could not load exposure data: ' + e.message;
+                messageEl.classList.add('hidden');
+                containerEl.innerHTML = '<div class="text-center text-xs text-slate-600 py-4">Error loading data.</div>';
+            }
+        }
+
+        // Task 5.6: end-of-day session review. Three states are rendered
+        // distinctly -- no signals, signals-but-none-resolved, and measured.
+        // The middle one must never read as a 0% win rate: the ledger's older
+        // signals were graded at retired horizons and carry no outcome at the
+        // current primary horizon, so "not measured yet" is the truth.
+        async function loadSessionReview() {
+            const statusEl = document.getElementById('review-status');
+            const stateEl = document.getElementById('review-state');
+            const headEl = document.getElementById('review-headline');
+            const groupsEl = document.getElementById('review-groups');
+            if (!statusEl) return;
+
+            const fmtPct = (v) => (v === null || v === undefined) ? 'n/a' : `${v}%`;
+            const tile = (label, value) =>
+                `<div class="border border-slate-800/50 rounded p-2 bg-slate-950/30">
+                    <div class="text-[10px] text-slate-500 uppercase tracking-wider">${label}</div>
+                    <div class="text-lg font-bold font-mono-custom text-slate-200">${value}</div>
+                </div>`;
+            const bestWorst = (title, best, worst) => {
+                const row = (tag, e, cls) => e
+                    ? `<div class="flex justify-between items-center py-1">
+                           <span class="text-[11px] text-slate-500 uppercase tracking-wider">${tag}</span>
+                           <span class="text-xs"><span class="font-semibold text-slate-200">${e.key}</span>
+                           <span class="${cls} font-bold ml-2">${e.win_rate}%</span>
+                           <span class="text-slate-500 ml-1">(n=${e.n})</span></span>
+                       </div>`
+                    : `<div class="flex justify-between items-center py-1">
+                           <span class="text-[11px] text-slate-500 uppercase tracking-wider">${tag}</span>
+                           <span class="text-xs text-slate-600 italic">not measured</span>
+                       </div>`;
+                return `<div class="border border-slate-800/50 rounded p-3 bg-slate-950/30">
+                    <div class="text-xs font-semibold text-slate-300 mb-1">By ${title}</div>
+                    ${row('Best', best, 'text-emerald-400')}
+                    ${row('Worst', worst, 'text-rose-400')}
+                </div>`;
+            };
+
+            const dateVal = (document.getElementById('review-date') || {}).value;
+            statusEl.textContent = 'Loading...';
+            stateEl.classList.add('hidden');
+            headEl.innerHTML = '';
+            groupsEl.innerHTML = '';
+            try {
+                const res = await fetch(`${apiBase}/api/session/review` + (dateVal ? `?date=${dateVal}` : ''));
+                const json = await res.json();
+                if (json.status !== 'success') throw new Error(json.message || 'failed');
+                const d = json.data;
+
+                const st = d.staleness || {};
+                const staleTxt = (st.incidents === null || st.incidents === undefined)
+                    ? 'staleness: unavailable'
+                    : `${st.incidents} stale-feed rejection(s)`
+                      + (st.max_stale_microstructure_s !== null && st.max_stale_microstructure_s !== undefined
+                          ? ` \u00b7 worst feed age ${st.max_stale_microstructure_s}s` : '');
+                statusEl.textContent =
+                    `Session ${d.session_date} \u00b7 policy v${d.config_version} \u00b7 `
+                    + `primary horizon ${d.primary_horizon_min}m \u00b7 ${staleTxt}`
+                    + (d.legacy_excluded
+                        ? ` \u00b7 ${d.legacy_excluded} signal(s) excluded: graded at a retired horizon, no ${d.primary_horizon_min}m outcome`
+                        : '');
+
+                stateEl.classList.remove('hidden');
+                if (d.measurement_state === 'NO_SIGNALS') {
+                    stateEl.className = 'mb-3 px-2 py-1 rounded text-[11px] font-bold bg-slate-800 text-slate-400 border border-slate-700';
+                    stateEl.textContent = 'NO SIGNALS \u2014 nothing was emitted on this session date.';
+                    return;
+                }
+                if (d.measurement_state === 'NONE_RESOLVED') {
+                    stateEl.className = 'mb-3 px-2 py-1 rounded text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30';
+                    stateEl.textContent =
+                        `NOT MEASURED YET \u2014 ${d.total_signals} signal(s) emitted, none resolved at the `
+                        + `${d.primary_horizon_min}-minute horizon. No win rate exists for this session.`;
+                    headEl.innerHTML = tile('Signals emitted', d.total_signals)
+                        + tile('Resolved', '0')
+                        + tile('Win rate', 'n/a')
+                        + tile('Profit factor', 'n/a')
+                        + tile('Stop / target hit', 'n/a');
+                    groupsEl.innerHTML = bestWorst('Regime', null, null) + bestWorst('Cluster', null, null);
+                    return;
+                }
+
+                const o = d.outcomes || {};
+                stateEl.className = 'mb-3 px-2 py-1 rounded text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30';
+                stateEl.textContent =
+                    `MEASURED \u2014 ${d.total_resolved} of ${d.total_signals} signal(s) resolved at the ${d.primary_horizon_min}m horizon.`;
+                headEl.innerHTML = tile('Signals emitted', d.total_signals)
+                    + tile('Resolved', d.total_resolved)
+                    + tile('Win rate', fmtPct(o.win_rate_primary))
+                    + tile('Profit factor', o.profit_factor == null ? 'n/a' : o.profit_factor)
+                    + tile('Stop / target hit', `${fmtPct(o.stop_hit_rate)} / ${fmtPct(o.target_hit_rate)}`);
+
+                groupsEl.innerHTML = bestWorst('Regime', d.best_regime, d.worst_regime)
+                    + bestWorst('Cluster', d.best_cluster, d.worst_cluster);
+            } catch (e) {
+                statusEl.textContent = 'Could not load session review: ' + e.message;
+                stateEl.classList.add('hidden');
+                headEl.innerHTML = '';
+                groupsEl.innerHTML = '<div class="text-center text-xs text-slate-600 py-4">No data.</div>';
+            }
+        }
+
+        function updateStaleBanner(globalState) {
+            const banner = document.getElementById('stale-banner');
+            if (!banner) return;
+            const stale = Object.values(globalState || {}).filter(
+                s => s && s.market_state === 'LIVE' && (s.data_age_s || 0) > 15);
+            banner.classList.toggle('hidden', stale.length === 0);
+            if (stale.length) {
+                banner.textContent =
+                    `⚠ FEED STALE — ${stale.length} symbol(s) have not ticked in >15s`;
+            }
         }
         function updateMarketMatrix(globalState) {
             const tableBody = document.getElementById('matrix-body');
@@ -996,6 +1358,7 @@
             } else {
                 catalystBlock.innerText = "No cached news catalyst available for this asset. Click 'Force Fetch News' to query live API.";
             }
+            renderProvenancePanel(payloadCopy);
             document.getElementById('llm-modal').classList.remove('hidden');
             // Phase 8 Reset UI state & fetch existing report
             renderReasoningReport("Awaiting trigger...");
@@ -1021,9 +1384,96 @@
                     }
                 }).catch(e => console.error("Fetch report error", e));
         }
+        // --- Provenance Panel (Task 5.2, improved §5.1) ---
+        // Renders ConvictionScorer.score_setup's `contributions` breakdown so
+        // an operator can see WHY the composite came out the way it did,
+        // instead of trusting one number. A missing/None `contributions`
+        // (e.g. MARKET_CLOSED, before any category is scored) is a valid,
+        // expected state, not a bug -- render it as "nothing to show" rather
+        // than crashing or fabricating zeros.
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.innerText = str == null ? '' : String(str);
+            return div.innerHTML;
+        }
+        function renderProvenancePanel(payload) {
+            const block = document.getElementById('provenance-block');
+            if (!block) return;
+            const math = (payload && payload.math_setup) || {};
+            const contrib = math.contributions;
+
+            if (!contrib || Object.keys(contrib).length === 0) {
+                block.innerHTML = `<div class="text-slate-500 italic">
+                    No score decomposition available${math.rejection_reason ? ` (${escapeHtml(math.rejection_reason)})` : ''}
+                    -- rejected before the category scores were computed.
+                </div>`;
+                return;
+            }
+
+            const bias = math.directional_bias || '—';
+            const composite = (math.composite_score ?? '—');
+            const rr = math.expectancy_matrix && math.expectancy_matrix.reward_risk;
+
+            const CATS = [
+                { key: 'micro', label: 'Microstructure' },
+                { key: 'struct', label: 'Structural Edge' },
+                { key: 'deriv', label: 'Derivatives' },
+                { key: 'catalyst', label: 'Catalyst' },
+            ];
+
+            const rows = CATS.map(({ key, label }) => {
+                const c = contrib[key] || {};
+                const raw = (c.raw === null || c.raw === undefined) ? '—' : Number(c.raw).toFixed(2);
+                const norm = (c.normalized === undefined || c.normalized === null) ? '—' : Number(c.normalized).toFixed(2);
+                const weight = (c.weight === undefined || c.weight === null) ? '—' : Number(c.weight).toFixed(2);
+                const contribution = (c.contribution === undefined || c.contribution === null) ? '—' : Number(c.contribution).toFixed(3);
+                const signals = c.firing_signals || [];
+
+                const markerHtml = c.dead
+                    ? `<div class="mt-1 text-[11px] font-bold text-amber-400">${escapeHtml(c.marker || '⚠ dead term')}</div>`
+                    : '';
+                const sigHtml = signals.length
+                    ? `<ul class="mt-1 ml-4 list-disc text-[11px] text-slate-400">
+                        ${signals.map(s => `<li>${escapeHtml(s)}</li>`).join('')}
+                       </ul>`
+                    : (c.dead ? '' : `<div class="mt-1 ml-1 text-[11px] text-slate-600 italic">no signals fired</div>`);
+
+                return `<div class="py-2 border-b border-slate-800/70">
+                    <div class="flex items-center justify-between gap-3">
+                        <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">${label}</span>
+                        <span class="text-xs font-mono-custom text-slate-400 shrink-0">
+                            ${raw} (norm ${norm}) × ${weight} = <span class="text-slate-200 font-bold">${contribution}</span>
+                        </span>
+                    </div>
+                    ${markerHtml}
+                    ${sigHtml}
+                </div>`;
+            }).join('');
+
+            const edge = (math.expectancy_matrix && math.expectancy_matrix.calibration_status) || 'unknown';
+            // Only microstructure has a confirmed, plumbed-through age today
+            // (RollingStateEngine -> ReasoningEngine.build_structured_payload
+            // -> sp.data_age_s). struct/deriv/catalyst ages are not currently
+            // threaded to this payload -- show them honestly as n/a rather
+            // than inventing a number (see task-5.2-report.md).
+            const microAge = (payload && payload.data_age_s !== undefined && payload.data_age_s !== null)
+                ? `${Number(payload.data_age_s).toFixed(1)}s` : 'n/a';
+
+            block.innerHTML = `
+                <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-700">
+                    <span class="text-sm font-bold text-white">${escapeHtml(bias)} · composite ${escapeHtml(composite)}</span>
+                    ${rr ? `<span class="text-xs text-slate-400">R:R 1 : ${Number(rr).toFixed(2)}</span>` : ''}
+                </div>
+                ${rows}
+                <div class="mt-3 pt-2 text-[11px] text-slate-500 flex flex-col gap-1">
+                    <div>edge ${escapeHtml(edge)}</div>
+                    <div>staleness: micro ${microAge} · struct n/a · deriv n/a · catalyst n/a</div>
+                </div>
+            `;
+        }
         // --- Modal Tabs Logic ---
         function switchModalTab(tabName) {
-            ['reasoning', 'catalyst', 'telemetry'].forEach(t => {
+            ['reasoning', 'catalyst', 'provenance', 'telemetry'].forEach(t => {
                 document.getElementById(`tab-content-${t}`).classList.add('hidden');
                 document.getElementById(`tab-content-${t}`).classList.remove('flex');
 
@@ -1581,7 +2031,7 @@
     <!-- State Management Logic -->
     <script>
         const DEFAULT_SYSTEM_PROMPT = `ROLE & OPERATIONAL FRAMEWORK:
-You are the Lead Quantitative Execution Strategist. You are an API endpoint that ingests a Phase 6 Hierarchical JSON Telemetry Payload and outputs raw, deterministic execution logic. Your goal is to synthesize 4 data blocks to isolate true institutional positioning from retail traps, optimizing for a 2-6 hour intraday predictive horizon.
+You are the Lead Quantitative Execution Strategist. You are an API endpoint that ingests a Phase 6 Hierarchical JSON Telemetry Payload and outputs raw, deterministic execution logic. Your goal is to synthesize 4 data blocks to isolate true institutional positioning from retail traps, optimizing for a ~90-minute intraday predictive horizon (primary), with a 30-minute diagnostic checkpoint. No new position is opened after 13:45 IST; all intraday positions are squared off by 15:20 IST.
 
 CRITICAL CONSTRAINTS & NULL SAFETY:
 1. ABSOLUTE DATA ADHERENCE: Never assume or extrapolate targets. If metrics are null, 0, or state 'MARKET_CLOSED_SUPPRESSED', default to a neutral risk mitigation posture.
@@ -1810,42 +2260,9 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                 });
             }
         });
-        // Phase 5.5: Map Option Tokens Logic
-        const btnMapTokens = document.getElementById('btn-map-tokens');
-        if (btnMapTokens) {
-            btnMapTokens.addEventListener('click', () => {
-                const originalText = btnMapTokens.innerText;
-                btnMapTokens.innerText = "Mapping Tokens (Please Wait...)";
-                btnMapTokens.disabled = true;
-                btnMapTokens.classList.add('opacity-50', 'cursor-not-allowed');
-                fetch(`${apiBase}/api/map-option-tokens`, { method: 'POST' })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.status === 'success') {
-                            // Flash brief success notification
-                            const alertBox = document.createElement('div');
-                            alertBox.className = 'fixed top-4 right-4 bg-purple-600 text-white px-4 py-2 rounded shadow-lg z-50 font-bold text-sm transition-opacity duration-500';
-                            alertBox.innerText = "Live Option Tokens Injected into Data Stream.";
-                            document.body.appendChild(alertBox);
-                            setTimeout(() => {
-                                alertBox.style.opacity = '0';
-                                setTimeout(() => alertBox.remove(), 500);
-                            }, 3000);
-                        } else {
-                            alert("Mapping failed: " + data.message);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error mapping tokens:', error);
-                        alert('An error occurred while mapping option tokens.');
-                    })
-                    .finally(() => {
-                        btnMapTokens.innerText = originalText;
-                        btnMapTokens.disabled = false;
-                        btnMapTokens.classList.remove('opacity-50', 'cursor-not-allowed');
-                    });
-            });
-        }
+        // Map Option Tokens control removed (A-11): it proxied to a route
+        // that only ever existed on the dead Angel One smart_api_feed.py and
+        // always errored against the live upstox_feed.py on port 8001.
 
         // --- Phase 10: Watchlist Manager Logic ---
         const watchlistModal = document.getElementById('watchlist-modal');
@@ -2170,14 +2587,29 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ model: model })
                 });
-                if (res.ok) {
-                    showToast("Playbook Generation Triggered", "The AI is compiling the multi-factor matrix in the background. Please wait a few seconds...");
+                const body = await res.json().catch(() => ({}));
+                if (body && body.status === 'disabled') {
+                    // Task 5.5 step 0: the backend short-circuits this
+                    // endpoint without running anything. Tell the user the
+                    // truth instead of the old unconditional success message.
+                    // (Uses alert(), this file's existing pattern for
+                    // surfacing messages -- not showToast, which is called
+                    // nowhere else in this codebase and is not defined.)
+                    alert("Discovery Disabled: " + (body.message || "Discovery is temporarily disabled."));
+                    if (status) { status.classList.add('hidden'); status.classList.remove('block'); }
+                } else if (res.ok) {
+                    alert("Playbook Generation Triggered: The AI is compiling the multi-factor matrix in the background. Please wait a few seconds...");
                 }
             } catch (e) {
                 console.error(e);
-                showToast("Error", "Failed to contact API server.", "error");
+                alert("Error: Failed to contact API server.");
                 if (status) { status.classList.add('hidden'); status.classList.remove('block'); }
-                if (btn) { btn.disabled = false; btn.classList.remove('opacity-50'); }
+            } finally {
+                // Discovery is permanently disabled (Task 5.5 step 0) --
+                // never re-enable it here, regardless of outcome.
+                if (btn && btn.dataset.permanentlyDisabled !== 'true') {
+                    btn.disabled = false; btn.classList.remove('opacity-50');
+                }
             }
         }
         // --- Database Management Controls (Phase 14.3) ---
@@ -2252,6 +2684,9 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
         document.addEventListener('DOMContentLoaded', () => {
             fetchNewsState();
             loadParquetSymbols();
+            loadReliability();
+            loadExposure();
+            loadSessionReview();
             newsStateInterval = setInterval(fetchNewsState, 5000);
         });
         function renderReasoningReport(reportText) {
@@ -2279,6 +2714,10 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
             }
 
             const actionClass = data.Action === 'Short' ? 'bg-rose-900/40 text-rose-300 border-rose-700/50' : data.Action === 'Wait' || data.Action === 'Hold' ? 'bg-amber-900/40 text-amber-300 border-amber-700/50' : 'bg-emerald-900/40 text-emerald-300 border-emerald-700/50';
+            // §4.2: while the win probability is unmeasured the card must say so
+            // rather than render an invented confidence score.
+            const edgeUnmeasured = !data.Confidence_Score
+                || (data.Edge_Status || '').startsWith('unmeasured');
             // Build the beautiful UI card
             let actionHtml = `
                     <div class="bg-slate-900 border border-slate-700/80 rounded-xl p-4 shadow-lg relative overflow-hidden flex flex-col shrink-0">
@@ -2297,21 +2736,29 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                                     <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Target</div>
                                     <div class="text-sm font-bold text-emerald-400">${data.Exit_Target_Price || 'N/A'}</div>
                                 </div>
-                                <div class="bg-slate-800/50 p-2 rounded border border-slate-700/50 text-center col-span-2">
+                                <div class="bg-slate-800/50 p-2 rounded border border-slate-700/50 text-center">
                                     <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Stop Loss</div>
                                     <div class="text-sm font-bold text-rose-400">${data.Stoploss || 'N/A'}</div>
                                 </div>
+                                <div class="bg-slate-800/50 p-2 rounded border border-slate-700/50 text-center">
+                                    <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Qty (L3)</div>
+                                    <div class="text-sm font-bold ${data.Risk_Rejection ? 'text-rose-400' : 'text-sky-400'}">${data.Risk_Rejection ? data.Risk_Rejection : (data.Qty != null ? data.Qty : 'N/A')}</div>
+                                </div>
                             </div>
+                            ${data.Risk_Rejection ? `<div class="mb-3 px-2 py-1 rounded text-[11px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30">RISK LAYER BLOCKED: ${data.Risk_Rejection}</div>` : (data.Risk_Amount ? `<div class="mb-3 px-2 py-1 rounded text-[11px] text-slate-400 border border-slate-700/50">Sized risk: ₹${data.Risk_Amount}</div>` : '')}
                             <div class="flex justify-between items-center px-1 mt-2">
                                 <div class="flex items-center gap-1.5">
-                                    <span class="text-xs text-slate-500 uppercase tracking-wider">Confidence:</span>
-                                    <span class="text-sm font-bold text-indigo-400">${data.Confidence_Score ? data.Confidence_Score + '/10' : 'N/A'}</span>
+                                    <span class="text-xs text-slate-500 uppercase tracking-wider">Edge:</span>
+                                    ${edgeUnmeasured
+                                        ? `<span class="text-sm font-bold text-slate-500" title="${data.Edge_Status || ''}">unmeasured${data.Reward_Risk ? ` · R:R ${data.Reward_Risk}` : ''}</span>`
+                                        : `<span class="text-sm font-bold text-indigo-400">${data.Confidence_Score}/10</span>`}
                                 </div>
                                 <div class="flex items-center gap-1.5">
                                     <span class="text-xs text-slate-500 uppercase tracking-wider">Risk:</span>
                                     <span class="text-sm font-bold text-amber-400">${data.Risk_Percentage ? data.Risk_Percentage + '%' : 'N/A'}</span>
                                 </div>
                             </div>
+                            ${edgeUnmeasured ? `<div class="mt-2 px-2 py-1 rounded text-[11px] text-slate-400 border border-slate-700/50">Confidence is not reported: ${data.Edge_Status || 'probability unmeasured'}. Admitted on reward:risk alone.</div>` : ''}
                         </div>
                     </div>`;
             const actionBlock = document.getElementById('reasoning-action-block');
@@ -2369,6 +2816,22 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
     <script>
         // Live Action Global State
         window.dismissedLiveReports = {}; // { "RELIANCE": { dismissedAt: timestamp, text: "..." } }
+        // Attention ranking (§4.6): the Live Action grid sorts by attention_rank
+        // (ev_r x freshness, computed server-side per Task 5.1) and collapses
+        // everything past the top N below a "Show more" toggle.
+        const ATTENTION_TOP_N = 5;
+        window.liveActionShowAll = false;
+        function toggleLiveActionShowAll() {
+            window.liveActionShowAll = !window.liveActionShowAll;
+            renderLiveActionGrid(window.latestLiveReports || {});
+        }
+        function getAttentionRank(symbol) {
+            const state = window.latestGlobalState && window.latestGlobalState[symbol];
+            const rank = state && state.attention_rank;
+            // Missing or rejected (server sends null for -inf) sinks to the
+            // bottom, same as a rejected setup.
+            return (typeof rank === 'number' && isFinite(rank)) ? rank : -Infinity;
+        }
         function startLiveActionPolling() {
             if (window.liveActionPollInterval) clearInterval(window.liveActionPollInterval);
             pollLiveActionCards();
@@ -2415,22 +2878,56 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                     // Not valid JSON, ignore
                 }
             }
-            // Sort by Priority Score descending
+            // Sort by attention rank descending (ev_r x freshness, §4.6);
+            // ties (including two unranked cards) fall back to Priority Score.
+            // Explicit >/</=== comparisons, not subtraction: both operands
+            // can be -Infinity (rejected/unranked), and
+            // -Infinity - (-Infinity) === NaN, which Array.sort handles as
+            // undefined ordering -- jittery re-sorts on every 3s poll for
+            // the common case of two suppressed/unranked cards.
             cardsData.sort((a, b) => {
+                const rankA = getAttentionRank(a.symbol);
+                const rankB = getAttentionRank(b.symbol);
+                if (rankA !== rankB) return rankA > rankB ? -1 : 1;
                 const scoreA = a.actionData.Priority_Score || 0;
                 const scoreB = b.actionData.Priority_Score || 0;
                 return scoreB - scoreA;
             });
+
+            const showMoreBtn = document.getElementById('live-action-show-more');
+            const collapsedCount = cardsData.length - ATTENTION_TOP_N;
+            if (showMoreBtn) {
+                if (collapsedCount > 0) {
+                    showMoreBtn.classList.remove('hidden');
+                    showMoreBtn.textContent = window.liveActionShowAll
+                        ? 'Show fewer'
+                        : `Show ${collapsedCount} more`;
+                } else {
+                    showMoreBtn.classList.add('hidden');
+                }
+            }
+
             if (cardsData.length === 0) {
                 grid.innerHTML = `<div class="col-span-full text-center text-slate-500 py-12">No actionable setups detected yet. Turn on Auto-Analyze or hit Instant Analyze on a stock.</div>`;
                 return;
             }
             let html = '';
-            cardsData.forEach(card => {
+            cardsData.forEach((card, idx) => {
                 const d = card.actionData;
                 const score = d.Priority_Score || 0;
                 const isHighPriority = score > 6;
-                const borderGlow = isHighPriority ? 'border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'border-slate-700/80';
+                const isUnstable = !!d.unstable;
+                const borderGlow = isUnstable
+                    ? 'border-slate-700/40 opacity-60'
+                    : (isHighPriority ? 'border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'border-slate-700/80');
+                // Collapse below the attention-rank top N (§4.6) behind the
+                // "Show more" toggle instead of removing them from the DOM.
+                const collapsedClass = (!window.liveActionShowAll && idx >= ATTENTION_TOP_N) ? 'hidden' : '';
+
+                let stabilizingBadge = '';
+                if (isUnstable) {
+                    stabilizingBadge = `<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-slate-800 text-slate-400 border border-slate-600" title="Advice is still flickering -- needs 3 stable ticks before it's actionable.">STABILIZING</span>`;
+                }
 
                 let rejectionBadge = '';
                 let isSuppressed = false;
@@ -2484,7 +2981,7 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                 }
 
                 html += `
-        <div class="bg-slate-900 border rounded-xl p-4 relative overflow-hidden flex flex-col shrink-0 ${borderGlow} transition-all">
+        <div class="bg-slate-900 border rounded-xl p-4 relative overflow-hidden flex flex-col shrink-0 ${borderGlow} transition-all ${collapsedClass}">
             <div class="flex justify-between items-start mb-3">
                 <div class="flex flex-wrap items-center gap-1.5">
                     <h3 class="text-xl font-bold text-white tracking-tight mr-1">${card.symbol.split('|').pop()}</h3>
@@ -2493,6 +2990,7 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                     <span class="px-2 py-0.5 text-xs font-bold rounded ${isHighPriority ? 'bg-emerald-900/60 text-emerald-400 border border-emerald-700' : 'bg-slate-800 text-slate-400 border border-slate-700'}">Pri: ${score}</span>
                     <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-indigo-900/40 text-indigo-300 border border-indigo-700">Conf: ${d.Confidence_Score || '-'}</span>
                     ${rejectionBadge}
+                    ${stabilizingBadge}
                     ${pendingIndicator}
                 </div>
                 <div class="flex items-center gap-2">

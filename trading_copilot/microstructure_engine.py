@@ -4,13 +4,49 @@ from collections import deque
 import numpy as np
 
 class MicrostructureEngine:
+    # Every per-token accumulator is declared here, and every one of them is
+    # cleared by roll_session_if_needed(). Declaring them lazily via hasattr()
+    # is how vol_profile_state and whale_cvd_history came to be omitted from
+    # the daily reset in the first place.
     cvd_state = {}
     vol_profile_state = {}
-    
+
     # Institutional Order Flow States
     session_vwap_state = {}
     whale_cvd_state = {}
     whale_cvd_history = {}
+
+    # Tick-level bookkeeping
+    last_vtt_state = {}
+    last_bba_state = {}
+    session_date = {}
+
+    @classmethod
+    def _ist_session_date(cls) -> str:
+        # datetime.utcnow() is deprecated as of 3.12; this matches the offset
+        # style already used elsewhere in this file rather than introducing a
+        # zoneinfo dependency mid-fix.
+        now = datetime.datetime.utcnow() + datetime.timedelta(hours=5, minutes=30)
+        return now.strftime('%Y-%m-%d')
+
+    @classmethod
+    def roll_session_if_needed(cls, token: str, session_date: str | None = None) -> bool:
+        """Clear EVERY per-token accumulator when the IST trading date changes.
+
+        One place, all seven dicts -- so an accumulator added later cannot be
+        forgotten the way vol_profile_state and whale_cvd_history previously
+        were (only cvd_state/whale_cvd_state were reset, inline inside
+        update_session_vwap). Returns True iff a reset actually happened.
+        """
+        today = session_date or cls._ist_session_date()
+        if cls.session_date.get(token) == today:
+            return False
+        cls.session_date[token] = today
+        for d in (cls.cvd_state, cls.vol_profile_state, cls.session_vwap_state,
+                  cls.whale_cvd_state, cls.whale_cvd_history,
+                  cls.last_vtt_state, cls.last_bba_state):
+            d.pop(token, None)
+        return True
 
     @classmethod
     def update_volume_profile(cls, token, ltp, volume):
@@ -57,23 +93,16 @@ class MicrostructureEngine:
 
     @classmethod
     def update_session_vwap(cls, token, ltp, volume) -> float:
-        now = datetime.datetime.utcnow() + datetime.timedelta(hours=5, minutes=30)
-        current_date_str = now.strftime('%Y-%m-%d')
-        
+        # Daily reset now happens once, up front, in roll_session_if_needed()
+        # (called from generate_microstructure_payload before this runs). This
+        # method only accumulates; last_reset_date is kept for diagnostics.
+        current_date_str = cls._ist_session_date()
+
         if token not in cls.session_vwap_state:
             cls.session_vwap_state[token] = {'cumulative_pv': 0.0, 'cumulative_v': 0.0, 'last_reset_date': current_date_str}
-            
+
         state = cls.session_vwap_state[token]
-        
-        # Reset on date boundary alone for a clean session
-        if state['last_reset_date'] != current_date_str:
-            state['cumulative_pv'] = 0.0
-            state['cumulative_v'] = 0.0
-            state['last_reset_date'] = current_date_str
-            # Reset CVD and Whale CVD to prevent overnight state corruption
-            cls.cvd_state.pop(token, None)
-            cls.whale_cvd_state.pop(token, None)
-            
+        state['last_reset_date'] = current_date_str
         state['cumulative_pv'] += float(ltp * volume)
         state['cumulative_v'] += float(volume)
         
@@ -134,20 +163,24 @@ class MicrostructureEngine:
         bids = tick_dict.get("bids", [])
         asks = tick_dict.get("asks", [])
         token = tick_dict.get('token')
+        cls.roll_session_if_needed(token)
         ltp = tick_dict.get('price', 0.0)
         vol = tick_dict.get('volume', 0.0)
-        if not hasattr(cls, 'last_vtt_state'):
-            cls.last_vtt_state = {}
-            
-        prev_vol = cls.last_vtt_state.get(token, vol)
-        tick_vol = max(0, vol - prev_vol)
-        
-        # Guard against VTT anomalies (e.g. WebSocket reconnections)
-        if prev_vol > 100000 and tick_vol > (prev_vol * 0.5):
-            import logging
-            logging.getLogger(__name__).warning(f"VTT anomaly for {token}: tick_vol={tick_vol}. Clamping.")
-            tick_vol = 0
-            
+        # `vol` is Upstox `vtt` -- volume traded TODAY, a cumulative counter.
+        # Difference it here, in exactly one place, and publish the delta as
+        # `tick_volume` so no other subsystem has to re-derive it.
+        #
+        # The previous guard discarded any increment exceeding 50% of the
+        # cumulative-so-far. That condition is routinely true in the first ~30
+        # minutes of a session, so it silently destroyed genuine opening-range
+        # volume -- precisely the spikes TIME_ADJUSTED_SHOCK exists to detect.
+        # A counter going *backwards* is the real anomaly (reconnect/rollover).
+        prev_vol = cls.last_vtt_state.get(token)
+        if prev_vol is None or vol < prev_vol:
+            tick_vol = 0.0          # establish/re-establish baseline
+        else:
+            tick_vol = float(vol - prev_vol)
+
         cls.last_vtt_state[token] = vol
         
         obi = cls.calc_obi(bids, asks)
@@ -155,9 +188,6 @@ class MicrostructureEngine:
         best_bid_price = bids[0].get('price', 0) if bids else 0
         best_ask_price = asks[0].get('price', float('inf')) if asks else float('inf')
         
-        if not hasattr(cls, 'last_bba_state'):
-            cls.last_bba_state = {}
-            
         if token not in cls.last_bba_state:
             cls.last_bba_state[token] = {'bid': 0.0, 'ask': float('inf')}
             
@@ -198,6 +228,7 @@ class MicrostructureEngine:
         return {
             "obi": round(obi, 4),
             "cvd": cvd,
+            "tick_volume": tick_vol,
             "poc_price": poc,
             "poc_distance_pct": round(poc_distance_pct, 4),
             "session_vwap": session_vwap,

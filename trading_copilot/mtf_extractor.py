@@ -51,9 +51,6 @@ class MTFFeatureExtractor:
             atr = payload.get(f'atr_{tf}', 0)
             
             if bbu > 0 and bbl > 0 and atr > 0:
-                bandwidth = (bbu - bbl) / ltp
-                # If bandwidth is exceptionally tight relative to ATR
-                # Actually, bandwidth itself is a ratio. Let's compare raw distance to ATR
                 dist = bbu - bbl
                 if dist < (atr * 1.5):
                     if tf in ['15m', '30m']:

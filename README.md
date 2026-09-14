@@ -154,16 +154,11 @@ trading_copilot/
 ├── screener_engine.py         # Universe screening & ranking
 ├── mtf_extractor.py           # Multi-timeframe data extraction
 ├── news_engine.py             # News catalyst analysis (Gemini sentiment)
-├── macro_eod_engine.py        # End-of-day macro metrics
 ├── pipeline_guard.py          # Circuit breaker & safety checks
 ├── diagnostic_ui.py           # Shared state singleton (TerminalDashboard)
 ├── history_manager.py         # Trade ledger persistence
-├── auth_manager.py            # Upstox OAuth2 PKCE authentication
 ├── scrip_master_engine.py     # NSE instrument master download
-├── warm_layer_engine.py       # Historical warmup data fetcher
 ├── historical_engine.py       # Nifty baseline + per-symbol LTF/HTF fetch
-├── stitching_engine.py        # Data stitching utilities
-├── websocket_engine.py        # WebSocket connection management
 │
 ├── scripts/
 │   ├── master_bootstrap.py    # EOD derivatives backfill (offline, hours)
@@ -193,10 +188,11 @@ pip install fastapi uvicorn aiohttp pandas numpy pandas_ta scipy google-genai up
 Create a `.env` file in the project root:
 
 ```env
-UPSTOX_API_KEY=your_api_key
-UPSTOX_API_SECRET=your_api_secret
-UPSTOX_REDIRECT_URI=your_redirect_uri
-UPSTOX_PIN=your_pin
+UPSTOX_CLIENT_ID=your_upstox_client_id
+UPSTOX_CLIENT_SECRET=your_upstox_client_secret
+UPSTOX_REDIRECT_URI=http://localhost:8000/callback
+UPSTOX_MOBILE_NO=your_upstox_mobile_number
+UPSTOX_PIN=your_6_digit_pin
 UPSTOX_TOTP_KEY=your_totp_secret
 GEMINI_API_KEY=your_gemini_api_key
 ```

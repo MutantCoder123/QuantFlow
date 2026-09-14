@@ -93,15 +93,14 @@ class MathEngine:
         df['rolling_mean'] = df['volume'].rolling(window=20).mean()
         df['rolling_std'] = df['volume'].rolling(window=20).std()
         
-        def calc_tod_z(row):
-            stats = time_stats.get(row['time'])
-            if stats and pd.notna(stats['std']) and stats['std'] > 0:
-                return (row['volume'] - stats['mean']) / stats['std']
-            if pd.notna(row['rolling_std']) and row['rolling_std'] > 0:
-                return (row['volume'] - row['rolling_mean']) / row['rolling_std']
-            return 0.0
-            
-        df['vol_z_score'] = df.apply(calc_tod_z, axis=1)
+        # Vectorised replacement for a per-row df.apply(axis=1) that ran on
+        # every ~1650-row frame every cycle (D-3). Same semantics: prefer the
+        # time-of-day z-score, fall back to the 20-bar rolling z-score, else 0.
+        tod_mean = df['time'].map({k: v['mean'] for k, v in time_stats.items()})
+        tod_std = df['time'].map({k: v['std'] for k, v in time_stats.items()})
+        z_tod = (df['volume'] - tod_mean) / tod_std.where(tod_std > 0)
+        z_roll = (df['volume'] - df['rolling_mean']) / df['rolling_std'].where(df['rolling_std'] > 0)
+        df['vol_z_score'] = z_tod.fillna(z_roll).fillna(0.0)
         df.drop(columns=['time', 'rolling_mean', 'rolling_std'], inplace=True, errors='ignore')
         
         # 3. Chaikin Money Flow (CMF)
@@ -341,13 +340,12 @@ class MathEngine:
             # Clip indices to ensure they are within [0, bins-1] bounds
             indices = np.clip(indices, 0, bins - 1)
             
-            # 3. Volume Aggregation
-            vol_profile = np.zeros(bins)
+            # 3. Volume Aggregation -- vectorised (D-3). np.bincount with
+            # weights is the exact equivalent of the per-row accumulation
+            # loop, NaN volumes zeroed as before.
             volumes = ltf_df['volume'].values
-            
-            for i in range(len(indices)):
-                if not pd.isna(volumes[i]):
-                    vol_profile[indices[i]] += volumes[i]
+            vol_profile = np.bincount(indices, weights=np.nan_to_num(volumes),
+                                      minlength=bins)[:bins]
                 
             # 4. Calculate POC
             poc_idx = np.argmax(vol_profile)
@@ -408,8 +406,15 @@ class MathEngine:
         
         omni = {}
         try:
+            # Anchor every resample to the NSE session open (09:15 IST), not
+            # midnight (C-4). df.resample('4h') defaults to a midnight origin,
+            # so its first "4h" bar of the day ran 08:00-12:00 and contained
+            # only 09:15-12:00 = 2h45m of real session -- a dimensionally
+            # wrong bar. 24h is divisible by every freq here, so a 09:15
+            # origin tiles cleanly and re-anchors each session.
+            session_origin = pd.Timestamp(df.index.min().date()) + pd.Timedelta(hours=9, minutes=15)
             for freq, label in [('5min', '5m'), ('15min', '15m'), ('30min', '30m'), ('1h', '1h'), ('4h', '4h')]:
-                omni[label] = df.resample(freq).agg(agg_dict).dropna()
+                omni[label] = df.resample(freq, origin=session_origin).agg(agg_dict).dropna()
         except Exception as e:
             import logging
             logging.getLogger(__name__).error(f"Error resampling omni dataframes: {e}")

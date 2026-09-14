@@ -13,20 +13,26 @@ logger = logging.getLogger(__name__)
 
 from diagnostic_ui import TerminalDashboard
 from config import load_watchlist_from_csv
-from reasoning_engine import ReasoningEngine
+from reasoning_engine import ReasoningEngine, attention_rank
 from history_manager import HistoryManager
+from paths import INSTITUTIONAL_FLOW_PATH, PLAYBOOK_PATH, WATCHLIST_PATH, ensure_dirs
+
+ensure_dirs()
 
 app = FastAPI(title="AlgoTrade Live Web Portal")
 
+# Scoped to localhost: this server binds to 127.0.0.1 (below) and holds no
+# authentication, so an open "*" origin let any page loaded in the same
+# browser make authenticated-looking requests against it (E-1/E-2).
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://127.0.0.1:8000", "http://localhost:8000"],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
-watchlist_path = os.path.join(os.path.dirname(__file__), "watchlist.csv")
+watchlist_path = str(WATCHLIST_PATH)
 watchlist = load_watchlist_from_csv(watchlist_path)
 
 local_active_states = {}
@@ -53,7 +59,7 @@ async def poll_upstox():
 async def poll_nse():
     global local_macro_state, local_stock_derivatives_state, local_fii_dii_state
     import os, json
-    flow_file = os.path.join(os.path.dirname(__file__), 'data', 'institutional_flow.json')
+    flow_file = INSTITUTIONAL_FLOW_PATH
     while True:
         try:
             if os.path.exists(flow_file):
@@ -118,8 +124,9 @@ async def get_dashboard():
 @app.post("/api/run-screener")
 async def run_screener(): return await proxy_post(8001, "/api/run-screener")
 
-@app.post("/api/map-option-tokens")
-async def map_option_tokens(): return await proxy_post(8001, "/api/map-option-tokens")
+# /api/map-option-tokens was removed (A-11): it proxied to a route that only
+# ever existed on the dead Angel One smart_api_feed.py, never on the live
+# upstox_feed.py (port 8001) -- the call always errored.
 
 class InstantAnalyzeRequest(BaseModel):
     model: str = "gemini-2.5-flash"
@@ -145,7 +152,17 @@ class SavePositionRequest(BaseModel):
 @app.post("/api/reasoning/position/save")
 async def save_position_api(req: SavePositionRequest):
     norm = ReasoningEngine._normalize_symbol(req.symbol)
-    ReasoningEngine.user_positions[norm] = req.user_position
+    pos = dict(req.user_position) if req.user_position else req.user_position
+
+    # Backfill the whale-CVD baseline used by the A-6 adverse-flip check so a
+    # position saved without one doesn't silently compare against 0.0 forever.
+    if pos and "whale_cvd_at_entry" not in pos:
+        for key, state in local_active_states.items():
+            if key.split('|')[-1].split('-')[0] == norm:
+                pos["whale_cvd_at_entry"] = state.get("whale_cvd_ema_1h", 0.0)
+                break
+
+    ReasoningEngine.user_positions[norm] = pos
     return {"status": "success"}
 
 class SyncPositionsRequest(BaseModel):
@@ -182,6 +199,117 @@ async def get_symbol_accuracy():
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@app.get("/api/performance/arms")
+async def get_arm_comparison(days: int = 30):
+    """Shadow-mode both-arm comparison (improved §4.5): math-only vs
+    math+LLM, plus LLM veto precision."""
+    try:
+        from journal.arms import ArmJournal, summarise_arms
+        from paths import SIGNALS_DIR
+        rows = ArmJournal(SIGNALS_DIR / "arms").load_all(days)
+        return {"status": "success", "data": summarise_arms(rows)}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/performance/reliability")
+async def get_reliability(days: int = 60):
+    """Realised win rate per |composite| decile (Task 4.4). A flat curve
+    means the score has no discriminative power -- the view says so."""
+    try:
+        from core.calibration import reliability_buckets, load_calibration, calibration_status
+        from signal_ledger import SignalLedger
+        from performance_analyzer import PerformanceAnalyzer
+        data = reliability_buckets(SignalLedger.load_all_signals(days),
+                                   primary_minute=PerformanceAnalyzer._primary_minute())
+        data["calibration_status"] = calibration_status(load_calibration())
+        return {"status": "success", "data": data}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/session/review")
+async def get_session_review(date: str | None = None):
+    """End-of-day review for one session: signals, outcomes at the primary
+    horizon, best/worst regime and cluster, config version, staleness (5.6)."""
+    try:
+        from datetime import datetime, date as _date
+        from zoneinfo import ZoneInfo
+        from signal_ledger import SignalLedger
+        from performance_analyzer import PerformanceAnalyzer
+        from core.policy_config import load_policy
+        from journal.feature_log import FeatureLog, staleness_incidents
+        from paths import FEATURES_DIR
+
+        ist_today = datetime.now(ZoneInfo("Asia/Kolkata")).date()
+        if date:
+            session_date = _date.fromisoformat(date)   # raises on malformed input
+        else:
+            session_date = ist_today
+        session_str = session_date.isoformat()
+
+        # load_all_signals takes a days-back count, so load just far enough to
+        # cover the requested date and filter inside session_review().
+        days_back = max(1, (ist_today - session_date).days + 1)
+        data = PerformanceAnalyzer.session_review(
+            SignalLedger.load_all_signals(days_back), session_str)
+
+        data["config_version"] = load_policy().version
+        try:
+            data["staleness"] = staleness_incidents(
+                FeatureLog(FEATURES_DIR).load_day(session_str))
+        except Exception as e:
+            logger.error(f"Session review: feature log unreadable: {e}")
+            data["staleness"] = {"incidents": None, "symbols": None,
+                                 "max_stale_microstructure_s": None}
+        return {"status": "success", "data": data}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/risk/exposure")
+async def get_risk_exposure():
+    """Report open risk per cluster against max_cluster_risk_pct limits (Task 5.3)."""
+    try:
+        from core.risk import load_risk_limits
+        book = ReasoningEngine._build_portfolio()
+        limits = load_risk_limits()
+
+        # Collect unique clusters that have open risk
+        open_clusters = set(p["cluster"] for p in book._open if p.get("risk_amount", 0) > 0)
+
+        # Build response for each cluster with open risk
+        cluster_data = []
+        limit_per_cluster = limits.capital * limits.max_cluster_risk_pct / 100.0
+
+        for cluster_id in open_clusters:
+            open_risk = book.risk_in_cluster(cluster_id)
+            pct_of_limit = open_risk / limit_per_cluster if limit_per_cluster > 0 else 0.0
+
+            cluster_data.append({
+                "cluster": cluster_id,
+                "open_risk": round(open_risk, 2),
+                "limit": round(limit_per_cluster, 2),
+                "pct_of_limit": round(pct_of_limit, 4)
+            })
+
+        # Sort descending by pct_of_limit (highest risk % first)
+        cluster_data.sort(key=lambda x: x["pct_of_limit"], reverse=True)
+
+        return {
+            "status": "success",
+            "data": {
+                "capital": limits.capital,
+                "max_cluster_risk_pct": limits.max_cluster_risk_pct,
+                "clusters": cluster_data,
+                # Positions held but missing a qty/entry/stop, so their risk
+                # could not be computed. Without this an empty `clusters` is
+                # indistinguishable from "flat", and the panel would reassure
+                # the operator they are within limits over exactly the
+                # positions it failed to measure.
+                "unsizeable_positions": ReasoningEngine._unsizeable_positions(),
+            }
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 @app.post("/api/reasoning/instant/{symbol}")
 async def instant_analyze(symbol: str, req: InstantAnalyzeRequest):
     TerminalDashboard.active_states = local_active_states
@@ -213,10 +341,25 @@ async def debug_toggles():
 @app.get("/api/reasoning/all_reports")
 async def get_all_reports():
     return {
-        "status": "success", 
+        "status": "success",
         "reports": ReasoningEngine.latest_reports,
         "llm_trigger_count": getattr(ReasoningEngine, "llm_trigger_count", 0)
     }
+
+@app.get("/api/alerts/unread")
+async def alerts_unread():
+    return {"count": sum(1 for a in ReasoningEngine.global_alerts if not a.get("read"))}
+
+@app.get("/api/alerts/history")
+async def alerts_history():
+    return {"status": "success", "alerts": ReasoningEngine.global_alerts}
+
+@app.post("/api/alerts/mark-read/{alert_id}")
+async def alerts_mark_read(alert_id: int):
+    for a in ReasoningEngine.global_alerts:
+        if a.get("id") == alert_id:
+            a["read"] = True
+    return {"status": "success"}
 @app.get("/api/reasoning/report/{symbol}")
 async def get_latest_report(symbol: str):
     norm = ReasoningEngine._normalize_symbol(symbol)
@@ -229,9 +372,15 @@ class NewsStartRequest(BaseModel): interval: int = 120; model: str = "gemini-2.5
 
 @app.post("/api/reasoning/playbook/generate")
 async def generate_playbook(req: NewsInstantRequest):
-    import asyncio
-    asyncio.create_task(ReasoningEngine.generate_intraday_playbook(req.model))
-    return {"status": "success", "message": "Playbook generation triggered in background."}
+    # Discovery is temporarily disabled (Task 5.5 step 0): the plan's own
+    # self-review (A-7) found generate_intraday_playbook runs a full-universe
+    # screener sweep synchronously inside the shared asyncio event loop
+    # (blocking it), and enriches candidates against TerminalDashboard's tiny
+    # live-watchlist keyspace so obi/cvd come back "N/A" for nearly everyone.
+    # Fixing screener_engine's scoring alone does not fix either of those.
+    # generate_intraday_playbook itself is left in place, just no longer
+    # called from here.
+    return {"status": "disabled", "message": "Discovery is temporarily disabled: it blocks the shared event loop and enriches candidates outside the live watchlist (A-7 not yet fixed)."}
 
 @app.post("/api/news/instant")
 async def instant_news_fetch(req: NewsInstantRequest): return await proxy_post(8003, "/api/news/instant", {"model": req.model})
@@ -312,6 +461,41 @@ async def add_to_watchlist(req: WatchlistAddRequest):
     update_req = WatchlistUpdateRequest(items=current_items)
     return await update_watchlist(update_req)
 
+# The dashboard's breadth card is fed either by the real NIFTY-50 A/D ratio
+# (macro_worker.fetch_market_breadth, every ~5 min) or, when that is absent or
+# stale, by a watchlist proxy -- advances/declines over ~27 self-selected
+# symbols, which is NOT NSE-wide breadth. 30 min tolerates several missed
+# fetches without ever presenting yesterday's number as today's.
+AD_RATIO_MAX_AGE_S = 1800
+
+
+def select_ad_ratio(flow_state: dict, watchlist_ad: float, now=None):
+    """(value, source) where source is "NIFTY_50" or "WATCHLIST_PROXY".
+
+    The real value is used only when it carries a fetch timestamp AND that
+    timestamp is inside the freshness window -- a stored ad_ratio with no
+    ad_ratio_ts could be arbitrarily old, so it falls back rather than being
+    shown under an NSE-wide label.
+    """
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    ist = ZoneInfo("Asia/Kolkata")
+
+    raw = (flow_state or {}).get("ad_ratio")
+    ts = (flow_state or {}).get("ad_ratio_ts")
+    if raw is not None and ts:
+        try:
+            stamped = datetime.fromisoformat(str(ts))
+            if stamped.tzinfo is None:
+                stamped = stamped.replace(tzinfo=ist)
+            ref = now or datetime.now(ist)
+            if 0 <= (ref - stamped).total_seconds() <= AD_RATIO_MAX_AGE_S:
+                return float(raw), "NIFTY_50"
+        except Exception:
+            pass
+    return watchlist_ad, "WATCHLIST_PROXY"
+
+
 def make_json_serializable(obj):
     import numpy as np, pandas as pd
     if isinstance(obj, dict): return {str(k): make_json_serializable(v) for k, v in obj.items()}
@@ -351,7 +535,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 elif ltp < pc: declines += 1
                 
             dynamic_ad = advances / declines if declines > 0 else (advances if advances > 0 else 1.0)
-            ad_ratio = dynamic_ad
+            ad_ratio, ad_ratio_source = select_ad_ratio(local_fii_dii_state, dynamic_ad)
             enriched_states = {}
             for instrument_key, payload in local_active_states.items():
                 symbol = instrument_key.split('|')[-1] if '|' in instrument_key else instrument_key
@@ -371,14 +555,27 @@ async def websocket_endpoint(websocket: WebSocket):
                 except Exception as e:
                     logger.error(f"Error building structured payload for {symbol}: {e}")
                     payload_copy["structured_payload"] = dict(payload_copy)
-                    
+
+                # Attention rank (§4.6, Task 5.1): lets the Live Action grid
+                # sort by ev_r x freshness and collapse below the top N
+                # client-side without recomputing it in JS. -inf (rejected
+                # setup) is not valid JSON -- send null so a missing rank
+                # and a rejected one sort identically to the bottom.
+                try:
+                    rank = attention_rank(payload_copy.get("structured_payload") or {})
+                    payload_copy["attention_rank"] = rank if rank != float("-inf") else None
+                except Exception as e:
+                    logger.error(f"Error computing attention rank for {symbol}: {e}")
+                    payload_copy["attention_rank"] = None
+
                 enriched_states[symbol] = payload_copy
 
             payload = {
                 "global_market_context": local_macro_context,
                 "dashboard_intraday_plays": getattr(TerminalDashboard, "dashboard_intraday_plays", None),
                 "global_state": enriched_states,
-                "macro_state": {"pcr": pcr, "fii_net": fii_net, "dii_net": dii_net, "date": date_str, "ad_ratio": ad_ratio}
+                "macro_state": {"pcr": pcr, "fii_net": fii_net, "dii_net": dii_net, "date": date_str,
+                               "ad_ratio": ad_ratio, "ad_ratio_source": ad_ratio_source}
             }
             await websocket.send_json(make_json_serializable(payload))
             await asyncio.sleep(0.5)
@@ -430,8 +627,10 @@ def close_ledger_trade(req: LedgerCloseRequest):
 async def start_api_server():
     logger.info("Starting Web API Server (Port 8000)...")
     import os, json
-    playbook_path = os.path.join("trading_copilot", "playbook_state.json")
-    if os.path.exists(playbook_path):
+    # Was a CWD-relative literal: correct only when launched from the repo root,
+    # silently a no-op when launched from trading_copilot/ (as start_all.bat did).
+    playbook_path = PLAYBOOK_PATH
+    if playbook_path.exists():
         try:
             with open(playbook_path, "r") as f:
                 TerminalDashboard.dashboard_intraday_plays = json.load(f)
@@ -439,5 +638,8 @@ async def start_api_server():
         except Exception as e:
             logger.error(f"Failed to load playbook state: {e}")
             
-    config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="warning", ws_ping_interval=None)
+    # 0.0.0.0 exposed this unauthenticated API to the whole LAN (E-1). If LAN
+    # access is genuinely wanted, keep 0.0.0.0 but add a shared-secret header
+    # dependency first — do not leave it open.
+    config = uvicorn.Config(app, host="127.0.0.1", port=8000, log_level="warning", ws_ping_interval=None)
     await uvicorn.Server(config).serve()

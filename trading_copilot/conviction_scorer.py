@@ -39,74 +39,97 @@ class ConvictionScorer:
         except Exception:
             return base
 
-    def score_setup(self, semantic_payload: dict, flat_telemetry: dict) -> dict:
+    def _normalized_weights(self, regime: str, catalyst_live: bool = False) -> dict:
+        """Renormalise the component weights over the LIVE components only
+        (fixes C-1). The catalyst component is a hardcoded 0.0 pass-through
+        today, so multiplying it by w_cat just bled 10-25% of weight into
+        nothing and capped |composite| below 1.0 (0.75 in TREND_EXPANSION).
+        When catalyst is dead, w_cat is dropped from the denominator so the
+        three live components sum to 1.0."""
+        base = self._get_adaptive_weights(regime)
+        live = ["w_micro", "w_struct", "w_deriv"] + (["w_cat"] if catalyst_live else [])
+        denom = sum(base[k] for k in live) or 1.0
+        return {k: (base[k] / denom if k in live else 0.0) for k in base}
+
+    def score_setup(self, semantic_payload: dict, flat_telemetry: dict, advance_state: bool = False) -> dict:
         market_regime = semantic_payload.get("market_regime", {})
         regime = market_regime.get("current_regime", "TRANSITIONAL_DRIFT")
         session_phase = market_regime.get("session_phase", "UNKNOWN")
 
         # Step 1: Hard Rejection Guard
         if regime == "MARKET_CLOSED":
-            return self._create_rejected_output(0.0, "NEUTRAL", "MARKET_CLOSED")
+            # Nothing has been scored yet at this point -- pass None rather
+            # than fabricate zeroed-out category numbers (Task 5.2).
+            return self._create_rejected_output(0.0, "NEUTRAL", "MARKET_CLOSED",
+                                                contributions=None)
 
         # Step 2: Component Scoring (13 signals -> 4 categories)
         
         # --- Microstructure (Max abs sum: 11) ---
+        from semantic_tagger import state_of
         micro = semantic_payload.get("1_live_microstructure", {})
-        flow_div = micro.get("flow_divergence_state", "")
-        obi = micro.get("order_book_imbalance_state", "")
-        vol_regime = micro.get("volume_regime", "")
-        cost_basis = micro.get("session_cost_basis_state", "")
-        fractal = micro.get("fractal_alignment", "")
-        kinetic = micro.get("kinetic_divergence", "")
-        elasticity = micro.get("elasticity_risk", "")
-        volatility = micro.get("volatility_state", "")
+        flow_div = state_of(micro.get("flow_divergence_state")) or ""
+        obi = state_of(micro.get("order_book_imbalance_state")) or ""
+        vol_regime = state_of(micro.get("volume_regime")) or ""
+        cost_basis = state_of(micro.get("session_cost_basis_state")) or ""
+        fractal = state_of(micro.get("fractal_alignment")) or ""
+        kinetic = state_of(micro.get("kinetic_divergence")) or ""
+        elasticity = state_of(micro.get("elasticity_risk")) or ""
+        volatility = state_of(micro.get("volatility_state")) or ""
+
+        # Signal names are only recorded when a branch actually fires (Task
+        # 5.2 provenance panel) -- a non-empty tag that matched nothing is
+        # not a "firing signal", it's noise the operator doesn't need.
+        micro_signals = []
 
         micro_score = 0.0
-        if "MOMENTUM_CONFIRMED_BULLISH" in flow_div: micro_score += 3
-        elif "HIDDEN_BULLISH_ABSORPTION" in flow_div: micro_score += 2
-        elif "MOMENTUM_CONFIRMED_BEARISH" in flow_div: micro_score -= 3
-        elif "HIDDEN_BEARISH_DISTRIBUTION" in flow_div: micro_score -= 2
+        if "MOMENTUM_CONFIRMED_BULLISH" in flow_div: micro_score += 3; micro_signals.append(f"flow_divergence {flow_div}")
+        elif "HIDDEN_BULLISH_ABSORPTION" in flow_div: micro_score += 2; micro_signals.append(f"flow_divergence {flow_div}")
+        elif "MOMENTUM_CONFIRMED_BEARISH" in flow_div: micro_score -= 3; micro_signals.append(f"flow_divergence {flow_div}")
+        elif "HIDDEN_BEARISH_DISTRIBUTION" in flow_div: micro_score -= 2; micro_signals.append(f"flow_divergence {flow_div}")
 
-        if obi == "EXTREME_BID_DOMINANCE": micro_score += 1
-        elif obi == "MODERATE_BID": micro_score += 0.5
-        elif obi == "EXTREME_ASK_DOMINANCE": micro_score -= 1
-        elif obi == "MODERATE_ASK": micro_score -= 0.5
+        if obi == "EXTREME_BID_DOMINANCE": micro_score += 1; micro_signals.append(f"order_book_imbalance {obi}")
+        elif obi == "MODERATE_BID": micro_score += 0.5; micro_signals.append(f"order_book_imbalance {obi}")
+        elif obi == "EXTREME_ASK_DOMINANCE": micro_score -= 1; micro_signals.append(f"order_book_imbalance {obi}")
+        elif obi == "MODERATE_ASK": micro_score -= 0.5; micro_signals.append(f"order_book_imbalance {obi}")
 
-        if cost_basis == "EXTREME_DISCOUNT": micro_score += 1
-        elif cost_basis == "ELEVATED_DISCOUNT": micro_score += 0.5
-        elif cost_basis == "EXTREME_PREMIUM": micro_score -= 1
-        elif cost_basis == "ELEVATED_PREMIUM": micro_score -= 0.5
+        if cost_basis == "EXTREME_DISCOUNT": micro_score += 1; micro_signals.append(f"session_cost_basis {cost_basis}")
+        elif cost_basis == "ELEVATED_DISCOUNT": micro_score += 0.5; micro_signals.append(f"session_cost_basis {cost_basis}")
+        elif cost_basis == "EXTREME_PREMIUM": micro_score -= 1; micro_signals.append(f"session_cost_basis {cost_basis}")
+        elif cost_basis == "ELEVATED_PREMIUM": micro_score -= 0.5; micro_signals.append(f"session_cost_basis {cost_basis}")
 
-        if fractal == "STRONG_FRACTAL_BULL": micro_score += 2
-        elif fractal == "WEAK_FRACTAL_BULL": micro_score += 0.5
-        elif fractal == "STRONG_FRACTAL_BEAR": micro_score -= 2
-        elif fractal == "WEAK_FRACTAL_BEAR": micro_score -= 0.5
+        if fractal == "STRONG_FRACTAL_BULL": micro_score += 2; micro_signals.append(f"fractal_alignment {fractal}")
+        elif fractal == "WEAK_FRACTAL_BULL": micro_score += 0.5; micro_signals.append(f"fractal_alignment {fractal}")
+        elif fractal == "STRONG_FRACTAL_BEAR": micro_score -= 2; micro_signals.append(f"fractal_alignment {fractal}")
+        elif fractal == "WEAK_FRACTAL_BEAR": micro_score -= 0.5; micro_signals.append(f"fractal_alignment {fractal}")
 
-        if kinetic == "BULLISH_KINETIC_DIVERGENCE": micro_score += 1
-        elif kinetic == "BEARISH_KINETIC_DIVERGENCE": micro_score -= 1
+        if kinetic == "BULLISH_KINETIC_DIVERGENCE": micro_score += 1; micro_signals.append(f"kinetic_divergence {kinetic}")
+        elif kinetic == "BEARISH_KINETIC_DIVERGENCE": micro_score -= 1; micro_signals.append(f"kinetic_divergence {kinetic}")
 
-        if elasticity == "OVERSTRETCHED_MEAN_REVERSION_RISK_UP": micro_score += 2
-        elif elasticity == "OVERSTRETCHED_MEAN_REVERSION_RISK_DOWN": micro_score -= 2
+        if elasticity == "OVERSTRETCHED_MEAN_REVERSION_RISK_UP": micro_score += 2; micro_signals.append(f"elasticity_risk {elasticity}")
+        elif elasticity == "OVERSTRETCHED_MEAN_REVERSION_RISK_DOWN": micro_score -= 2; micro_signals.append(f"elasticity_risk {elasticity}")
 
         # OVERRIDE: Volume Multiplier
         if vol_regime == "TIME_ADJUSTED_SHOCK":
             micro_score *= 1.5
+            micro_signals.append(f"volume_regime {vol_regime}")
 
         micro_norm = max(min(micro_score / 5.0, 1.0), -1.0)  # Normalize and bound to [-1, 1]
 
         # --- Derivatives (Max abs sum: 4) ---
         deriv = semantic_payload.get("2_derivatives_matrix_52w", {})
-        pcr = deriv.get("pcr_regime", "")
-        vol_reg = deriv.get("volatility_regime_state", "")
-        gravity = deriv.get("options_gravity_state", "")
+        pcr = state_of(deriv.get("pcr_regime")) or ""
+        vol_reg = state_of(deriv.get("volatility_regime_state")) or ""
+        gravity = state_of(deriv.get("options_gravity_state")) or ""
 
+        deriv_signals = []
         deriv_score = 0.0
-        if pcr == "EXTREME_PUT_WRITING": deriv_score += 2
-        elif pcr == "HEAVY_CALL_RESISTANCE": deriv_score -= 2
+        if pcr == "EXTREME_PUT_WRITING": deriv_score += 2; deriv_signals.append(f"pcr_regime {pcr}")
+        elif pcr == "HEAVY_CALL_RESISTANCE": deriv_score -= 2; deriv_signals.append(f"pcr_regime {pcr}")
 
-        if gravity == "ESCAPE_VELOCITY_ACHIEVED": deriv_score += 1
-        elif gravity == "GRAVITY_MAX_IMMINENT_PULL": deriv_score -= 1
-        
+        if gravity == "ESCAPE_VELOCITY_ACHIEVED": deriv_score += 1; deriv_signals.append(f"options_gravity {gravity}")
+        elif gravity == "GRAVITY_MAX_IMMINENT_PULL": deriv_score -= 1; deriv_signals.append(f"options_gravity {gravity}")
+
         deriv_norm = max(min(deriv_score / 3.0, 1.0), -1.0)
 
         # --- Structural Edge (Max abs sum: 4) ---
@@ -117,21 +140,30 @@ class ConvictionScorer:
         prox_level = prox.get("nearest_level", "")
         prox_dir = prox.get("approach_direction", "")
 
+        struct_signals = []
         struct_score = 0.0
-        if momentum == "STRONG_ALPHA": struct_score += 2
-        elif momentum == "MODERATE_ALPHA": struct_score += 1
-        elif momentum == "SEVERE_WEAKNESS": struct_score -= 2
-        elif momentum == "MODERATE_WEAKNESS": struct_score -= 1
+        if momentum == "STRONG_ALPHA": struct_score += 2; struct_signals.append(f"momentum_confluence {momentum}")
+        elif momentum == "MODERATE_ALPHA": struct_score += 1; struct_signals.append(f"momentum_confluence {momentum}")
+        elif momentum == "SEVERE_WEAKNESS": struct_score -= 2; struct_signals.append(f"momentum_confluence {momentum}")
+        elif momentum == "MODERATE_WEAKNESS": struct_score -= 1; struct_signals.append(f"momentum_confluence {momentum}")
 
         if prox_state == "TEST_IMMINENT":
+            prox_fired = False
             if prox_level == "rolling_20d_value_area_high":
-                if prox_dir == "TESTING_FROM_BELOW": struct_score -= 2
-                elif prox_dir == "TESTING_FROM_ABOVE": struct_score += 1
+                if prox_dir == "TESTING_FROM_BELOW": struct_score -= 2; prox_fired = True
+                elif prox_dir == "TESTING_FROM_ABOVE": struct_score += 1; prox_fired = True
             elif prox_level == "rolling_20d_value_area_low":
-                if prox_dir == "TESTING_FROM_ABOVE": struct_score += 2
-                elif prox_dir == "TESTING_FROM_BELOW": struct_score -= 1
+                if prox_dir == "TESTING_FROM_ABOVE": struct_score += 2; prox_fired = True
+                elif prox_dir == "TESTING_FROM_BELOW": struct_score -= 1; prox_fired = True
             elif prox_level == "rolling_20d_poc_price":
-                struct_score += 1
+                struct_score += 1; prox_fired = True
+            if prox_fired:
+                dir_phrase = {"TESTING_FROM_ABOVE": "testing from above",
+                              "TESTING_FROM_BELOW": "testing from below"}.get(prox_dir)
+                label = f"structural_proximity {prox_state} at {prox_level}"
+                if dir_phrase:
+                    label += f" ({dir_phrase})"
+                struct_signals.append(label)
 
         struct_norm = max(min(struct_score / 3.0, 1.0), -1.0)
 
@@ -140,11 +172,52 @@ class ConvictionScorer:
         raw_news = catalyst.get("raw_news", [])
         catalyst_norm = 0.0  # Pass-through logic: qualitative news interpretation belongs in LLM Layer 2
 
-        # Step 3: Composite Calculation (Adaptive Feedback)
-        weights = self._get_adaptive_weights(regime)
+        # Step 3: Composite Calculation -- renormalise over live components so a
+        # dead catalyst weight can't cap |composite| below 1.0 (C-1).
+        catalyst_live = (catalyst_norm != 0.0)
+        weights = self._normalized_weights(regime, catalyst_live)
         w_micro, w_struct, w_deriv, w_cat = weights["w_micro"], weights["w_struct"], weights["w_deriv"], weights["w_cat"]
 
         composite = (micro_norm * w_micro) + (struct_norm * w_struct) + (deriv_norm * w_deriv) + (catalyst_norm * w_cat)
+
+        # Per-category decomposition for the provenance panel (Task 5.2,
+        # improved §5.1) -- an operator distrusts a single composite number
+        # unless they can see what it's made of. catalyst_norm is a
+        # hardcoded 0.0 pass-through (never actually scored), so its "raw"
+        # is None rather than a fabricated 0.0 -- that would claim it was
+        # measured and came up neutral, which isn't what happened.
+        contributions = {
+            "micro": {
+                "raw": round(micro_score, 3),
+                "normalized": round(micro_norm, 3),
+                "weight": round(w_micro, 3),
+                "contribution": round(micro_norm * w_micro, 3),
+                "firing_signals": micro_signals,
+            },
+            "struct": {
+                "raw": round(struct_score, 3),
+                "normalized": round(struct_norm, 3),
+                "weight": round(w_struct, 3),
+                "contribution": round(struct_norm * w_struct, 3),
+                "firing_signals": struct_signals,
+            },
+            "deriv": {
+                "raw": round(deriv_score, 3),
+                "normalized": round(deriv_norm, 3),
+                "weight": round(w_deriv, 3),
+                "contribution": round(deriv_norm * w_deriv, 3),
+                "firing_signals": deriv_signals,
+            },
+            "catalyst": {
+                "raw": None,
+                "normalized": round(catalyst_norm, 3),
+                "weight": round(w_cat, 3),
+                "contribution": round(catalyst_norm * w_cat, 3),
+                "firing_signals": [],
+                "dead": True,
+                "marker": "⚠ no catalyst input (see C-1)",
+            },
+        }
 
         # OVERRIDE: The Whipsaw Shield
         candidate_bias = "NEUTRAL"
@@ -153,44 +226,55 @@ class ConvictionScorer:
         elif composite <= -0.15:
             candidate_bias = "SHORT"
             
-        if candidate_bias in ["LONG", "SHORT"] and self.previous_bias in ["LONG", "SHORT"] and candidate_bias != self.previous_bias:
-            self.polarity_flips_today += 1
-            
-        if self.polarity_flips_today >= 3:
-            composite *= 0.5  # Apply 50% penalty to the composite score
-            self.polarity_flips_today = 0  # Reset
-            # Re-evaluate candidate bias after penalty
-            if composite >= 0.15: candidate_bias = "LONG"
-            elif composite <= -0.15: candidate_bias = "SHORT"
-            else: candidate_bias = "NEUTRAL"
+        # These three blocks mutate scorer state (polarity_flips_today,
+        # previous_bias) that the whipsaw shield depends on across calls.
+        # Only the authoritative decision loop may advance it -- a
+        # display-only caller running at a different cadence must not (A-4).
+        if advance_state:
+            if candidate_bias in ["LONG", "SHORT"] and self.previous_bias in ["LONG", "SHORT"] and candidate_bias != self.previous_bias:
+                self.polarity_flips_today += 1
 
-        if candidate_bias != "NEUTRAL":
-            self.previous_bias = candidate_bias
+            if self.polarity_flips_today >= 3:
+                composite *= 0.5  # Apply 50% penalty to the composite score
+                self.polarity_flips_today = 0  # Reset
+                # Re-evaluate candidate bias after penalty
+                if composite >= 0.15: candidate_bias = "LONG"
+                elif composite <= -0.15: candidate_bias = "SHORT"
+                else: candidate_bias = "NEUTRAL"
+
+            if candidate_bias != "NEUTRAL":
+                self.previous_bias = candidate_bias
 
         composite = round(composite, 2)
         bias = candidate_bias
 
         # Step 4: Bias Determination
         if bias == "NEUTRAL":
-            return self._create_rejected_output(composite, bias, "NEUTRAL_CONVICTION")
+            return self._create_rejected_output(composite, bias, "NEUTRAL_CONVICTION",
+                                                contributions=contributions)
 
         # Step 5: Regime-Specific Hard Kills
         if regime == "MEAN_REVERSION_IMMINENT":
             if bias == "LONG" and "RISK_DOWN" in elasticity:
-                return self._create_rejected_output(composite, bias, "MEAN_REVERSION_DIRECTIONAL_CONFLICT")
+                return self._create_rejected_output(composite, bias, "MEAN_REVERSION_DIRECTIONAL_CONFLICT",
+                                                    contributions=contributions)
             if bias == "SHORT" and "RISK_UP" in elasticity:
-                return self._create_rejected_output(composite, bias, "MEAN_REVERSION_DIRECTIONAL_CONFLICT")
+                return self._create_rejected_output(composite, bias, "MEAN_REVERSION_DIRECTIONAL_CONFLICT",
+                                                    contributions=contributions)
 
         if regime == "RANGE_BOUND_CHOP" and prox_state == "TEST_IMMINENT":
             if bias == "LONG" and prox_dir == "TESTING_FROM_BELOW" and "value_area_high" in prox_level:
-                return self._create_rejected_output(composite, bias, "CHOP_PROXIMITY_CONFLICT")
+                return self._create_rejected_output(composite, bias, "CHOP_PROXIMITY_CONFLICT",
+                                                    contributions=contributions)
             elif bias == "SHORT" and prox_dir == "TESTING_FROM_ABOVE" and "value_area_low" in prox_level:
-                return self._create_rejected_output(composite, bias, "CHOP_PROXIMITY_CONFLICT")
+                return self._create_rejected_output(composite, bias, "CHOP_PROXIMITY_CONFLICT",
+                                                    contributions=contributions)
 
         # Step 6: Dynamic Geometric Risk Gateway & Expectancy Matrix
         ltp = flat_telemetry.get("ltp")
         if not ltp or ltp <= 0:
-             return self._create_rejected_output(composite, bias, "INVALID_LTP")
+             return self._create_rejected_output(composite, bias, "INVALID_LTP",
+                                                 contributions=contributions)
 
         cam = struct.get("camarilla_pivots", {})
         
@@ -219,7 +303,7 @@ class ConvictionScorer:
         if nearest_floor == 0.0:
             nearest_floor = ltp - (2.0 * atr_15m)
 
-        vol_state = deriv.get("volatility_regime_state", "")
+        vol_state = state_of(deriv.get("volatility_regime_state")) or ""
         if vol_state == 'EXTREME_EXPANSION': atr_mult = 1.0
         elif vol_state == 'ELEVATED_VOLATILITY': atr_mult = 0.75
         elif vol_state == 'PREMIUM_COMPRESSION': atr_mult = 0.30
@@ -259,24 +343,59 @@ class ConvictionScorer:
         risk = abs(calculated_entry - padded_stop)
         reward = abs(target - calculated_entry)
 
-        effective_risk = risk + (0.1 * atr_5m)
-        effective_reward = max(0.0001, reward - (0.1 * atr_5m))
+        # Real round-trip charges (improved §4.3.2), not just the old
+        # +/-0.1*ATR5m slippage stub. cost_abs is in price units per share.
+        from core.costs import load_costs, round_trip_cost_pct
+        slippage = 0.1 * atr_5m
+        cost_pct = round_trip_cost_pct(calculated_entry, target, load_costs())
+        cost_abs = calculated_entry * cost_pct / 100.0
+        effective_risk = risk + slippage + cost_abs
+        effective_reward = max(0.0001, reward - slippage - cost_abs)
 
-        import math
-        # Multiply absolute score by 4.5 to stretch the logistic curve
-        raw_prob = 1 / (1 + math.exp(-(abs(composite) * 4.5)))
-        # Dampen slightly to cap absolute perfection at ~92%
-        p_implied = 0.50 + ((raw_prob - 0.50) * 0.85)
-        
+        # The old `0.50 + 0.85*(sigmoid(4.5*|composite|) - 0.50)` was not a
+        # probability -- just a rescaling of the score with two magic
+        # constants, never fitted against a single realised outcome, yet
+        # rendered as confidence and handed to the LLM as ground truth
+        # (improved §4.2 / C-1). Report the measured probability, or none.
+        from core.calibration import (implied_probability, load_calibration,
+                                      calibration_status)
+        cal = load_calibration()
+        p_implied = implied_probability(composite, regime, cal)
+
+        # Breakeven comes from the geometry, so it stays measurable either way.
         p_breakeven = effective_risk / (effective_risk + effective_reward)
-        stat_edge = p_implied - p_breakeven
+        reward_risk = effective_reward / effective_risk if effective_risk > 0 else 0.0
+        stat_edge = (p_implied - p_breakeven) if p_implied is not None else None
 
-        if stat_edge < 0.05:
-             return self._create_rejected_output(
-                 composite, bias, "INSUFFICIENT_STATISTICAL_EDGE",
-                 geometry={"calculated_entry": round(calculated_entry, 2), "padded_stop": round(padded_stop, 2), "calculated_target": round(target, 2), "effective_risk": round(effective_risk, 2), "effective_reward": round(effective_reward, 2)},
-                 expectancy_matrix={"implied_probability": round(p_implied, 2), "breakeven_probability": round(p_breakeven, 2), "statistical_edge": round(stat_edge, 2)}
-             )
+        expectancy = {
+            "implied_probability": round(p_implied, 2) if p_implied is not None else None,
+            "breakeven_probability": round(p_breakeven, 2),
+            "reward_risk": round(reward_risk, 2),
+            "statistical_edge": round(stat_edge, 2) if stat_edge is not None else None,
+            "calibration_status": calibration_status(cal),
+        }
+        geometry = {
+            "calculated_entry": round(calculated_entry, 2),
+            "padded_stop": round(padded_stop, 2),
+            "calculated_target": round(target, 2),
+            "effective_risk": round(effective_risk, 2),
+            "effective_reward": round(effective_reward, 2),
+        }
+
+        # Gate on measured edge when calibrated; on reward:risk alone while
+        # uncalibrated -- never on an invented probability.
+        if stat_edge is not None:
+            if stat_edge < self._cfg_gate("min_stat_edge", 0.05):
+                return self._create_rejected_output(
+                    composite, bias, "INSUFFICIENT_STATISTICAL_EDGE",
+                    geometry=geometry, expectancy_matrix=expectancy,
+                    contributions=contributions)
+        else:
+            if reward_risk < self._cfg_conviction("min_reward_risk", 1.5):
+                return self._create_rejected_output(
+                    composite, bias, "INSUFFICIENT_REWARD_RISK",
+                    geometry=geometry, expectancy_matrix=expectancy,
+                    contributions=contributions)
 
         # Step 7: Output
         return {
@@ -284,28 +403,37 @@ class ConvictionScorer:
             "composite_score": composite,
             "setup_rejected": False,
             "rejection_reason": None,
-            "execution_geometry": {
-                "calculated_entry": round(calculated_entry, 2),
-                "padded_stop": round(padded_stop, 2),
-                "calculated_target": round(target, 2),
-                "effective_risk": round(effective_risk, 2),
-                "effective_reward": round(effective_reward, 2)
-            },
-            "expectancy_matrix": {
-                "implied_probability": round(p_implied, 2),
-                "breakeven_probability": round(p_breakeven, 2),
-                "statistical_edge": round(stat_edge, 2)
-            }
+            "execution_geometry": geometry,
+            "expectancy_matrix": expectancy,
+            "contributions": contributions,
         }
 
-    def _create_rejected_output(self, score: float, bias: str, reason: str, geometry: dict = None, expectancy_matrix: dict = None) -> dict:
+    @staticmethod
+    def _cfg_gate(key: str, default):
+        try:
+            from core.policy_config import load_policy
+            return load_policy().gates.get(key, default)
+        except Exception:
+            return default
+
+    @staticmethod
+    def _cfg_conviction(key: str, default):
+        try:
+            from core.policy_config import load_policy
+            return load_policy().conviction.get(key, default)
+        except Exception:
+            return default
+
+    def _create_rejected_output(self, score: float, bias: str, reason: str, geometry: dict = None,
+                                expectancy_matrix: dict = None, contributions: dict = None) -> dict:
         return {
             "directional_bias": bias,
             "composite_score": score,
             "setup_rejected": True,
             "rejection_reason": reason,
             "execution_geometry": geometry,
-            "expectancy_matrix": expectancy_matrix
+            "expectancy_matrix": expectancy_matrix,
+            "contributions": contributions,
         }
 
 class ConvictionScorerRegistry:

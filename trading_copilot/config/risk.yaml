@@ -1,0 +1,8 @@
+# L3 risk limits (improved §4.3). Tune `capital` to the real trading
+# account; the rest are conservative defaults.
+
+capital: 1000000            # deployable capital, rupees
+risk_per_trade_pct: 0.5     # % of capital risked at the stop, per trade
+max_daily_loss_pct: 2.0     # circuit breaker: stop opening new trades past this
+max_cluster_risk_pct: 1.0   # aggregate risk budget across one correlation cluster
+max_adv_participation: 0.02 # never size beyond 2% of the 20-session avg volume

@@ -19,7 +19,8 @@ from config import load_watchlist_from_csv
 
 app = FastAPI(title="News Scraper Daemon")
 
-csv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "watchlist.csv")
+from paths import WATCHLIST_PATH
+csv_path = str(WATCHLIST_PATH)
 WATCHLIST = load_watchlist_from_csv(csv_path)
 
 class NewsInstantRequest(BaseModel):

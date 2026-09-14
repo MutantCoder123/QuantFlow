@@ -336,7 +336,6 @@ graph TD
     rolling_state_engine --> technical_engine["technical_engine.py"]
     rolling_state_engine --> diagnostic_ui
     rolling_state_engine --> derivatives_engine["derivatives_engine.py"]
-    rolling_state_engine --> macro_eod_engine["macro_eod_engine.py"]
     rolling_state_engine --> macro_worker["macro_worker.py"]
     rolling_state_engine --> microstructure_engine["microstructure_engine.py"]
     rolling_state_engine --> news_engine["news_engine.py"]
@@ -361,14 +360,13 @@ graph TD
     signal_ledger --> diagnostic_ui
 
     diagnostic_ui --> derivatives_engine
-    diagnostic_ui --> macro_eod_engine
 ```
 
 ---
 
 ## 8. Launch Order & `start_all.bat`
 
-The [start_all.bat](file:///c:/Users/niltk/OneDrive/Desktop/SKILLS/Projects/AlgoTrade/trading_copilot/start_all.bat) script is **outdated** — it references `smart_api_feed.py` and `nse_feed.py` (legacy Angel One integration). The current architecture requires:
+The [start_all.bat](file:///c:/Users/niltk/OneDrive/Desktop/SKILLS/Projects/AlgoTrade/trading_copilot/start_all.bat) script was fixed in Task 0.11 and now launches the services that actually run (`upstox_feed.py`, `news_feed.py`, `macro_worker.py`, `main.py`). It previously referenced `smart_api_feed.py` (dead Angel One code, deleted in Task 5.6) and `nse_feed.py` (never existed); those names survive only in an explanatory comment at the top of the file. The launch sequence it implements:
 
 ### Correct Launch Sequence
 

@@ -1,9 +1,23 @@
+def state_of(v):
+    """A semantic field is either a bare tag string or {"state": tag, <scalars>}.
+
+    Consumers that only branch on the tag call this to accept both shapes
+    (improved §4.7 keeps the numbers alongside the tag without breaking the
+    string-comparison call sites)."""
+    return v.get("state") if isinstance(v, dict) else v
+
+
 class SemanticTagger:
     """
-    Translates raw Flat Telemetry JSON into heavily compressed, text-optimized 
-    Structured JSON payloads for the LLM. Prevents aggressive dimensionality 
-    reduction by mapping statistical anomalies (Z-scores/Percentiles) and 
+    Translates raw Flat Telemetry JSON into heavily compressed, text-optimized
+    Structured JSON payloads for the LLM. Prevents aggressive dimensionality
+    reduction by mapping statistical anomalies (Z-scores/Percentiles) and
     structural proximities rather than arbitrary absolute floats.
+
+    Block-1/2/3 fields that have a meaningful underlying scalar are emitted
+    as {"state": <tag>, <scalar_name>: <value>} so the LLM (and any future
+    calibration) sees the number, not just the bucket. Pass-through fields
+    with no local scalar stay bare strings; state_of() normalises both.
     """
 
     @classmethod
@@ -101,10 +115,13 @@ class SemanticTagger:
             order_book_imbalance_state = "BALANCED"
             
         block_1 = {
-            "session_cost_basis_state": session_cost_basis_state,
-            "volume_regime": volume_regime,
-            "flow_divergence_state": flow_divergence_state,
-            "order_book_imbalance_state": order_book_imbalance_state,
+            "session_cost_basis_state": {"state": session_cost_basis_state,
+                                         "vwap_atr_ratio": round(ratio_vwap, 3)},
+            "volume_regime": {"state": volume_regime, "vol_z": vol_z_score_5m},
+            "flow_divergence_state": {"state": flow_divergence_state,
+                                      "whale_slope": whale_cvd_slope,
+                                      "price_to_vwap_pct": price_to_vwap_pct},
+            "order_book_imbalance_state": {"state": order_book_imbalance_state, "obi": obi},
             "fractal_alignment": flat.get("fractal_alignment", "CONFLICTING_CHOP"),
             "elasticity_risk": flat.get("elasticity_risk", "EQUILIBRIUM"),
             "kinetic_divergence": flat.get("kinetic_divergence", "MOMENTUM_CONFIRMED"),
@@ -129,9 +146,10 @@ class SemanticTagger:
             volatility_regime_state = "NORMAL_PRICING"
             
         max_pain = flat.get("max_pain_price")
+        ratio_mp = None
         if max_pain:
             dist_to_mp = abs(ltp - max_pain)
-            ratio_mp = dist_to_mp / atr_1d
+            ratio_mp = round(dist_to_mp / atr_1d, 3)
             if ratio_mp < 0.3:
                 options_gravity_state = "GRAVITY_MAX_IMMINENT_PULL"
             elif ratio_mp > 2.0:
@@ -153,9 +171,9 @@ class SemanticTagger:
             pcr_regime = "NORMAL"
             
         block_2 = {
-            "volatility_regime_state": volatility_regime_state,
-            "options_gravity_state": options_gravity_state,
-            "pcr_regime": pcr_regime
+            "volatility_regime_state": {"state": volatility_regime_state, "iv_pct": iv_pct},
+            "options_gravity_state": {"state": options_gravity_state, "mp_atr_ratio": ratio_mp},
+            "pcr_regime": {"state": pcr_regime, "pcr_pct": pcr_pct}
         }
 
         # ---------------------------------------------------------------------
