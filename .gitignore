@@ -36,3 +36,6 @@ tab_html3.txt
 # tests/test_*.py which are tracked (that directory is explicitly excluded
 # by !tests/ below since "test_*.py" would otherwise also match inside it).
 !tests/test_*.py
+
+# Runtime debug dumps
+trading_copilot/cache/derivatives_debug.json
