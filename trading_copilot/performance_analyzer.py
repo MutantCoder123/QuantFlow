@@ -30,6 +30,28 @@ class PerformanceAnalyzer:
             return 90
 
     @staticmethod
+    def _partition(signals: list) -> tuple:
+        """(measurable, legacy) under the horizon config in force.
+
+        A record that cannot be attributed to that config -- graded at a
+        retired checkpoint, or written by the pre-C-3 resolver -- has no
+        outcome at the primary horizon, and _compute_metrics reads the missing
+        key as a LOSS. It is excluded and counted instead. An early stop or
+        target hit is the opposite case: the trade is closed, so normalise()
+        projects that hit onto the primary keys and it is measured. Every
+        aggregate over the ledger goes through here (core.outcome_schema).
+        """
+        from core.outcome_schema import LEGACY, classify, measure_at_minutes, normalise
+        mins = measure_at_minutes()
+        legacy, measurable = [], []
+        for s in signals:
+            if classify(s, mins) == LEGACY:
+                legacy.append(s)
+            else:
+                measurable.append(normalise(s, mins) or s)   # None => still pending
+        return measurable, legacy
+
+    @staticmethod
     def _compute_metrics(signals: list) -> dict:
         if not signals:
             return {}
@@ -142,12 +164,8 @@ class PerformanceAnalyzer:
         stopped out or target-hit EARLY is measured, not excluded: the trade
         is over, and that is its outcome (core.outcome_schema).
         """
-        from core.outcome_schema import (LEGACY, classify, measure_at_minutes,
-                                          normalise)
-
         today = [s for s in signals if s.get("session_date") == session_date]
         primary = PerformanceAnalyzer._primary_minute()
-        mins = measure_at_minutes()
 
         # A signal that cannot be attributed to the horizon config in force --
         # graded at a retired checkpoint, or written by the pre-C-3 resolver --
@@ -161,12 +179,7 @@ class PerformanceAnalyzer:
         # shared _compute_metrics reads it. Excluding those instead would leave
         # a win rate computed only from trades that hit neither stop nor
         # target -- a survivorship-filtered sample (see core.outcome_schema).
-        legacy, measurable = [], []
-        for s in today:
-            if classify(s, mins) == LEGACY:
-                legacy.append(s)
-            else:
-                measurable.append(normalise(s, mins) or s)   # None => still pending
+        measurable, legacy = PerformanceAnalyzer._partition(today)
 
         base = {
             "session_date": session_date,
@@ -208,19 +221,24 @@ class PerformanceAnalyzer:
 
     @staticmethod
     def compute_regime_accuracy(last_n_days: int = 30) -> dict:
-        return PerformanceAnalyzer._regime_accuracy_from(SignalLedger.load_all_signals(last_n_days))
+        measurable, _ = PerformanceAnalyzer._partition(SignalLedger.load_all_signals(last_n_days))
+        return PerformanceAnalyzer._regime_accuracy_from(measurable)
 
     @staticmethod
     def compute_symbol_accuracy(last_n_days: int = 30) -> dict:
-        return PerformanceAnalyzer._symbol_accuracy_from(SignalLedger.load_all_signals(last_n_days))
+        measurable, _ = PerformanceAnalyzer._partition(SignalLedger.load_all_signals(last_n_days))
+        return PerformanceAnalyzer._symbol_accuracy_from(measurable)
 
     @staticmethod
     def compute_dashboard(last_n_days: int = 30) -> dict:
-        signals = SignalLedger.load_all_signals(last_n_days)   # ONE load for all three
+        # ONE load for all three views
+        measurable, legacy = PerformanceAnalyzer._partition(
+            SignalLedger.load_all_signals(last_n_days))
         return {
-            "overall": PerformanceAnalyzer._compute_metrics(signals),
-            "by_regime": PerformanceAnalyzer._regime_accuracy_from(signals),
-            "by_symbol": PerformanceAnalyzer._symbol_accuracy_from(signals),
+            "overall": PerformanceAnalyzer._compute_metrics(measurable),
+            "by_regime": PerformanceAnalyzer._regime_accuracy_from(measurable),
+            "by_symbol": PerformanceAnalyzer._symbol_accuracy_from(measurable),
+            "legacy_excluded": len(legacy),
         }
 
     @staticmethod
@@ -230,11 +248,7 @@ class PerformanceAnalyzer:
         if cls._cache is not None and (now - cls._cache_ts) < cls._TTL:
             return cls._cache
         try:
-            from core.outcome_schema import (LEGACY, classify, measure_at_minutes,
-                                             normalise)
-
             raw = SignalLedger.load_all_signals(last_n_days)       # ONE load
-            mins = measure_at_minutes()
 
             # This payload is not a report -- conviction_scorer feeds it back
             # into the LIVE component weights. A record that cannot be
@@ -247,14 +261,7 @@ class PerformanceAnalyzer:
             # _get_adaptive_weights, so they helped open the gate they then
             # poisoned. Excluded and counted, exactly as the session review and
             # the reliability curve do (core.outcome_schema).
-            legacy, measurable = [], []
-            for s in raw:
-                if classify(s, mins) == LEGACY:
-                    legacy.append(s)
-                else:
-                    measurable.append(normalise(s, mins) or s)   # None => still pending
-
-            signals = measurable
+            signals, legacy = cls._partition(raw)
             metrics = cls._compute_metrics(signals)
 
             if metrics.get("total_resolved", 0) == 0:
