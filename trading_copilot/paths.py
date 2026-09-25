@@ -21,7 +21,6 @@ LOGS_DIR = BASE_DIR / "logs"
 
 WATCHLIST_PATH = BASE_DIR / "watchlist.csv"
 TOKEN_PATH = BASE_DIR / "upstox_token.json"
-PLAYBOOK_PATH = BASE_DIR / "playbook_state.json"
 
 MACRO_BASELINES_PATH = DATA_DIR / "macro_baselines.json"
 INSTITUTIONAL_FLOW_PATH = DATA_DIR / "institutional_flow.json"

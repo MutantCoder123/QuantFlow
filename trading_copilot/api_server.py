@@ -15,7 +15,7 @@ from diagnostic_ui import TerminalDashboard
 from config import load_watchlist_from_csv
 from reasoning_engine import ReasoningEngine, attention_rank
 from history_manager import HistoryManager
-from paths import INSTITUTIONAL_FLOW_PATH, PLAYBOOK_PATH, WATCHLIST_PATH, ensure_dirs
+from paths import INSTITUTIONAL_FLOW_PATH, WATCHLIST_PATH, ensure_dirs
 
 ensure_dirs()
 
@@ -34,6 +34,16 @@ app.add_middleware(
 
 watchlist_path = str(WATCHLIST_PATH)
 watchlist = load_watchlist_from_csv(watchlist_path)
+
+
+def _reload_watchlist() -> dict:
+    """Re-read watchlist.csv. It has a writer in each process -- a Discovery
+    run in the feed process, manual edits here -- so a copy loaded once at
+    import goes stale, and rebuilding the file from that copy silently
+    reverts the other process's write. Small file; read it every time."""
+    global watchlist
+    watchlist = load_watchlist_from_csv(watchlist_path)
+    return watchlist
 
 local_active_states = {}
 local_macro_state = {}
@@ -121,8 +131,14 @@ async def get_dashboard():
     except FileNotFoundError:
         return HTMLResponse(content="<h1>templates/index.html not found.</h1>", status_code=404)
 
-@app.post("/api/run-screener")
-async def run_screener(): return await proxy_post(8001, "/api/run-screener")
+# Discovery runs in the feed process (port 8001): it owns the Upstox
+# client, the live state, and the watchlist it updates. It is a background
+# job there -- start returns at once, the UI polls status.
+@app.post("/api/discovery/run")
+async def run_discovery(): return await proxy_post(8001, "/api/discovery/run", timeout=10)
+
+@app.get("/api/discovery/status")
+async def discovery_status(): return await proxy_get(8001, "/api/discovery/status", timeout=5)
 
 # /api/map-option-tokens was removed (A-11): it proxied to a route that only
 # ever existed on the dead Angel One smart_api_feed.py, never on the live
@@ -370,18 +386,6 @@ async def get_latest_report(symbol: str):
 class NewsInstantRequest(BaseModel): model: str = "gemini-2.5-flash"
 class NewsStartRequest(BaseModel): interval: int = 120; model: str = "gemini-2.5-flash"
 
-@app.post("/api/reasoning/playbook/generate")
-async def generate_playbook(req: NewsInstantRequest):
-    # Discovery is temporarily disabled (Task 5.5 step 0): the plan's own
-    # self-review (A-7) found generate_intraday_playbook runs a full-universe
-    # screener sweep synchronously inside the shared asyncio event loop
-    # (blocking it), and enriches candidates against TerminalDashboard's tiny
-    # live-watchlist keyspace so obi/cvd come back "N/A" for nearly everyone.
-    # Fixing screener_engine's scoring alone does not fix either of those.
-    # generate_intraday_playbook itself is left in place, just no longer
-    # called from here.
-    return {"status": "disabled", "message": "Discovery is temporarily disabled: it blocks the shared event loop and enriches candidates outside the live watchlist (A-7 not yet fixed)."}
-
 @app.post("/api/news/instant")
 async def instant_news_fetch(req: NewsInstantRequest): return await proxy_post(8003, "/api/news/instant", {"model": req.model})
 
@@ -414,7 +418,7 @@ async def search_token_api(q: str):
     return {"status": "success", "data": results}
 
 @app.get("/api/watchlist")
-async def get_watchlist(): return {"status": "success", "data": [{"token": k, "symbol": v["symbol"], "exchange": v["exchange"]} for k, v in watchlist.items()]}
+async def get_watchlist(): return {"status": "success", "data": [{"token": k, "symbol": v["symbol"], "exchange": v["exchange"]} for k, v in _reload_watchlist().items()]}
 
 class WatchlistUpdateRequest(BaseModel): items: list[dict]
 
@@ -422,6 +426,7 @@ class WatchlistUpdateRequest(BaseModel): items: list[dict]
 async def update_watchlist(req: WatchlistUpdateRequest):
     global watchlist
     try:
+        _reload_watchlist()       # "new" must mean new relative to the file, not a stale copy
         with open(watchlist_path, mode="w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow(["Token", "Symbol", "Exchange"])
@@ -451,8 +456,7 @@ class WatchlistAddRequest(BaseModel):
 
 @app.post("/api/watchlist/add")
 async def add_to_watchlist(req: WatchlistAddRequest):
-    global watchlist
-    if req.token in watchlist:
+    if req.token in _reload_watchlist():
         return {"status": "success", "message": "Already in watchlist."}
     
     current_items = [{"token": k, "symbol": v["symbol"], "exchange": v["exchange"]} for k, v in watchlist.items()]
@@ -572,7 +576,6 @@ async def websocket_endpoint(websocket: WebSocket):
 
             payload = {
                 "global_market_context": local_macro_context,
-                "dashboard_intraday_plays": getattr(TerminalDashboard, "dashboard_intraday_plays", None),
                 "global_state": enriched_states,
                 "macro_state": {"pcr": pcr, "fii_net": fii_net, "dii_net": dii_net, "date": date_str,
                                "ad_ratio": ad_ratio, "ad_ratio_source": ad_ratio_source}
@@ -626,18 +629,6 @@ def close_ledger_trade(req: LedgerCloseRequest):
 
 async def start_api_server():
     logger.info("Starting Web API Server (Port 8000)...")
-    import os, json
-    # Was a CWD-relative literal: correct only when launched from the repo root,
-    # silently a no-op when launched from trading_copilot/ (as start_all.bat did).
-    playbook_path = PLAYBOOK_PATH
-    if playbook_path.exists():
-        try:
-            with open(playbook_path, "r") as f:
-                TerminalDashboard.dashboard_intraday_plays = json.load(f)
-            logger.info("Loaded saved playbook state.")
-        except Exception as e:
-            logger.error(f"Failed to load playbook state: {e}")
-            
     # 0.0.0.0 exposed this unauthenticated API to the whole LAN (E-1). If LAN
     # access is genuinely wanted, keep 0.0.0.0 but add a shared-secret header
     # dependency first — do not leave it open.

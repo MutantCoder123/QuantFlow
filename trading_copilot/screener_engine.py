@@ -213,6 +213,10 @@ class PreMarketScreener:
         self.smart_connect = smart_connect
         self.watchlist_file = os.path.join(os.path.dirname(__file__), "watchlist.csv")
         self.fetcher = HistoricalFetcher()
+        # The bounded selection the last run_scan wrote to watchlist.csv, or
+        # None if selection failed and the file was left alone. Discovery
+        # applies exactly this to the live feed -- never top_picks.
+        self.selected = None
 
     async def _process_single_stock(self, token, metadata, nifty_df, catalyst_cache):
         try:
@@ -309,8 +313,10 @@ class PreMarketScreener:
             logger.error(f"Failed on {metadata.get('symbol', token)}: [{type(e).__name__}] {e}")
             return None
 
-    async def run_scan(self):
+    async def run_scan(self, progress=None):
+        """`progress(scanned, total)` is called after each batch."""
         logger.info("Initiating Phase 0 Pre-Market Screener...")
+        self.selected = None
         
         # Fetch News Catalyst Cache
         catalyst_cache = {}
@@ -352,6 +358,9 @@ class PreMarketScreener:
                 elif r is not None:
                     all_results.append(r)
                     
+            if progress is not None:
+                progress(min(i + chunk_size, len(tokens)), len(tokens))
+
             # CRITICAL: Physical delay to respect API limits (max 3/sec)
             await asyncio.sleep(1.0)
             
@@ -372,17 +381,10 @@ class PreMarketScreener:
         # previous-watchlist symbol that scored just outside the top 20 can
         # still be found and scored for churn-cap comparison.
         #
-        # NOTE (fix-round 1 review, Important #2): the only remaining caller
-        # of run_scan() after Task 5.5 step 0 is POST /api/run-screener,
-        # which runs inside the live ingestion process (upstox_feed.py).
-        # That process reads watchlist.csv once at startup into an in-memory
-        # WATCHLIST and never reloads it, so a screener run mid-session
-        # writes this file out from under it -- the live process's
-        # in-memory watchlist silently diverges from watchlist.csv until the
-        # next restart. Not a crash, doesn't fabricate data, but is a real
-        # new side effect this task introduces; a proper fix (reload-on-
-        # write, or moving the write to a process that owns the file) is
-        # out of scope here.
+        # Only the feed process calls this (POST /api/discovery/run), and it
+        # applies `self.selected` to its live watchlist straight after, so
+        # the file and the running session no longer drift apart (additions
+        # go live; removals take effect at the next restart and are reported).
         try:
             policy = load_watchlist_policy()
             clusters = load_clusters()
@@ -391,7 +393,8 @@ class PreMarketScreener:
             previous_symbols = [v.get("symbol", "") for v in previous_watchlist.values()
                                  if str(v.get("symbol", "")).upper() not in core_symbols]
             bounded = select_bounded_watchlist(filtered, previous_symbols, policy, clusters)
-            self._update_watchlist(bounded)
+            if self._update_watchlist(bounded):
+                self.selected = bounded
         except Exception as e:
             logger.error(f"Bounded watchlist selection failed; watchlist.csv left unchanged: {e}")
 
@@ -400,7 +403,7 @@ class PreMarketScreener:
     def _update_watchlist(self, top_picks):
         if not top_picks:
             logger.warning("No stocks passed the screener filter. Watchlist unchanged.")
-            return
+            return False
             
         logger.info(f"Overwriting watchlist.csv with top {len(top_picks)} candidates.")
         with open(self.watchlist_file, 'w', newline='') as f:
@@ -409,3 +412,4 @@ class PreMarketScreener:
             writer.writerow(['Token', 'Symbol', 'Exchange'])
             for pick in top_picks:
                 writer.writerow([pick['token'], pick['symbol'], pick['exchange']])
+        return True

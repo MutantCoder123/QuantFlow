@@ -471,56 +471,55 @@ async def get_bars(token: str, request: Request, n: int = 300):
     df = (eng.dfs.get(token) or {}).get("ltf_df")
     return make_json_serializable(build_bars_response(df, n))
 
-@app.post("/api/watchlist/update")
-async def update_watchlist(request: Request):
-    data = await request.json()
-    items = data.get("items", [])
-    
-    if not hasattr(request.app.state, "watchlist"):
-        return {"status": "error", "message": "Streamer not initialized yet"}
-        
-    watchlist = request.app.state.watchlist
-    rolling_engine = request.app.state.rolling_engine
-    stream_manager = request.app.state.stream_manager
-    fetcher = request.app.state.fetcher
-    upstox_api_client = request.app.state.upstox_api_client
-    
-    from historical_engine import HistoricalFetcher
-    
+async def apply_watchlist_additions(state, items: list) -> list:
+    """Bring new tokens live in this process: warm their history, register
+    them with the rolling engine, and subscribe the websocket. Tokens already
+    on the live watchlist are skipped. Returns the tokens actually added.
+
+    Shared by the manual watchlist update and Discovery, so there is one way
+    a symbol joins a running session."""
+    watchlist = state.watchlist
+    stream_manager = state.stream_manager
+
+    import scrip_master_engine
+
     new_equities = []
     new_options = []
     new_watchlist_entries = {}
-    
-    import scrip_master_engine
-    
+
     for item in items:
         token = str(item["token"])
-        if token not in watchlist:
-            new_watchlist_entries[token] = item
-            watchlist[token] = item
-            
-            clean_sym = item['symbol'].split('-')[0]
-            if item['exchange'] == "NSE":
-                ikey = scrip_master_engine.get_instrument_key(clean_sym)
-                new_equities.append(ikey)
-                stream_manager.reverse_map[ikey] = f"NSE_EQ|{clean_sym}"
-            elif item['exchange'] == "NFO":
-                ikey = scrip_master_engine.get_instrument_key(clean_sym)
-                new_options.append(ikey)
-                stream_manager.reverse_map[ikey] = f"NSE_FO|{clean_sym}"
+        if token in watchlist:
+            continue
+        # Startup rows come from csv.DictReader over watchlist.csv
+        # (Token/Symbol/Exchange). Carry both spellings so every reader --
+        # _resolve_symbol, fetch_batch_warmups, derivatives_worker -- finds it.
+        row = {"token": token, "symbol": item["symbol"], "exchange": item["exchange"],
+               "Token": token, "Symbol": item["symbol"], "Exchange": item["exchange"]}
+        new_watchlist_entries[token] = row
+        watchlist[token] = row
 
-                
+        clean_sym = item["symbol"].split("-")[0]
+        if item["exchange"] == "NSE":
+            ikey = scrip_master_engine.get_instrument_key(clean_sym)
+            new_equities.append(ikey)
+            stream_manager.reverse_map[ikey] = f"NSE_EQ|{clean_sym}"
+        elif item["exchange"] == "NFO":
+            ikey = scrip_master_engine.get_instrument_key(clean_sym)
+            new_options.append(ikey)
+            stream_manager.reverse_map[ikey] = f"NSE_FO|{clean_sym}"
+
     if new_watchlist_entries:
         logger.info(f"Dynamically adding new tokens to feed: {list(new_watchlist_entries.keys())}")
-        
+
         # 1. Fetch warmups
-        new_warmups = await fetcher.fetch_batch_warmups(upstox_api_client, new_watchlist_entries)
-        
+        new_warmups = await state.fetcher.fetch_batch_warmups(state.upstox_api_client, new_watchlist_entries)
+
         # 2. Add to rolling engine
-        rolling_engine.watchlist.update(new_watchlist_entries)
+        state.rolling_engine.watchlist.update(new_watchlist_entries)
         for k, v in new_warmups.items():
-            rolling_engine.dfs[k] = v
-                
+            state.rolling_engine.dfs[k] = v
+
         # 3. Subscribe live
         if new_equities:
             logger.info(f"Subscribing Equities: {new_equities}")
@@ -528,21 +527,63 @@ async def update_watchlist(request: Request):
         if new_options:
             logger.info(f"Subscribing Options: {new_options}")
             stream_manager.stream_options.subscribe(new_options, "option_greeks")
-            
-    return {"status": "success", "added": list(new_watchlist_entries.keys())}
 
-@app.post("/api/run-screener")
-async def run_screener_api(request: Request):
-    if not hasattr(request.app.state, "upstox_api_client"):
+    return list(new_watchlist_entries.keys())
+
+
+async def apply_discovery_selection(state, selected: list) -> tuple:
+    """(live_added, removals_deferred) for a Discovery selection.
+
+    Additions go live now. Removals do not: unsubscribing mid-session would
+    silently drop monitoring on a stock that may hold an open position.
+    watchlist.csv already reflects the new selection, so a dropped symbol
+    leaves at the next restart; until then it is reported, not hidden."""
+    added = await apply_watchlist_additions(state, selected)
+    keep = {str(s["token"]) for s in selected}
+    deferred = [{"token": tok, "symbol": row.get("Symbol") or row.get("symbol", "")}
+                for tok, row in state.watchlist.items() if tok not in keep]
+    return added, deferred
+
+
+@app.post("/api/watchlist/update")
+async def update_watchlist(request: Request):
+    data = await request.json()
+    if not hasattr(request.app.state, "watchlist"):
         return {"status": "error", "message": "Streamer not initialized yet"}
-    try:
-        from screener_engine import PreMarketScreener
-        screener = PreMarketScreener(request.app.state.upstox_api_client)
-        picks = await screener.run_scan()
-        return {"status": "success", "data": picks}
-    except Exception as e:
-        logger.error(f"Screener Error: {e}")
-        return {"status": "error", "message": str(e)}
+    added = await apply_watchlist_additions(request.app.state, data.get("items", []))
+    return {"status": "success", "added": added}
+
+
+from discovery_job import DiscoveryJob
+
+discovery = DiscoveryJob()
+
+
+@app.post("/api/discovery/run")
+async def run_discovery(request: Request):
+    """Start a Discovery run. Returns at once; poll /api/discovery/status."""
+    state = request.app.state
+    if not hasattr(state, "upstox_api_client"):
+        return {"status": "error", "message": "Streamer not initialized yet"}
+
+    from screener_engine import PreMarketScreener
+    screener = PreMarketScreener(state.upstox_api_client)
+
+    async def scan(progress):
+        picks = await screener.run_scan(progress=progress)
+        return picks, screener.selected
+
+    async def apply(selected):
+        return await apply_discovery_selection(state, selected)
+
+    started = discovery.start(scan, apply)
+    return {"status": "started" if started else "already_running",
+            "job": discovery.status()}
+
+
+@app.get("/api/discovery/status")
+async def discovery_status():
+    return {"status": "success", "job": discovery.status()}
 
 async def start_upstox_service():
     auth = UpstoxAuthenticator()

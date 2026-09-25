@@ -470,15 +470,14 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                         </svg>
-                        Predicted Top Performing Stocks
+                        Discovery Scan
                     </h2>
-                    <p class="text-sm text-slate-400 mt-1">AI-driven technical and fundamentals breakout scanner</p>
+                    <p class="text-sm text-slate-400 mt-1">Deterministic screener over the F&amp;O universe &mdash; scores, not predictions</p>
                 </div>
                 <div class="flex flex-col items-end gap-1">
-                    <button id="btn-run-discovery" onclick="generateIntradayPlaybook()" disabled
-                        data-permanently-disabled="true"
-                        title="Temporarily disabled -- event-loop-blocking and stale key-space bugs (A-7) are still open; screener scoring was fixed in Task 5.5 but the playbook pipeline itself was not rebuilt."
-                        class="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-lg shadow-lg shadow-indigo-500/20 transition-all flex items-center gap-2 border border-indigo-500/50 opacity-50 cursor-not-allowed">
+                    <button id="btn-run-discovery" onclick="runDiscovery()"
+                        title="Scans the F&amp;O universe in the feed process, rewrites watchlist.csv, and brings new picks live."
+                        class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow-lg shadow-indigo-500/20 transition-all flex items-center gap-2 border border-indigo-500/50">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z">
@@ -486,9 +485,9 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
-                        Run Discovery Engine
+                        Run Discovery Scan
                     </button>
-                    <p class="text-xs text-slate-500 max-w-xs text-right">Disabled: event-loop-blocking and stale key-space bugs (A-7) are still open (Task 5.5 fixed the screener's scoring, not the playbook pipeline).</p>
+                    <p id="discovery-summary" class="text-xs text-slate-500 max-w-md text-right">New picks go live immediately. Dropped symbols stay monitored until the next restart.</p>
                 </div>
             </div>
 
@@ -509,8 +508,8 @@
             </div>
 
             <div id="screener-empty" class="text-center p-12 bg-slate-900/40 rounded-xl border border-slate-800/80">
-                <p class="text-slate-500 font-mono-custom text-sm">No discovery playbook generated yet.</p>
-                <p class="text-slate-600 text-xs mt-2">Click 'Run Discovery Engine' to analyze the broader market.</p>
+                <p class="text-slate-500 font-mono-custom text-sm">No scan this session.</p>
+                <p class="text-slate-600 text-xs mt-2">Run Discovery Scan to score the F&amp;O universe (takes a couple of minutes; the dashboard keeps running).</p>
             </div>
         </div>
     </main>
@@ -782,37 +781,6 @@
                 }
 
                 // 6. Update AI Intraday Playbook
-                if (payload.dashboard_intraday_plays) {
-                    const plays = payload.dashboard_intraday_plays;
-                    const items = Array.isArray(plays) ? plays : plays.watchlist;
-                    if (items && items.length > 0) {
-                        // Hide spinner and re-enable button -- but never
-                        // re-enable Discovery itself (Task 5.5 step 0): it's
-                        // permanently disabled pending the A-7 fix, and a
-                        // stray websocket frame carrying old
-                        // dashboard_intraday_plays (e.g. from a persisted
-                        // playbook_state.json) must not silently flip it
-                        // back on.
-                        const status = document.getElementById('screener-status');
-                        if (status) { status.classList.add('hidden'); status.classList.remove('block'); }
-                        const btn = document.getElementById('btn-run-discovery');
-                        if (btn && btn.dataset.permanentlyDisabled !== 'true') {
-                            btn.disabled = false; btn.classList.remove('opacity-50');
-                        }
-
-                        // Forward playbook data to the Discovery UI render function
-                        renderDiscoveryCards(items);
-                        // Hide empty state if needed
-                        const empty = document.getElementById('screener-empty');
-                        if (empty) empty.classList.add('hidden');
-                    } else {
-                        const empty = document.getElementById('screener-empty');
-                        if (empty) {
-                            empty.classList.remove('hidden');
-                            empty.innerHTML = `<p class="text-slate-500 font-mono-custom text-sm">Received playbook but no items found (Length: ${items ? items.length : 0}). Data: ${JSON.stringify(plays).substring(0, 50)}...</p><p class="text-slate-600 text-xs mt-2">Click 'Run Discovery Engine' to analyze the broader market.</p>`;
-                        }
-                    }
-                }
             };
             socket.onclose = () => {
                 statusDot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_#f43f5e] animate-pulse';
@@ -1794,99 +1762,9 @@
         // Start Alert Poller
         setInterval(fetchUnreadCount, 10000);
         setTimeout(fetchUnreadCount, 1000);
-        // --- Phase 0: Screener Logic ---
-        const btnScreener = document.getElementById('btn-screener');
-        if (btnScreener) {
-            btnScreener.addEventListener('click', async () => {
-                const loadingModal = document.getElementById('loading-modal');
-                const resultsModal = document.getElementById('results-modal');
-                const tbody = document.getElementById('results-tbody');
-
-                loadingModal.classList.remove('hidden');
-
-                try {
-                    const response = await fetch(`${apiBase}/api/run-screener`, { method: 'POST' });
-                    const result = await response.json();
-
-                    tbody.innerHTML = '';
-                    if (result.status === 'success' && result.data) {
-                        result.data.forEach(item => {
-                            const tr = document.createElement('tr');
-                            tr.innerHTML = `
-                            <td class="px-4 py-3 text-indigo-400 font-semibold">${item.symbol}</td>
-                            <td class="px-4 py-3 text-right text-emerald-400 font-mono-custom">${parseFloat(item.rs).toFixed(2)}%</td>
-                            <td class="px-4 py-3 text-right text-white font-mono-custom">${parseFloat(item.ivr).toFixed(2)}</td>
-                        `;
-                            tbody.appendChild(tr);
-                        });
-                    }
-
-                    loadingModal.classList.add('hidden');
-                    resultsModal.classList.remove('hidden');
-
-                } catch (error) {
-                    console.error("Screener failed:", error);
-                    loadingModal.classList.add('hidden');
-                    alert("Screener failed to execute. Check terminal logs.");
-                }
-            });
-        }
-        function closeResultsModal() {
-            document.getElementById('results-modal').classList.add('hidden');
-        }
         // Initialize WebSocket connection
         connect();
     </script>
-    <!-- Loading Modal -->
-    <div id="loading-modal"
-        class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
-        <div class="bg-slate-900 border border-indigo-500/30 p-8 rounded-xl shadow-2xl flex flex-col items-center">
-            <svg class="animate-spin h-12 w-12 text-indigo-500 mb-4" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-                </path>
-            </svg>
-            <h2 class="text-xl font-bold text-white mb-2">Scanning Master F&O Universe...</h2>
-            <p class="text-slate-400 text-sm">Please wait (approx. 45 seconds). Do not close this window.</p>
-        </div>
-    </div>
-    <!-- Results Modal -->
-    <div id="results-modal"
-        class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
-        <div
-            class="bg-slate-900 border border-emerald-500/30 p-8 rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold text-emerald-400">Phase 0: Screener Results</h2>
-                <button onclick="closeResultsModal()" class="text-slate-400 hover:text-white transition-colors">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
-                        </path>
-                    </svg>
-                </button>
-            </div>
-            <p class="text-sm text-slate-300 mb-4">Watchlist updated successfully! Please restart the Live Engine
-                terminal to begin streaming the new assets.</p>
-            <div class="overflow-y-auto flex-1 border border-slate-800 rounded-lg">
-                <table class="min-w-full divide-y divide-slate-800 text-sm">
-                    <thead class="bg-slate-950/50 sticky top-0">
-                        <tr>
-                            <th class="px-4 py-3 text-left font-semibold text-slate-400">Ticker</th>
-                            <th class="px-4 py-3 text-right font-semibold text-slate-400">RS %</th>
-                            <th class="px-4 py-3 text-right font-semibold text-slate-400">IVR</th>
-                        </tr>
-                    </thead>
-                    <tbody id="results-tbody" class="divide-y divide-slate-800 bg-slate-900/50">
-                        <!-- Populated via JS -->
-                    </tbody>
-                </table>
-            </div>
-            <div class="mt-6 text-right">
-                <button onclick="closeResultsModal()"
-                    class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded transition-colors border border-slate-600">Close</button>
-            </div>
-        </div>
-    </div>
     <!-- Ledger Execution Modal -->
     <div id="ledger-modal"
         class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
@@ -2347,84 +2225,57 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                 console.error("Error in switchTab: ", err);
             }
         }
-        let lastPlaybookStr = '';
-        function renderDiscoveryCards(watchlist) {
-            try {
-                const grid = document.getElementById('screener-cards');
-                if (!grid) return;
-                grid.innerHTML = '';
-
-                if (!watchlist || !Array.isArray(watchlist)) {
-                    grid.innerHTML = `<div class="col-span-full p-4 bg-amber-900/50 text-amber-300 rounded border border-amber-700">Invalid watchlist data</div>`;
-                    return;
-                }
-
-                if (watchlist.length === 0) {
-                    grid.innerHTML = `<div class="col-span-full p-4 bg-amber-900/50 text-amber-300 rounded border border-amber-700">Watchlist is an empty array []</div>`;
-                    return;
-                }
-
-                watchlist.forEach((item, idx) => {
-                    try {
-                        const card = document.createElement('div');
-                        // ADDED display:flex and explicit min-height to FORCE it to show up even if Tailwind is broken
-                        card.style.minHeight = "200px";
-                        card.style.display = "flex";
-                        card.className = "bg-slate-900 border border-slate-700/80 rounded-xl p-5 shadow-lg flex-col justify-between hover:border-indigo-500/50 transition-colors group relative overflow-hidden";
-
-                        card.innerHTML = `
-                            <div class="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-                            <div class="relative z-10">
-                                <div class="flex justify-between items-start mb-3">
-                                    <h3 class="text-xl font-bold text-white tracking-tight">${item.symbol || 'N/A'}</h3>
-                                    <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-indigo-900/40 text-indigo-300 border border-indigo-700/50 uppercase">Top Pick</span>
-                                </div>
-                                <p class="text-xs text-slate-300 mb-3 leading-relaxed"><strong>Rationale:</strong> ${item.rationale || 'N/A'}</p>
-                                <p class="text-xs text-emerald-400 mb-3 bg-emerald-950/30 p-2 rounded border border-emerald-900/50"><strong>Strategy:</strong> ${item.strategy || 'N/A'}</p>
-                                
-                                <div class="grid grid-cols-3 gap-2 mb-4 mt-2">
-                                    <div class="bg-slate-800/50 p-2 rounded border border-slate-700/50 text-center">
-                                        <div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Entry</div>
-                                        <div class="text-xs font-bold text-indigo-400">${item.entry || 'N/A'}</div>
-                                    </div>
-                                    <div class="bg-slate-800/50 p-2 rounded border border-slate-700/50 text-center">
-                                        <div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Target</div>
-                                        <div class="text-xs font-bold text-emerald-400">${item.target || 'N/A'}</div>
-                                    </div>
-                                    <div class="bg-slate-800/50 p-2 rounded border border-slate-700/50 text-center">
-                                        <div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Stop</div>
-                                        <div class="text-xs font-bold text-rose-400">${item.stoploss || 'N/A'}</div>
-                                    </div>
-                                </div>
-                                
-                                <div class="flex justify-between items-center mb-4 px-1">
-                                    <div class="flex items-center gap-1.5">
-                                        <span class="text-[10px] text-slate-500 uppercase tracking-wider">Confidence:</span>
-                                        <span class="text-xs font-bold ${item.confidence && item.confidence.toLowerCase() === 'high' ? 'text-emerald-400' : 'text-amber-400'}">${item.confidence || 'N/A'}</span>
-                                    </div>
-                                    <div class="flex items-center gap-1.5">
-                                        <span class="text-[10px] text-slate-500 uppercase tracking-wider">Risk:</span>
-                                        <span class="text-xs font-bold ${item.risk && item.risk.toLowerCase() === 'high' ? 'text-rose-400' : 'text-amber-400'}">${item.risk || 'N/A'}</span>
-                                    </div>
-                                </div>
+        function fmtNum(v, d) {
+            return (typeof v === 'number' && isFinite(v)) ? v.toFixed(d) : 'n/a';
+        }
+        function renderDiscoveryCards(job) {
+            // Only what the screener measured. The retired playbook showed
+            // LLM-invented entry/target/stop prices and a confidence grade.
+            const grid = document.getElementById('screener-cards');
+            if (!grid) return;
+            grid.innerHTML = '';
+            const picks = job.picks || [];
+            const live = new Set(job.live_added || []);
+            picks.forEach(item => {
+                const bias = item.directional_bias === 'LONG' ? 'LONG' : 'SHORT';
+                const biasCls = bias === 'LONG'
+                    ? 'bg-emerald-900/40 text-emerald-300 border-emerald-700/50'
+                    : 'bg-rose-900/40 text-rose-300 border-rose-700/50';
+                const isLive = live.has(String(item.token));
+                const card = document.createElement('div');
+                card.className = "bg-slate-900 border border-slate-700/80 rounded-xl p-5 shadow-lg flex flex-col justify-between";
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-start mb-3">
+                            <h3 class="text-xl font-bold text-white tracking-tight">${escapeHtml(item.symbol)}</h3>
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded border uppercase ${biasCls}">${bias}</span>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 mb-3">
+                            <div class="bg-slate-800/50 p-2 rounded border border-slate-700/50 text-center">
+                                <div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Score</div>
+                                <div class="text-xs font-bold text-indigo-300">${fmtNum(item.score, 1)}</div>
                             </div>
-                            <button onclick="addToWatchlistDynamic('${item.token || ''}', '${item.symbol || ''}', '${item.exchange || ''}')" class="mt-auto w-full bg-slate-800 hover:bg-indigo-600 text-white text-xs font-bold py-2 rounded transition-colors border border-slate-700 hover:border-indigo-500 flex justify-center items-center gap-2 z-10 relative">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                                Add to Live Watchlist
-                            </button>
-                        `;
-                        grid.appendChild(card);
-                    } catch (err) {
-                        const errDiv = document.createElement('div');
-                        errDiv.className = "text-rose-400 text-xs";
-                        errDiv.innerText = "Error rendering " + (item.symbol || 'card') + ": " + err.message;
-                        grid.appendChild(errDiv);
-                    }
-                });
-            } catch (err) {
-                const grid = document.getElementById('screener-cards');
-                if (grid) grid.innerHTML = `<div class="col-span-full text-rose-500 font-bold">FATAL ERROR in renderDiscoveryCards: ${err.message}</div>`;
-            }
+                            <div class="bg-slate-800/50 p-2 rounded border border-slate-700/50 text-center" title="Relative strength vs Nifty 50">
+                                <div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">RS %</div>
+                                <div class="text-xs font-bold text-white">${fmtNum(item.rs, 2)}</div>
+                            </div>
+                            <div class="bg-slate-800/50 p-2 rounded border border-slate-700/50 text-center" title="20-session average daily traded value">
+                                <div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">ADV Cr</div>
+                                <div class="text-xs font-bold text-white">${fmtNum(item.adv_crore, 1)}</div>
+                            </div>
+                        </div>
+                        <p class="text-[11px] text-slate-400 mb-2 font-mono-custom">Latest daily bar: H ${fmtNum(item.latest_bar_high, 2)} &middot; L ${fmtNum(item.latest_bar_low, 2)}</p>
+                        <p class="text-xs text-slate-300 mb-3 leading-relaxed"><strong>News:</strong> ${escapeHtml(item.news || 'none cached')}</p>
+                    </div>
+                    ${isLive
+                        ? `<div class="mt-auto w-full text-center text-xs font-bold py-2 rounded bg-emerald-950/40 text-emerald-300 border border-emerald-800/60">Added live this scan</div>`
+                        : `<button class="mt-auto w-full bg-slate-800 hover:bg-indigo-600 text-white text-xs font-bold py-2 rounded transition-colors border border-slate-700 hover:border-indigo-500">Add to Live Watchlist</button>`}
+                `;
+                const addBtn = card.querySelector('button');
+                if (addBtn) addBtn.addEventListener('click',
+                    () => addToWatchlistDynamic(String(item.token), String(item.symbol), String(item.exchange)));
+                grid.appendChild(card);
+            });
         }
         async function addToWatchlistDynamic(token, symbol, exchange) {
             try {
@@ -2567,49 +2418,55 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                 }).catch(() => newsRequestInFlight = false);
             }
         }
-        async function generateIntradayPlaybook() {
+        let discoveryPoll = null;
+        function showDiscoveryJob(job) {
             const btn = document.getElementById('btn-run-discovery');
             const status = document.getElementById('screener-status');
+            const statusText = document.getElementById('screener-status-text');
             const empty = document.getElementById('screener-empty');
-            const grid = document.getElementById('screener-cards');
-            if (btn) { btn.disabled = true; btn.classList.add('opacity-50'); }
-            if (empty) empty.classList.add('hidden');
-            if (grid) grid.innerHTML = '';
-            if (status) {
-                status.classList.remove('hidden');
-                status.classList.add('block');
+            const summary = document.getElementById('discovery-summary');
+            const running = job.state === 'running';
+            if (btn) { btn.disabled = running; btn.classList.toggle('opacity-50', running); }
+            if (status) status.classList.toggle('hidden', !running);
+            if (running && statusText) {
+                statusText.innerText = job.total
+                    ? `Scanning F&O universe... ${job.scanned} / ${job.total}`
+                    : 'Loading F&O universe...';
             }
+            if (job.state === 'done') {
+                if (empty) empty.classList.toggle('hidden', (job.picks || []).length > 0);
+                renderDiscoveryCards(job);
+                const added = (job.live_added || []).length;
+                const deferred = (job.removals_deferred || []).map(r => r.symbol).filter(Boolean);
+                if (summary) summary.innerText =
+                    `Scanned ${job.scanned}/${job.total} at ${(job.finished_at || '').slice(11, 16)}. ` +
+                    `${added} added live.` +
+                    (deferred.length ? ` Leaving the watchlist at next restart: ${deferred.join(', ')}.` : '');
+            } else if (job.state === 'error') {
+                if (summary) summary.innerText = `Scan failed: ${job.error}. The watchlist was not changed.`;
+            }
+        }
+        async function pollDiscovery() {
             try {
-                const modelSelect = document.getElementById('news-model-select');
-                const model = modelSelect ? modelSelect.value : 'gemini-2.5-flash';
-                const res = await fetch(`${apiBase}/api/reasoning/playbook/generate`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ model: model })
-                });
-                const body = await res.json().catch(() => ({}));
-                if (body && body.status === 'disabled') {
-                    // Task 5.5 step 0: the backend short-circuits this
-                    // endpoint without running anything. Tell the user the
-                    // truth instead of the old unconditional success message.
-                    // (Uses alert(), this file's existing pattern for
-                    // surfacing messages -- not showToast, which is called
-                    // nowhere else in this codebase and is not defined.)
-                    alert("Discovery Disabled: " + (body.message || "Discovery is temporarily disabled."));
-                    if (status) { status.classList.add('hidden'); status.classList.remove('block'); }
-                } else if (res.ok) {
-                    alert("Playbook Generation Triggered: The AI is compiling the multi-factor matrix in the background. Please wait a few seconds...");
-                }
+                const res = await fetch(`${apiBase}/api/discovery/status`);
+                const body = await res.json();
+                if (!body || !body.job) throw new Error((body && body.message) || 'feed process unreachable');
+                showDiscoveryJob(body.job);
+                if (body.job.state !== 'running') { clearInterval(discoveryPoll); discoveryPoll = null; }
             } catch (e) {
-                console.error(e);
-                alert("Error: Failed to contact API server.");
-                if (status) { status.classList.add('hidden'); status.classList.remove('block'); }
-            } finally {
-                // Discovery is permanently disabled (Task 5.5 step 0) --
-                // never re-enable it here, regardless of outcome.
-                if (btn && btn.dataset.permanentlyDisabled !== 'true') {
-                    btn.disabled = false; btn.classList.remove('opacity-50');
-                }
+                clearInterval(discoveryPoll); discoveryPoll = null;
+                showDiscoveryJob({ state: 'error', error: e.message });
+            }
+        }
+        async function runDiscovery() {
+            try {
+                const res = await fetch(`${apiBase}/api/discovery/run`, { method: 'POST' });
+                const body = await res.json();
+                if (body.status === 'error') throw new Error(body.message);
+                if (body.job) showDiscoveryJob(body.job);
+                if (!discoveryPoll) discoveryPoll = setInterval(pollDiscovery, 2000);
+            } catch (e) {
+                showDiscoveryJob({ state: 'error', error: e.message });
             }
         }
         // --- Database Management Controls (Phase 14.3) ---
