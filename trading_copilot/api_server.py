@@ -134,8 +134,12 @@ async def get_dashboard():
 # Discovery runs in the feed process (port 8001): it owns the Upstox
 # client, the live state, and the watchlist it updates. It is a background
 # job there -- start returns at once, the UI polls status.
+class DiscoveryRunRequest(BaseModel): model: str = "gemini-2.5-flash"
+
 @app.post("/api/discovery/run")
-async def run_discovery(): return await proxy_post(8001, "/api/discovery/run", timeout=10)
+async def run_discovery(req: DiscoveryRunRequest | None = None):
+    model = req.model if req else "gemini-2.5-flash"
+    return await proxy_post(8001, "/api/discovery/run", {"model": model}, timeout=10)
 
 @app.get("/api/discovery/status")
 async def discovery_status(): return await proxy_get(8001, "/api/discovery/status", timeout=5)

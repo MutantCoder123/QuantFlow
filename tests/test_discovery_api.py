@@ -79,8 +79,10 @@ def test_manual_add_after_discovery_does_not_revert_it(wl):
 def test_discovery_routes_proxy_to_the_feed_process(wl):
     _, proxied = wl
     client.post("/api/discovery/run")
+    client.post("/api/discovery/run", json={"model": "gemini-2.5-pro"})
     client.get("/api/discovery/status")
-    assert (8001, "/api/discovery/run", None) in proxied
+    assert (8001, "/api/discovery/run", {"model": "gemini-2.5-flash"}) in proxied
+    assert (8001, "/api/discovery/run", {"model": "gemini-2.5-pro"}) in proxied
     assert (8001, "/api/discovery/status", None) in proxied
 
 

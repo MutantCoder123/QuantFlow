@@ -232,7 +232,9 @@ class PreMarketScreener:
             # 2. Calculate Math Scoring Engine (V2 - Directionally Aware)
             magnitude_score = 0
             net_polarity = 0.0  # Positive = Bullish, Negative = Bearish
-            news_summary = "No fresh news."
+            # None = no catalyst cached (or the news process is down) -- unknown,
+            # which is not the same claim as "no news".
+            news_summary = None
             
             if len(stock_df) >= 26:
                 magnitude_score += _score_volume_shock(stock_df)

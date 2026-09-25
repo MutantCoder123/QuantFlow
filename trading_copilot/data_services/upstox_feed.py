@@ -290,6 +290,30 @@ class UpstoxStreamManager:
         self.stream_equity = upstox_client.MarketDataStreamerV3(api_client=self.api_client)
         self.stream_options = upstox_client.MarketDataStreamerV3(api_client=self.api_client)
 
+        # The key lists each supervisor re-subscribes on every reconnect.
+        # add_subscription appends here, so a symbol added mid-session
+        # survives a reconnect instead of silently falling off the feed.
+        self.subscriptions = {"indices": [], "equity": [], "options": []}
+
+    _STREAMS = {"equity": ("stream_equity", "full_d30"),
+                "options": ("stream_options", "option_greeks")}
+
+    def add_subscription(self, kind: str, keys: list) -> bool:
+        """Add keys to a stream. True if subscribed now; False if the socket
+        is down -- the keys are kept and subscribed on the next reconnect."""
+        attr, mode = self._STREAMS[kind]
+        current = self.subscriptions[kind]
+        new = [k for k in keys if k not in current]
+        if not new:
+            return True
+        current.extend(new)
+        try:
+            getattr(self, attr).subscribe(new, mode)
+            return True
+        except Exception as e:
+            logger.warning(f"{kind} socket not open ({e}); {new} will subscribe on reconnect")
+            return False
+
     def _on_market_update(self, message):
         # Callback for all streams. Runs on a WebSocket OS thread -- it must
         # NOT touch phantom_candles / ltf_df directly (that was the unsafe
@@ -359,6 +383,13 @@ class UpstoxStreamManager:
         # callback threads (and the mock loop) always have a valid target
         # for call_soon_threadsafe.
         self.loop = asyncio.get_running_loop()
+
+        self.subscriptions["indices"][:] = list(indices)
+        self.subscriptions["equity"][:] = list(equities)
+        self.subscriptions["options"][:] = list(options)
+        indices, equities, options = (self.subscriptions["indices"],
+                                      self.subscriptions["equity"],
+                                      self.subscriptions["options"])
 
         if not PRODUCTION_LIVE:
             logger.warning("PRODUCTION_LIVE is False! Entering Safe Testing Mode. Bypassing Upstox WebSocket.")
@@ -471,6 +502,14 @@ async def get_bars(token: str, request: Request, n: int = 300):
     df = (eng.dfs.get(token) or {}).get("ltf_df")
     return make_json_serializable(build_bars_response(df, n))
 
+def _clean_symbol(row: dict) -> str:
+    """One identity for a stock, whatever token or suffix a row carries.
+    watchlist.csv and the scrip master disagree on both (INFY was 4494 in
+    the file, 1594 in the master; SAIL-EQ vs SAIL)."""
+    raw = row.get("Symbol") or row.get("symbol") or ""
+    return str(raw).split("-")[0].strip().upper()
+
+
 async def apply_watchlist_additions(state, items: list) -> list:
     """Bring new tokens live in this process: warm their history, register
     them with the rolling engine, and subscribe the websocket. Tokens already
@@ -486,11 +525,14 @@ async def apply_watchlist_additions(state, items: list) -> list:
     new_equities = []
     new_options = []
     new_watchlist_entries = {}
+    live_symbols = {_clean_symbol(r) for r in watchlist.values()}
 
     for item in items:
         token = str(item["token"])
-        if token in watchlist:
+        sym = _clean_symbol(item)
+        if token in watchlist or sym in live_symbols:
             continue
+        live_symbols.add(sym)
         # Startup rows come from csv.DictReader over watchlist.csv
         # (Token/Symbol/Exchange). Carry both spellings so every reader --
         # _resolve_symbol, fetch_batch_warmups, derivatives_worker -- finds it.
@@ -520,29 +562,34 @@ async def apply_watchlist_additions(state, items: list) -> list:
         for k, v in new_warmups.items():
             state.rolling_engine.dfs[k] = v
 
-        # 3. Subscribe live
+        # 3. Subscribe live -- or, if the socket is down, on its reconnect
+        pending = []
         if new_equities:
             logger.info(f"Subscribing Equities: {new_equities}")
-            stream_manager.stream_equity.subscribe(new_equities, "full_d30")
+            if not stream_manager.add_subscription("equity", new_equities):
+                pending += new_equities
         if new_options:
             logger.info(f"Subscribing Options: {new_options}")
-            stream_manager.stream_options.subscribe(new_options, "option_greeks")
+            if not stream_manager.add_subscription("options", new_options):
+                pending += new_options
+        state.subscription_pending = sorted(set(getattr(state, "subscription_pending", [])) | set(pending))
 
     return list(new_watchlist_entries.keys())
 
 
 async def apply_discovery_selection(state, selected: list) -> tuple:
-    """(live_added, removals_deferred) for a Discovery selection.
+    """(live_added, removals_deferred, subscription_pending) for a Discovery selection.
 
     Additions go live now. Removals do not: unsubscribing mid-session would
     silently drop monitoring on a stock that may hold an open position.
     watchlist.csv already reflects the new selection, so a dropped symbol
     leaves at the next restart; until then it is reported, not hidden."""
+    state.subscription_pending = []
     added = await apply_watchlist_additions(state, selected)
-    keep = {str(s["token"]) for s in selected}
-    deferred = [{"token": tok, "symbol": row.get("Symbol") or row.get("symbol", "")}
-                for tok, row in state.watchlist.items() if tok not in keep]
-    return added, deferred
+    keep = {_clean_symbol(s) for s in selected}
+    deferred = [{"token": tok, "symbol": _clean_symbol(row)}
+                for tok, row in state.watchlist.items() if _clean_symbol(row) not in keep]
+    return added, deferred, list(state.subscription_pending)
 
 
 @app.post("/api/watchlist/update")
@@ -561,12 +608,21 @@ discovery = DiscoveryJob()
 
 @app.post("/api/discovery/run")
 async def run_discovery(request: Request):
-    """Start a Discovery run. Returns at once; poll /api/discovery/status."""
+    """Start a Discovery run: scan, apply to the live feed, then one LLM
+    call over the top picks. Returns at once; poll /api/discovery/status.
+    Optional body: {"model": "<gemini model>"}."""
     state = request.app.state
     if not hasattr(state, "upstox_api_client"):
         return {"status": "error", "message": "Streamer not initialized yet"}
 
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    model = (body or {}).get("model") or "gemini-2.5-flash"
+
     from screener_engine import PreMarketScreener
+    from discovery_analysis import analyze_top
     screener = PreMarketScreener(state.upstox_api_client)
 
     async def scan(progress):
@@ -576,7 +632,10 @@ async def run_discovery(request: Request):
     async def apply(selected):
         return await apply_discovery_selection(state, selected)
 
-    started = discovery.start(scan, apply)
+    async def analyze(picks):
+        return await analyze_top(picks, model=model)
+
+    started = discovery.start(scan, apply, analyze)
     return {"status": "started" if started else "already_running",
             "job": discovery.status()}
 

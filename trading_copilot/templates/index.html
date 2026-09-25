@@ -472,7 +472,7 @@
                         </svg>
                         Discovery Scan
                     </h2>
-                    <p class="text-sm text-slate-400 mt-1">Deterministic screener over the F&amp;O universe &mdash; scores, not predictions</p>
+                    <p class="text-sm text-slate-400 mt-1">Deterministic screener over the F&amp;O universe, with AI commentary on the top 10 &mdash; scores, not predictions</p>
                 </div>
                 <div class="flex flex-col items-end gap-1">
                     <button id="btn-run-discovery" onclick="runDiscovery()"
@@ -487,9 +487,11 @@
                         </svg>
                         Run Discovery Scan
                     </button>
-                    <p id="discovery-summary" class="text-xs text-slate-500 max-w-md text-right">New picks go live immediately. Dropped symbols stay monitored until the next restart.</p>
+
                 </div>
             </div>
+
+            <p id="discovery-summary" class="text-xs text-slate-400 leading-relaxed break-words">New picks go live immediately. Dropped symbols stay monitored until the next restart.</p>
 
             <!-- Discovery Status -->
             <div id="screener-status" class="hidden text-center p-8 bg-slate-900/50 rounded-xl border border-slate-800">
@@ -2228,15 +2230,45 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
         function fmtNum(v, d) {
             return (typeof v === 'number' && isFinite(v)) ? v.toFixed(d) : 'n/a';
         }
+        const ALIGN_STYLE = {
+            SUPPORTS: ['News supports', 'bg-emerald-900/40 text-emerald-300 border-emerald-700/50'],
+            CONTRADICTS: ['News contradicts', 'bg-amber-900/40 text-amber-300 border-amber-700/50'],
+            NO_NEWS: ['No news', 'bg-slate-800 text-slate-400 border-slate-700'],
+        };
+        function aiBlock(symbol, rank, job) {
+            // AI commentary on the screener's evidence. The parser admits
+            // text fields only -- no prices, no confidence grade.
+            if (rank >= 10) return '';
+            if (job.state === 'running' && job.phase === 'analyzing')
+                return `<div class="mb-3 text-[11px] text-indigo-300 animate-pulse">AI analysis in progress...</div>`;
+            if (job.analysis_error)
+                return `<div class="mb-3 text-[11px] text-amber-400">AI analysis unavailable for this scan.</div>`;
+            const a = job.analysis && job.analysis.items ? job.analysis.items[symbol] : null;
+            if (!a) return job.analysis
+                ? `<div class="mb-3 text-[11px] text-slate-500">AI returned no analysis for this symbol.</div>` : '';
+            const [label, cls] = ALIGN_STYLE[a.news_alignment] || ['Alignment unclear', 'bg-slate-800 text-slate-400 border-slate-700'];
+            const risks = (a.risks || []).map(r => `<li>${escapeHtml(r)}</li>`).join('');
+            return `
+                <div class="mb-3 p-3 rounded border border-indigo-800/50 bg-indigo-950/20">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-300">AI commentary</span>
+                        <span class="px-1.5 py-0.5 text-[10px] font-bold rounded border ${cls}">${label}</span>
+                    </div>
+                    ${a.thesis ? `<p class="text-xs text-slate-200 leading-relaxed mb-2">${escapeHtml(a.thesis)}</p>` : ''}
+                    ${risks ? `<ul class="text-[11px] text-rose-300/90 list-disc pl-4 mb-2">${risks}</ul>` : ''}
+                    ${a.watch_for ? `<p class="text-[11px] text-slate-400"><strong>Watch:</strong> ${escapeHtml(a.watch_for)}</p>` : ''}
+                </div>`;
+        }
         function renderDiscoveryCards(job) {
-            // Only what the screener measured. The retired playbook showed
-            // LLM-invented entry/target/stop prices and a confidence grade.
+            // Screener-measured facts, plus AI commentary on the top 10. The
+            // retired playbook showed LLM-invented prices and a confidence
+            // grade; neither can reach this view.
             const grid = document.getElementById('screener-cards');
             if (!grid) return;
             grid.innerHTML = '';
             const picks = job.picks || [];
             const live = new Set(job.live_added || []);
-            picks.forEach(item => {
+            picks.forEach((item, rank) => {
                 const bias = item.directional_bias === 'LONG' ? 'LONG' : 'SHORT';
                 const biasCls = bias === 'LONG'
                     ? 'bg-emerald-900/40 text-emerald-300 border-emerald-700/50'
@@ -2266,9 +2298,10 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                         </div>
                         <p class="text-[11px] text-slate-400 mb-2 font-mono-custom">Latest daily bar: H ${fmtNum(item.latest_bar_high, 2)} &middot; L ${fmtNum(item.latest_bar_low, 2)}</p>
                         <p class="text-xs text-slate-300 mb-3 leading-relaxed"><strong>News:</strong> ${escapeHtml(item.news || 'none cached')}</p>
+                        ${aiBlock(item.symbol, rank, job)}
                     </div>
                     ${isLive
-                        ? `<div class="mt-auto w-full text-center text-xs font-bold py-2 rounded bg-emerald-950/40 text-emerald-300 border border-emerald-800/60">Added live this scan</div>`
+                        ? `<div class="mt-auto w-full text-center text-xs font-bold py-2 rounded bg-emerald-950/40 text-emerald-300 border border-emerald-800/60">Added to watchlist this scan</div>`
                         : `<button class="mt-auto w-full bg-slate-800 hover:bg-indigo-600 text-white text-xs font-bold py-2 rounded transition-colors border border-slate-700 hover:border-indigo-500">Add to Live Watchlist</button>`}
                 `;
                 const addBtn = card.querySelector('button');
@@ -2419,6 +2452,10 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
             }
         }
         let discoveryPoll = null;
+        function shortErr(e) {
+            const s = String(e || '');
+            return s.length > 140 ? s.slice(0, 140) + '...' : s;
+        }
         function showDiscoveryJob(job) {
             const btn = document.getElementById('btn-run-discovery');
             const status = document.getElementById('screener-status');
@@ -2429,21 +2466,31 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
             if (btn) { btn.disabled = running; btn.classList.toggle('opacity-50', running); }
             if (status) status.classList.toggle('hidden', !running);
             if (running && statusText) {
-                statusText.innerText = job.total
-                    ? `Scanning F&O universe... ${job.scanned} / ${job.total}`
-                    : 'Loading F&O universe...';
+                statusText.innerText = job.phase === 'analyzing'
+                    ? 'AI analyzing the top 10...'
+                    : job.total
+                        ? `Scanning F&O universe... ${job.scanned} / ${job.total}`
+                        : 'Loading F&O universe...';
+            }
+            if (job.picks) {
+                if (empty) empty.classList.toggle('hidden', job.picks.length > 0);
+                renderDiscoveryCards(job);
             }
             if (job.state === 'done') {
-                if (empty) empty.classList.toggle('hidden', (job.picks || []).length > 0);
-                renderDiscoveryCards(job);
-                const added = (job.live_added || []).length;
                 const deferred = (job.removals_deferred || []).map(r => r.symbol).filter(Boolean);
+                const pending = (job.subscription_pending || []).length;
+                let live;
+                if (!job.watchlist_written) live = 'No selection made; watchlist.csv unchanged.';
+                else if (job.apply_error) live = `watchlist.csv updated, but the live update failed (${shortErr(job.apply_error)}); new picks take effect at restart.`;
+                else live = `watchlist.csv updated; ${(job.live_added || []).length} added to the running feed` +
+                    (pending ? ` (${pending} will start streaming when the feed reconnects).` : '.');
                 if (summary) summary.innerText =
-                    `Scanned ${job.scanned}/${job.total} at ${(job.finished_at || '').slice(11, 16)}. ` +
-                    `${added} added live.` +
-                    (deferred.length ? ` Leaving the watchlist at next restart: ${deferred.join(', ')}.` : '');
+                    `Scanned ${job.scanned}/${job.total} at ${(job.finished_at || '').slice(11, 16)}. ${live}` +
+                    (deferred.length ? ` Leaving the watchlist at next restart: ${deferred.join(', ')}.` : '') +
+                    (job.analysis_error ? ` AI analysis failed (${shortErr(job.analysis_error)}); screener results are unaffected.`
+                        : job.analysis ? ` AI: ${job.analysis.model}.` : '');
             } else if (job.state === 'error') {
-                if (summary) summary.innerText = `Scan failed: ${job.error}. The watchlist was not changed.`;
+                if (summary) summary.innerText = `Scan failed: ${shortErr(job.error)}. The watchlist was not changed.`;
             }
         }
         async function pollDiscovery() {
@@ -2458,9 +2505,29 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                 showDiscoveryJob({ state: 'error', error: e.message });
             }
         }
+        async function resumeDiscovery() {
+            // The job lives in the feed process, not the page: show the last
+            // scan (or one still running) after a reload. Silent if the feed
+            // is down -- no scan was attempted from this page, so reporting
+            // "scan failed" would be false.
+            try {
+                const res = await fetch(`${apiBase}/api/discovery/status`);
+                const body = await res.json();
+                if (!body || !body.job || body.job.state === 'idle') return;
+                showDiscoveryJob(body.job);
+                if (body.job.state === 'running' && !discoveryPoll)
+                    discoveryPoll = setInterval(pollDiscovery, 2000);
+            } catch (e) { /* feed not up yet */ }
+        }
         async function runDiscovery() {
             try {
-                const res = await fetch(`${apiBase}/api/discovery/run`, { method: 'POST' });
+                const modelSelect = document.getElementById('news-model-select');
+                const model = modelSelect ? modelSelect.value : 'gemini-2.5-flash';
+                const res = await fetch(`${apiBase}/api/discovery/run`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model })
+                });
                 const body = await res.json();
                 if (body.status === 'error') throw new Error(body.message);
                 if (body.job) showDiscoveryJob(body.job);
@@ -2544,6 +2611,7 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
             loadReliability();
             loadExposure();
             loadSessionReview();
+            resumeDiscovery();
             newsStateInterval = setInterval(fetchNewsState, 5000);
         });
         function renderReasoningReport(reportText) {

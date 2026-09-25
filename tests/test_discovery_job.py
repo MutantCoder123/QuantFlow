@@ -149,3 +149,118 @@ async def test_a_new_run_clears_the_previous_result():
     st = job.status()
     assert st["state"] == "error"
     assert st["picks"] is None and st["live_added"] is None
+
+
+# -- AI analysis of the top picks ------------------------------------------
+async def _ok_scan(progress):
+    return [_pick("SAIL"), _pick("BHEL")], [_pick("SAIL")]
+
+
+async def _no_apply(selected):
+    return [], []
+
+
+async def test_analysis_runs_on_the_picks_after_the_scan():
+    seen = []
+
+    async def analyze(picks):
+        seen.append([p["symbol"] for p in picks])
+        return {"items": {"SAIL": {"thesis": "t"}}, "missing": ["BHEL"]}
+
+    job = DiscoveryJob()
+    job.start(_ok_scan, _no_apply, analyze)
+    await _drain(job)
+    st = job.status()
+    assert seen == [["SAIL", "BHEL"]]
+    assert st["state"] == "done"
+    assert st["analysis"]["items"]["SAIL"]["thesis"] == "t"
+    assert st["analysis_error"] is None
+
+
+async def test_a_failed_analysis_does_not_discard_the_scan():
+    async def analyze(picks):
+        raise RuntimeError("429 quota")
+
+    job = DiscoveryJob()
+    job.start(_ok_scan, _no_apply, analyze)
+    await _drain(job)
+    st = job.status()
+    assert st["state"] == "done"
+    assert [p["symbol"] for p in st["picks"]] == ["SAIL", "BHEL"]
+    assert st["analysis"] is None
+    assert "429 quota" in st["analysis_error"]
+
+
+async def test_picks_are_visible_while_the_analysis_is_still_running():
+    gate = asyncio.Event()
+
+    async def analyze(picks):
+        await gate.wait()
+        return {"items": {}, "missing": []}
+
+    job = DiscoveryJob()
+    job.start(_ok_scan, _no_apply, analyze)
+    for _ in range(5):
+        await asyncio.sleep(0)
+    st = job.status()
+    assert st["state"] == "running" and st["phase"] == "analyzing"
+    assert [p["symbol"] for p in st["picks"]] == ["SAIL", "BHEL"]
+    gate.set()
+    await _drain(job)
+
+
+async def test_without_an_analyzer_there_is_no_analysis_and_no_error():
+    job = DiscoveryJob()
+    job.start(_ok_scan, _no_apply)
+    await _drain(job)
+    st = job.status()
+    assert st["analysis"] is None and st["analysis_error"] is None
+
+
+# -- the live-apply step failing after watchlist.csv was written -----------
+async def test_an_apply_failure_keeps_the_picks_and_still_analyses_them():
+    """run_scan has already rewritten watchlist.csv by the time apply runs.
+    Reporting the whole run as failed would discard real results, and the
+    UI's 'watchlist was not changed' would be false."""
+    analysed = []
+
+    async def apply(selected):
+        raise RuntimeError("WebSocket is not open.")
+
+    async def analyze(picks):
+        analysed.append(len(picks))
+        return {"items": {}, "missing": []}
+
+    job = DiscoveryJob()
+    job.start(_ok_scan, apply, analyze)
+    await _drain(job)
+    st = job.status()
+    assert st["state"] == "done"
+    assert [p["symbol"] for p in st["picks"]] == ["SAIL", "BHEL"]
+    assert "WebSocket is not open" in st["apply_error"]
+    assert st["watchlist_written"] is True
+    assert st["live_added"] is None                  # unknown, not "none added"
+    assert analysed == [2]
+
+
+async def test_pending_subscriptions_are_reported():
+    async def apply(selected):
+        return ["T-SAIL"], [], ["NSE_EQ|SAIL"]
+
+    job = DiscoveryJob()
+    job.start(_ok_scan, apply)
+    await _drain(job)
+    st = job.status()
+    assert st["live_added"] == ["T-SAIL"]
+    assert st["subscription_pending"] == ["NSE_EQ|SAIL"]
+    assert st["watchlist_written"] is True and st["apply_error"] is None
+
+
+async def test_no_selection_means_the_watchlist_was_not_written():
+    async def scan(progress):
+        return [_pick("SAIL")], None
+
+    job = DiscoveryJob()
+    job.start(scan, _no_apply)
+    await _drain(job)
+    assert job.status()["watchlist_written"] is False
