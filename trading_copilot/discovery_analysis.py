@@ -7,12 +7,30 @@ parser enforces that structurally rather than trusting the prompt:
   * the only fields carried through are text -- a price or confidence the
     model volunteers has nowhere to land,
   * a symbol outside the analysed set is dropped,
-  * a stock with no cached news cannot come back "news-supported",
   * a symbol the model skipped is reported as missing, not filled in,
   * output that is not the expected JSON raises -- it is never read as
     "no analysis".
-One call covers all of them: the screener has already done the filtering,
-so the model is spent only on the handful worth a second look.
+
+Anything that is really arithmetic is decided by code, not the model.
+Measured on qwen2.5:7b: asked to judge relative strength against the
+screener's direction it called positive RS "contradicting" a LONG; asked
+whether news supported the direction it called good news on a SHORT
+"SUPPORTS" in 2 of 3 runs and invented a reason ("may indicate
+overvaluation"). So:
+  * RS agreement and liquidity are labelled here and handed over as facts;
+  * news is judged in a separate pass that never sees the direction -- the
+    model only says whether each headline is GOOD, BAD or MIXED for the
+    company -- and code turns that into SUPPORTS / CONTRADICTS.
+That is at most two calls per scan: the news pass (skipped when none of the
+picks has news) and one commentary call over all of them.
+
+Provider is chosen by the model name: "ollama:<tag>" runs on the local
+Ollama server (OLLAMA_HOST, default http://127.0.0.1:11434); anything else
+is a Gemini model. Both go through the same parsers -- a local model gets
+no extra trust. The parsers guard structure, not truth: they cannot catch
+a fluent sentence asserting a fact that was never supplied. Small models
+do that readily (llama3.2:1b moved one stock's headline onto another), so
+model size matters here.
 """
 import datetime
 import json
@@ -22,57 +40,71 @@ import os
 logger = logging.getLogger(__name__)
 
 TOP_N = 10
-ALIGNMENTS = ("SUPPORTS", "CONTRADICTS", "NO_NEWS")
+SENTIMENTS = ("GOOD", "BAD", "MIXED")
 _MAX_TEXT = 400
 _MAX_RISKS = 3
 
+# Liquidity bands over 20-session average daily traded value (rupees crore).
+# The policy's min_adv_crore floor (50) applies to the watchlist selection,
+# not to the top picks -- a pick below it is labelled LOW here.
+_LIQUIDITY_BANDS = ((500.0, "HIGH"), (100.0, "MEDIUM"), (0.0, "LOW"))
 
-def _facts(pick: dict) -> dict:
-    """The measured fields the model is allowed to reason about."""
+
+def _num(v):
+    return v if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+
+
+def _news_alignment(pick: dict, sentiment: str | None) -> str | None:
+    """SUPPORTS / CONTRADICTS / MIXED / NO_NEWS, or None when news exists
+    but its sentiment is unknown -- never a guess."""
+    if not pick.get("news"):
+        return "NO_NEWS"
+    if sentiment == "MIXED":
+        return "MIXED"
+    bias = pick.get("directional_bias")
+    if sentiment not in ("GOOD", "BAD") or bias not in ("LONG", "SHORT"):
+        return None
+    return "SUPPORTS" if (sentiment == "GOOD") == (bias == "LONG") else "CONTRADICTS"
+
+
+def _facts(pick: dict, sentiment: dict | None = None) -> dict:
+    """What the commentary call is given: measured facts, pre-labelled by
+    code. Price levels are left out -- the model is not to discuss prices,
+    and numbers it is shown are numbers it will talk about."""
+    bias = pick.get("directional_bias")
+    rs = _num(pick.get("rs"))
+    agrees = None
+    if rs is not None and bias in ("LONG", "SHORT") and rs != 0:
+        agrees = (rs > 0) == (bias == "LONG")
+    adv = _num(pick.get("adv_crore"))
+    liquidity = None if adv is None else next(lbl for floor, lbl in _LIQUIDITY_BANDS if adv >= floor)
+    score = _num(pick.get("score"))
     return {
         "symbol": pick.get("symbol"),
-        "screener_direction": pick.get("directional_bias"),
-        "screener_score": pick.get("score"),
-        "relative_strength_vs_nifty_pct": pick.get("rs"),
-        "avg_daily_traded_value_crore": pick.get("adv_crore"),
-        "latest_daily_bar_high": pick.get("latest_bar_high"),
-        "latest_daily_bar_low": pick.get("latest_bar_low"),
+        "screener_direction": bias,
+        "screener_score": round(score, 1) if score is not None else None,
+        "relative_strength_vs_nifty_pct": round(rs, 2) if rs is not None else None,
+        "relative_strength_agrees_with_direction": agrees,
+        "liquidity": liquidity,
         "cached_news": pick.get("news") or None,
+        "news_vs_direction": _news_alignment(pick, (sentiment or {}).get(pick.get("symbol"))),
     }
 
 
-def build_prompt(picks: list) -> str:
-    facts = json.dumps([_facts(p) for p in picks], indent=1)
+# -- pass 1: news, judged without the direction ------------------------------
+def build_sentiment_prompt(picks: list) -> str:
+    headlines = json.dumps([{"symbol": p.get("symbol"), "news": p.get("news")}
+                            for p in picks if p.get("news")], indent=1)
     return (
-        "You review the output of a deterministic stock screener. Each candidate below was "
-        "scored by the screener, which also assigned its direction. Your job is commentary on "
-        "that evidence -- not a new trade plan.\n\n"
-        "For EACH candidate return:\n"
-        "- thesis: 1-2 sentences on why the measured facts do or do not hang together.\n"
-        "- news_alignment: SUPPORTS if the cached news backs the screener's direction, "
-        "CONTRADICTS if it cuts against it, NO_NEWS if cached_news is null.\n"
-        "- risks: up to 3 short phrases.\n"
-        "- watch_for: one short phrase naming what would confirm or break the thesis.\n\n"
-        "Rules:\n"
-        "- Use only the facts provided. If they are thin, say so.\n"
-        "- Do not state any price level, entry, target or stop.\n"
-        "- Do not give a confidence grade or a probability.\n"
-        "- Do not change the screener's direction.\n"
-        "- Keep each symbol exactly as given.\n\n"
-        'Respond with JSON only: {"items": [{"symbol": "...", "thesis": "...", '
-        '"news_alignment": "SUPPORTS|CONTRADICTS|NO_NEWS", "risks": ["..."], "watch_for": "..."}]}\n\n'
-        f"CANDIDATES:\n{facts}"
+        "For each company below, decide whether its news is GOOD, BAD or MIXED for the company "
+        "itself (its business and its share price). Judge only the news text. MIXED means it "
+        "genuinely cuts both ways.\n"
+        'Respond with JSON only: {"items": [{"symbol": "...", "news_sentiment": "GOOD|BAD|MIXED"}]}\n\n'
+        f"NEWS:\n{headlines}"
     )
 
 
-def _text(v) -> str | None:
-    if not isinstance(v, str) or not v.strip():
-        return None
-    return v.strip()[:_MAX_TEXT]
-
-
-def parse_analysis(text: str, picks: list) -> dict:
-    """Validate the model's JSON against the picks it was given."""
+def _load_items(text: str) -> list:
     raw = (text or "").strip()
     if raw.startswith("```"):
         raw = raw.split("\n", 1)[1] if "\n" in raw else ""
@@ -83,23 +115,79 @@ def parse_analysis(text: str, picks: list) -> dict:
         raise ValueError(f"analysis was not JSON: {e}") from e
     if not isinstance(data, dict) or not isinstance(data.get("items"), list):
         raise ValueError("analysis JSON has no 'items' list")
+    return [it for it in data["items"] if isinstance(it, dict)]
 
+
+def parse_sentiment(text: str, symbols: list) -> dict:
+    """{symbol: GOOD|BAD|MIXED|None} for exactly the symbols asked about."""
+    out = {s: None for s in symbols}
+    for it in _load_items(text):
+        sym = it.get("symbol")
+        if sym in out and out[sym] is None:
+            label = it.get("news_sentiment")
+            out[sym] = label if label in SENTIMENTS else None
+    return out
+
+
+# -- pass 2: commentary --------------------------------------------------------
+def build_prompt(picks: list, sentiment: dict | None = None) -> str:
+    facts = json.dumps([_facts(p, sentiment) for p in picks], indent=1)
+    return (
+        "You review the output of a deterministic stock screener. Each candidate below was "
+        "scored by the screener, which also assigned its direction. Your job is commentary on "
+        "that evidence -- not a new trade plan.\n\n"
+        "For EACH candidate return:\n"
+        "- thesis: 1-2 sentences on whether the facts below hang together behind the screener's "
+        "direction.\n"
+        "- risks: up to 3 short phrases.\n"
+        "- watch_for: one short phrase naming what would confirm or break the thesis.\n\n"
+        "What the fields mean (the true/false and label fields are already computed -- use them "
+        "as given, do not re-derive them):\n"
+        "- relative_strength_vs_nifty_pct: recent PRICE performance vs the Nifty 50 index. It is "
+        "not a fundamental measure.\n"
+        "- relative_strength_agrees_with_direction: true means price performance points the same "
+        "way as the screener's direction; false means it points the other way.\n"
+        "- liquidity: how heavily the stock trades. It says nothing about the business.\n"
+        "- cached_news: the only non-price information. null means none was available.\n"
+        "- news_vs_direction: SUPPORTS or CONTRADICTS the screener's direction, MIXED, NO_NEWS, "
+        "or null if unknown.\n"
+        "There is NO fundamental data here (no earnings, revenue, valuation or balance sheet). Do "
+        "not make claims about fundamentals unless cached_news states them.\n\n"
+        "Rules:\n"
+        "- Use only the facts provided. If they are thin, say so plainly.\n"
+        "- Be specific to each stock; do not repeat the same risks or watch_for across stocks "
+        "unless they genuinely apply.\n"
+        "- Do not state any price level, entry, target or stop.\n"
+        "- Do not give a confidence grade or a probability.\n"
+        "- Do not change the screener's direction.\n"
+        "- Keep each symbol exactly as given.\n\n"
+        'Respond with JSON only: {"items": [{"symbol": "...", "thesis": "...", '
+        '"risks": ["..."], "watch_for": "..."}]}\n\n'
+        f"CANDIDATES:\n{facts}"
+    )
+
+
+def _text(v) -> str | None:
+    if not isinstance(v, str) or not v.strip():
+        return None
+    return v.strip()[:_MAX_TEXT]
+
+
+def parse_analysis(text: str, picks: list, sentiment: dict | None = None) -> dict:
+    """Validate the commentary JSON against the picks it was given.
+    news_alignment comes from `sentiment` and the direction -- anything the
+    model says about alignment is ignored."""
     by_symbol = {p.get("symbol"): p for p in picks}
+    sentiment = sentiment or {}
     items = {}
-    for it in data["items"]:
-        if not isinstance(it, dict):
-            continue
+    for it in _load_items(text):
         sym = it.get("symbol")
         if sym not in by_symbol or sym in items:
             continue
-        align = it.get("news_alignment")
-        align = align if align in ALIGNMENTS else None
-        if not by_symbol[sym].get("news"):
-            align = "NO_NEWS"          # nothing cached, so nothing to agree with
         risks = it.get("risks") if isinstance(it.get("risks"), list) else []
         items[sym] = {
             "thesis": _text(it.get("thesis")),
-            "news_alignment": align,
+            "news_alignment": _news_alignment(by_symbol[sym], sentiment.get(sym)),
             "risks": [r for r in (_text(x) for x in risks) if r][:_MAX_RISKS],
             "watch_for": _text(it.get("watch_for")),
         }
@@ -107,25 +195,79 @@ def parse_analysis(text: str, picks: list) -> dict:
     return {"items": items, "missing": missing}
 
 
-async def analyze_top(picks: list, model: str = "gemini-2.5-flash", client=None):
-    """One LLM call over the top TOP_N picks. None if there is nothing to
-    analyse; raises if the call or its output fails."""
-    top = list(picks or [])[:TOP_N]
-    if not top:
-        return None
+# -- providers -----------------------------------------------------------------
+OLLAMA_PREFIX = "ollama:"
+_OLLAMA_TIMEOUT_S = 300
+
+
+async def _aiohttp_post(url: str, payload: dict, timeout: float) -> dict:
+    import aiohttp
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, json=payload,
+                                timeout=aiohttp.ClientTimeout(total=timeout)) as resp:
+            if resp.status != 200:
+                raise RuntimeError(f"Ollama HTTP {resp.status}: {(await resp.text())[:200]}")
+            return await resp.json()
+
+
+async def _ollama_generate(tag: str, prompt: str, http_post) -> str:
+    host = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
+    payload = {
+        "model": tag,
+        "messages": [{"role": "user", "content": prompt}],
+        "format": "json",
+        "stream": False,
+        # The ten-candidate prompt plus its answer overflows Ollama's
+        # 4096-token default context, which truncates silently.
+        "options": {"temperature": 0.2, "num_ctx": 8192},
+    }
+    data = await http_post(f"{host}/api/chat", payload, _OLLAMA_TIMEOUT_S)
+    return (data.get("message") or {}).get("content", "")
+
+
+def _generator(model: str, client, http_post):
+    """prompt -> JSON text, for whichever provider `model` names."""
+    if model.startswith(OLLAMA_PREFIX):
+        tag = model[len(OLLAMA_PREFIX):]
+
+        async def gen(prompt):
+            return await _ollama_generate(tag, prompt, http_post or _aiohttp_post)
+        return gen
+
     if client is None:
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
             raise RuntimeError("GEMINI_API_KEY is not set")
         from google import genai
         client = genai.Client(api_key=api_key)
-
     from google.genai import types
     config = types.GenerateContentConfig(response_mime_type="application/json")
-    logger.info(f"Discovery: one {model} call over the top {len(top)} picks")
-    response = await client.aio.models.generate_content(
-        model=model, contents=build_prompt(top), config=config)
-    out = parse_analysis(response.text, top)
+
+    async def gen(prompt):
+        response = await client.aio.models.generate_content(model=model, contents=prompt, config=config)
+        return response.text
+    return gen
+
+
+async def analyze_top(picks: list, model: str = "gemini-2.5-flash", client=None,
+                      http_post=None):
+    """Analyse the top TOP_N picks: a direction-blind news pass (only if any
+    pick has news), then one commentary call. None if there is nothing to
+    analyse; raises if a call or its output fails."""
+    top = list(picks or [])[:TOP_N]
+    if not top:
+        return None
+    generate = _generator(model, client, http_post)
+
+    with_news = [p for p in top if p.get("news")]
+    sentiment = {}
+    if with_news:
+        logger.info(f"Discovery: news pass ({model}) over {len(with_news)} headlines")
+        sentiment = parse_sentiment(await generate(build_sentiment_prompt(with_news)),
+                                    [p.get("symbol") for p in with_news])
+
+    logger.info(f"Discovery: commentary call ({model}) over the top {len(top)} picks")
+    out = parse_analysis(await generate(build_prompt(top, sentiment)), top, sentiment)
     out["model"] = model
     out["generated_at"] = datetime.datetime.now().isoformat(timespec="seconds")
     return out

@@ -95,3 +95,21 @@ def test_no_persisted_playbook_is_carried_into_the_dashboard():
     assert not hasattr(TerminalDashboard, "dashboard_intraday_plays")
     import reasoning_engine
     assert not hasattr(reasoning_engine.ReasoningEngine, "generate_intraday_playbook")
+
+
+def test_model_list_offers_gemini_plus_installed_ollama_models(monkeypatch):
+    async def tags():
+        return ["qwen2.5:7b", "llama3.2:1b"]
+    monkeypatch.setattr(api_server, "_ollama_models", tags)
+    models = client.get("/api/ai/models").json()["models"]
+    assert models[0]["id"] == "gemini-2.5-flash"
+    assert {"id": "ollama:qwen2.5:7b", "label": "Local: qwen2.5:7b"} in models
+    assert {"id": "ollama:llama3.2:1b", "label": "Local: llama3.2:1b"} in models
+
+
+def test_model_list_still_works_when_ollama_is_down(monkeypatch):
+    async def tags():
+        raise OSError("connection refused")
+    monkeypatch.setattr(api_server, "_ollama_models", tags)
+    models = client.get("/api/ai/models").json()["models"]
+    assert [m["id"] for m in models] == ["gemini-2.5-flash"]

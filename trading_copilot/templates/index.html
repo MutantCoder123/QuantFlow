@@ -475,6 +475,12 @@
                     <p class="text-sm text-slate-400 mt-1">Deterministic screener over the F&amp;O universe, with AI commentary on the top 10 &mdash; scores, not predictions</p>
                 </div>
                 <div class="flex flex-col items-end gap-1">
+                    <label class="text-[11px] text-slate-400 flex items-center gap-2">AI for top 10
+                        <select id="discovery-model-select"
+                            class="bg-slate-800 text-white text-xs border border-slate-600 rounded px-2 py-1 focus:outline-none focus:border-indigo-500">
+                            <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash</option>
+                        </select>
+                    </label>
                     <button id="btn-run-discovery" onclick="runDiscovery()"
                         title="Scans the F&amp;O universe in the feed process, rewrites watchlist.csv, and brings new picks live."
                         class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow-lg shadow-indigo-500/20 transition-all flex items-center gap-2 border border-indigo-500/50">
@@ -2234,6 +2240,7 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
             SUPPORTS: ['News supports', 'bg-emerald-900/40 text-emerald-300 border-emerald-700/50'],
             CONTRADICTS: ['News contradicts', 'bg-amber-900/40 text-amber-300 border-amber-700/50'],
             NO_NEWS: ['No news', 'bg-slate-800 text-slate-400 border-slate-700'],
+            MIXED: ['News mixed', 'bg-slate-800 text-slate-300 border-slate-600'],
         };
         function aiBlock(symbol, rank, job) {
             // AI commentary on the screener's evidence. The parser admits
@@ -2505,6 +2512,23 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                 showDiscoveryJob({ state: 'error', error: e.message });
             }
         }
+        async function loadDiscoveryModels() {
+            // Gemini plus whatever the local Ollama has installed.
+            const sel = document.getElementById('discovery-model-select');
+            if (!sel) return;
+            try {
+                const res = await fetch(`${apiBase}/api/ai/models`);
+                const body = await res.json();
+                const current = sel.value;
+                sel.innerHTML = '';
+                (body.models || []).forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m.id; opt.textContent = m.label;
+                    sel.appendChild(opt);
+                });
+                if ([...sel.options].some(o => o.value === current)) sel.value = current;
+            } catch (e) { /* keep the Gemini default */ }
+        }
         async function resumeDiscovery() {
             // The job lives in the feed process, not the page: show the last
             // scan (or one still running) after a reload. Silent if the feed
@@ -2521,7 +2545,7 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
         }
         async function runDiscovery() {
             try {
-                const modelSelect = document.getElementById('news-model-select');
+                const modelSelect = document.getElementById('discovery-model-select');
                 const model = modelSelect ? modelSelect.value : 'gemini-2.5-flash';
                 const res = await fetch(`${apiBase}/api/discovery/run`, {
                     method: 'POST',
@@ -2612,6 +2636,7 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
             loadExposure();
             loadSessionReview();
             resumeDiscovery();
+            loadDiscoveryModels();
             newsStateInterval = setInterval(fetchNewsState, 5000);
         });
         function renderReasoningReport(reportText) {

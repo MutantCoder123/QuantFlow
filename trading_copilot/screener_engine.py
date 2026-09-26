@@ -254,12 +254,29 @@ class PreMarketScreener:
                     magnitude_score += 20
                     net_polarity += _zscale(macd_dist, 0.002)
                     
-            # 3. News Sentiment Scoring (30%)
-            if symbol in catalyst_cache:
-                news_data = catalyst_cache[symbol]
-                
+            # 3. News
+            # news_engine writes per-stock entries as {"raw_news": [{headline,
+            # summary}, ...]} -- an empty list for "nothing found" -- with no
+            # summary/sentiment/impact keys. Those entries used to fall into
+            # the classified-entry branch below, which read the absent keys
+            # with defaults: every cached stock, empty placeholders included,
+            # scored +5 and showed "Fresh news available." while the real
+            # headline was dropped. With no sentiment data, a real catalyst
+            # earns the same +5 attention bump and no direction. The branch
+            # below is kept for classified {summary, sentiment, impact} entries.
+            news_data = catalyst_cache.get(symbol)
+            if isinstance(news_data, dict) and "raw_news" in news_data:
+                articles = [a for a in (news_data.get("raw_news") or [])
+                            if isinstance(a, dict) and str(a.get("headline") or "").strip()][:3]
+                if articles:
+                    news_summary = " | ".join(
+                        f"{a['headline'].strip()}: {a['summary'].strip()}"
+                        if str(a.get("summary") or "").strip() else a["headline"].strip()
+                        for a in articles)[:600]
+                    magnitude_score += 5
+            elif news_data is not None:
                 if isinstance(news_data, dict):
-                    news_summary = news_data.get('summary', 'Fresh news available.')
+                    news_summary = news_data.get('summary') or None
                     sentiment = news_data.get('sentiment', 'NEUTRAL')
                     impact = news_data.get('impact', 'LOW')
                     

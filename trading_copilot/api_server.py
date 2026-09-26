@@ -141,6 +141,26 @@ async def run_discovery(req: DiscoveryRunRequest | None = None):
     model = req.model if req else "gemini-2.5-flash"
     return await proxy_post(8001, "/api/discovery/run", {"model": model}, timeout=10)
 
+async def _ollama_models() -> list:
+    """Tags installed on the local Ollama server (OLLAMA_HOST)."""
+    host = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
+    async with aiohttp.ClientSession() as session:
+        async with session.get(f"{host}/api/tags", timeout=aiohttp.ClientTimeout(total=2)) as resp:
+            data = await resp.json()
+    return [m["name"] for m in data.get("models", [])]
+
+
+@app.get("/api/ai/models")
+async def list_ai_models():
+    """Models Discovery's analysis can use: Gemini, plus whatever the local
+    Ollama has installed. Ollama being down just means no local options."""
+    models = [{"id": "gemini-2.5-flash", "label": "Gemini 2.5 Flash"}]
+    try:
+        models += [{"id": f"ollama:{tag}", "label": f"Local: {tag}"} for tag in await _ollama_models()]
+    except Exception as e:
+        logger.info(f"Ollama not reachable for model list: {e}")
+    return {"status": "success", "models": models}
+
 @app.get("/api/discovery/status")
 async def discovery_status(): return await proxy_get(8001, "/api/discovery/status", timeout=5)
 
