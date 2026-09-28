@@ -6,6 +6,7 @@ import asyncio
 import logging
 import urllib.parse
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 # Append trading_copilot to sys.path for relative imports
@@ -43,6 +44,23 @@ SELECTORS = {
     "submit": ["button[type='submit']", "button:has-text('Get OTP')", "button:has-text('Continue')", "button:has-text('Submit')", ".btn-primary"]
 }
 
+_IST = ZoneInfo("Asia/Kolkata")
+
+
+def _now_ist() -> datetime:
+    return datetime.now(_IST).replace(tzinfo=None)
+
+
+def token_expiry(saved_at: datetime) -> datetime:
+    """When a token saved at `saved_at` (naive IST) stops working.
+
+    Upstox access tokens expire at 03:30 IST following issue, however
+    recently they were issued: one saved at 00:18 dies at 03:30 the same
+    morning. The old check assumed 24 h and kept a dead token "valid"."""
+    cutoff = saved_at.replace(hour=3, minute=30, second=0, microsecond=0)
+    return cutoff if saved_at < cutoff else cutoff + timedelta(days=1)
+
+
 class UpstoxAuthenticator:
     def __init__(self):
         self.client_id = os.getenv("UPSTOX_CLIENT_ID")
@@ -60,10 +78,13 @@ class UpstoxAuthenticator:
         try:
             with open(self.token_file, "r") as f:
                 data = json.load(f)
-                timestamp = datetime.fromisoformat(data["timestamp"])
-                if datetime.now() - timestamp < timedelta(hours=24):
-                    logger.info("Found valid cached Upstox token.")
+                # Saved as naive IST (this system runs on IST; see _now_ist).
+                saved = datetime.fromisoformat(data["timestamp"]).replace(tzinfo=None)
+                expires = token_expiry(saved)
+                if _now_ist() < expires:
+                    logger.info(f"Found valid cached Upstox token (expires {expires:%Y-%m-%d %H:%M} IST).")
                     return data["access_token"]
+                logger.warning(f"Cached Upstox token expired at {expires:%Y-%m-%d %H:%M} IST.")
         except Exception as e:
             logger.warning(f"Error reading token file: {e}")
         return False
@@ -186,7 +207,7 @@ class UpstoxAuthenticator:
             with open(self.token_file, "w") as f:
                 json.dump({
                     "access_token": access_token,
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": _now_ist().isoformat()
                 }, f)
             logger.info("Successfully exchanged code for access token and cached it.")
             return access_token
@@ -632,7 +653,20 @@ async def run_discovery(request: Request):
     async def apply(selected):
         return await apply_discovery_selection(state, selected)
 
+    import aiohttp
+
+    async def fetch_news(symbol):
+        # The news process (port 8003) only watches the watchlist; ask it for
+        # this symbol directly. Raw Upstox news -- no LLM on that side.
+        async with aiohttp.ClientSession() as session:
+            async with session.post(f"http://127.0.0.1:8003/api/news/fetch/{symbol}", json={},
+                                    timeout=aiohttp.ClientTimeout(total=15)) as resp:
+                body = await resp.json()
+        return body.get("data") if body.get("status") == "success" else None
+
     async def analyze(picks):
+        from discovery_analysis import fill_news
+        await fill_news(picks, fetch_news)
         return await analyze_top(picks, model=model)
 
     started = discovery.start(scan, apply, analyze)

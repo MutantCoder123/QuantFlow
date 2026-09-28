@@ -2304,7 +2304,7 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                             </div>
                         </div>
                         <p class="text-[11px] text-slate-400 mb-2 font-mono-custom">Latest daily bar: H ${fmtNum(item.latest_bar_high, 2)} &middot; L ${fmtNum(item.latest_bar_low, 2)}</p>
-                        <p class="text-xs text-slate-300 mb-3 leading-relaxed"><strong>News:</strong> ${escapeHtml(item.news || 'none cached')}</p>
+                        <p class="text-xs text-slate-300 mb-3 leading-relaxed"><strong>News:</strong> ${escapeHtml(item.news || 'none found')}${item.news_source === 'fetched' ? ' <span class="text-[10px] text-slate-500" title="Fetched for the AI analysis after scoring; it did not affect the score.">(fetched after scoring)</span>' : ''}</p>
                         ${aiBlock(item.symbol, rank, job)}
                     </div>
                     ${isLive
@@ -2495,7 +2495,10 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                     `Scanned ${job.scanned}/${job.total} at ${(job.finished_at || '').slice(11, 16)}. ${live}` +
                     (deferred.length ? ` Leaving the watchlist at next restart: ${deferred.join(', ')}.` : '') +
                     (job.analysis_error ? ` AI analysis failed (${shortErr(job.analysis_error)}); screener results are unaffected.`
-                        : job.analysis ? ` AI: ${job.analysis.model}.` : '');
+                        : job.analysis ? ` AI: ${job.analysis.model}` + (job.analysis.device ? ` on ${job.analysis.device}` : '') + '.' +
+                        (job.analysis.device === 'CPU' || String(job.analysis.device || '').startsWith('partial')
+                            ? ' The local model did not fully load on the GPU, so this was slow; restart Ollama (after the laptop sleeps, a hybrid-GPU laptop can hide the dedicated GPU from it).' : '')
+                        : '');
             } else if (job.state === 'error') {
                 if (summary) summary.innerText = `Scan failed: ${shortErr(job.error)}. The watchlist was not changed.`;
             }

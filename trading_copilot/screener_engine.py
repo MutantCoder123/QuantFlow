@@ -57,6 +57,20 @@ def _zscale(value: float, unit: float, cap: float = 3.0) -> float:
     return max(min(value / unit, cap), -cap)
 
 
+def format_raw_news(entry) -> str | None:
+    """Readable text from a news_engine entry ({"raw_news": [{headline,
+    summary}, ...]}): up to three articles, or None if it holds none."""
+    raw = entry.get("raw_news") if isinstance(entry, dict) else None
+    articles = [a for a in (raw or [])
+                if isinstance(a, dict) and str(a.get("headline") or "").strip()][:3]
+    if not articles:
+        return None
+    return " | ".join(
+        f"{a['headline'].strip()}: {a['summary'].strip()}"
+        if str(a.get("summary") or "").strip() else a["headline"].strip()
+        for a in articles)[:600]
+
+
 def select_bounded_watchlist(candidates: list, previous_symbols: list,
                               policy: dict, clusters: dict,
                               token_resolver=None) -> list:
@@ -266,13 +280,8 @@ class PreMarketScreener:
             # below is kept for classified {summary, sentiment, impact} entries.
             news_data = catalyst_cache.get(symbol)
             if isinstance(news_data, dict) and "raw_news" in news_data:
-                articles = [a for a in (news_data.get("raw_news") or [])
-                            if isinstance(a, dict) and str(a.get("headline") or "").strip()][:3]
-                if articles:
-                    news_summary = " | ".join(
-                        f"{a['headline'].strip()}: {a['summary'].strip()}"
-                        if str(a.get("summary") or "").strip() else a["headline"].strip()
-                        for a in articles)[:600]
+                news_summary = format_raw_news(news_data)
+                if news_summary:
                     magnitude_score += 5
             elif news_data is not None:
                 if isinstance(news_data, dict):

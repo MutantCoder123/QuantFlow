@@ -21,11 +21,12 @@ class NewsEngine:
 
     @classmethod
     def _get_upstox_api(cls):
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        root_token = os.path.join(os.path.dirname(base_dir), "upstox_token.json")
-        copilot_token = os.path.join(base_dir, "upstox_token.json")
-        token_file = copilot_token if os.path.exists(copilot_token) else root_token
-        
+        # The one token file every service reads (paths.TOKEN_PATH). This
+        # used to fall back to a repo-root copy, so two files could hold
+        # different tokens and updating the "wrong" one was silently ignored.
+        from paths import TOKEN_PATH
+        token_file = str(TOKEN_PATH)
+
         try:
             with open(token_file, "r") as f:
                 data = json.load(f)

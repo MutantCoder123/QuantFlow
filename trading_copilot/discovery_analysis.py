@@ -35,7 +35,11 @@ model size matters here.
 import datetime
 import json
 import logging
+import math
+import numbers
 import os
+
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +55,13 @@ _LIQUIDITY_BANDS = ((500.0, "HIGH"), (100.0, "MEDIUM"), (0.0, "LOW"))
 
 
 def _num(v):
-    return v if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+    """A plain float, or None. The screener's values are numpy scalars:
+    np.float32 is not a float subclass, and a comparison on them yields a
+    numpy bool that json.dumps rejects -- which crashed the first live run."""
+    if isinstance(v, (bool, np.bool_)) or not isinstance(v, numbers.Real):
+        return None
+    f = float(v)
+    return f if math.isfinite(f) else None
 
 
 def _news_alignment(pick: dict, sentiment: str | None) -> str | None:
@@ -225,6 +235,34 @@ async def _ollama_generate(tag: str, prompt: str, http_post) -> str:
     return (data.get("message") or {}).get("content", "")
 
 
+async def _aiohttp_get(url: str, timeout: float) -> dict:
+    import aiohttp
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, timeout=aiohttp.ClientTimeout(total=timeout)) as resp:
+            return await resp.json()
+
+
+async def _ollama_placement(tag: str, http_get=None) -> str | None:
+    """Where Ollama actually loaded `tag`: "GPU", "CPU", "partial GPU (n%)",
+    or None if unknown. On a hybrid-GPU laptop Ollama can silently fall back
+    to the CPU after a sleep -- on 2026-09-28 the only symptom was a 169 s
+    analysis instead of ~20 s -- so this is reported rather than assumed."""
+    host = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
+    try:
+        data = await (http_get or _aiohttp_get)(f"{host}/api/ps", 5)
+        m = next(m for m in data.get("models", []) if m.get("name") == tag)
+        size, vram = float(m.get("size") or 0), float(m.get("size_vram") or 0)
+    except Exception:
+        return None
+    if size <= 0:
+        return None
+    if vram >= size:
+        return "GPU"
+    if vram <= 0:
+        return "CPU"
+    return f"partial GPU ({round(100 * vram / size)}%)"
+
+
 def _generator(model: str, client, http_post):
     """prompt -> JSON text, for whichever provider `model` names."""
     if model.startswith(OLLAMA_PREFIX):
@@ -249,8 +287,43 @@ def _generator(model: str, client, http_post):
     return gen
 
 
+_NEWS_FETCH_CONCURRENCY = 3
+
+
+async def fill_news(picks: list, fetch) -> None:
+    """Fetch news for top-TOP_N picks that had none at scan time.
+
+    The news process only watches symbols already on the watchlist, so most
+    Discovery picks arrive with no news. `fetch(symbol)` returns a
+    news_engine entry ({"raw_news": [...]}). Mutates the picks in place and
+    tags `news_source` -- "scan" (it counted toward the score) or "fetched"
+    (it arrived after scoring and did not). Nothing found, or a failed
+    fetch, leaves news unknown; it never blocks the analysis.
+    """
+    import asyncio
+    from screener_engine import format_raw_news
+
+    top = list(picks or [])[:TOP_N]
+    for p in top:
+        if p.get("news"):
+            p["news_source"] = "scan"
+    gate = asyncio.Semaphore(_NEWS_FETCH_CONCURRENCY)
+
+    async def one(p):
+        async with gate:
+            try:
+                text = format_raw_news(await fetch(p.get("symbol")))
+            except Exception as e:
+                logger.warning(f"Discovery: news fetch for {p.get('symbol')} failed: {e}")
+                return
+        if text:
+            p["news"], p["news_source"] = text, "fetched"
+
+    await asyncio.gather(*(one(p) for p in top if not p.get("news")))
+
+
 async def analyze_top(picks: list, model: str = "gemini-2.5-flash", client=None,
-                      http_post=None):
+                      http_post=None, http_get=None):
     """Analyse the top TOP_N picks: a direction-blind news pass (only if any
     pick has news), then one commentary call. None if there is nothing to
     analyse; raises if a call or its output fails."""
@@ -270,4 +343,6 @@ async def analyze_top(picks: list, model: str = "gemini-2.5-flash", client=None,
     out = parse_analysis(await generate(build_prompt(top, sentiment)), top, sentiment)
     out["model"] = model
     out["generated_at"] = datetime.datetime.now().isoformat(timespec="seconds")
+    out["device"] = (await _ollama_placement(model[len(OLLAMA_PREFIX):], http_get)
+                     if model.startswith(OLLAMA_PREFIX) else None)
     return out

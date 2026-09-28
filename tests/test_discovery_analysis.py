@@ -241,3 +241,106 @@ def test_price_levels_are_not_sent_to_the_model():
 def test_prompt_says_there_is_no_fundamental_data():
     p = build_prompt(PICKS[:TOP_N]).lower()
     assert "no fundamental data" in p
+
+
+# -- news for the top 10 before analysis --------------------------------------
+# The news process only watches symbols already on the watchlist, so most
+# Discovery picks had no news at scan time and the news pass had nothing to
+# judge. The top 10 are fetched on demand before the AI runs.
+from discovery_analysis import fill_news
+
+
+def _raw(*headlines):
+    return {"raw_news": [{"Article": f"Article {i}", "headline": h, "summary": ""}
+                         for i, h in enumerate(headlines, 1)]}
+
+
+async def test_missing_news_is_fetched_for_the_top_ten_only():
+    picks = [_pick(f"S{i}", 100 - i, news=None) for i in range(12)]
+    asked = []
+
+    async def fetch(symbol):
+        asked.append(symbol)
+        return _raw(f"{symbol} wins order")
+
+    await fill_news(picks, fetch)
+    assert sorted(asked) == sorted(f"S{i}" for i in range(TOP_N))
+    assert picks[0]["news"] == "S0 wins order" and picks[0]["news_source"] == "fetched"
+    assert picks[10]["news"] is None
+
+
+async def test_news_already_cached_at_scan_time_is_not_refetched():
+    picks = [_pick("S0", 90, news="Order win"), _pick("S1", 80, news=None)]
+    asked = []
+
+    async def fetch(symbol):
+        asked.append(symbol)
+        return _raw("x")
+
+    await fill_news(picks, fetch)
+    assert asked == ["S1"]
+    assert picks[0]["news_source"] == "scan"
+
+
+async def test_nothing_found_or_a_failed_fetch_leaves_news_unknown():
+    picks = [_pick("S0", 90, news=None), _pick("S1", 80, news=None)]
+
+    async def fetch(symbol):
+        if symbol == "S0":
+            return {"raw_news": []}
+        raise OSError("news process down")
+
+    await fill_news(picks, fetch)                      # must not raise
+    assert picks[0]["news"] is None and picks[1]["news"] is None
+    assert "news_source" not in picks[0]
+
+
+def test_screener_numpy_values_build_a_valid_prompt():
+    """The first live run with local AI crashed: the screener's values are
+    numpy scalars, `rs > 0` is a numpy bool, and json.dumps rejects it.
+    Every fixture above used plain floats, so none of them could see it."""
+    import numpy as np
+    pick = dict(_pick("S0", 1), score=np.float64(83.65), rs=np.float64(11.01),
+                adv_crore=np.float32(142.7), directional_bias="SHORT")
+    prompt = build_prompt([pick])                      # must not raise
+    facts = json.loads(prompt.split("CANDIDATES:\n", 1)[1])[0]
+    assert facts["relative_strength_agrees_with_direction"] is False
+    assert facts["liquidity"] == "MEDIUM"              # np.float32 is not a float subclass
+    assert facts["screener_score"] == 83.7
+
+
+# -- where a local model actually ran ------------------------------------------
+# On a hybrid-GPU laptop Ollama can silently fall back to the CPU after a
+# sleep (2026-09-28: CUDA discovery crashed, qwen2.5:7b ran "100% CPU" and
+# took 169 s). The only symptom was slowness, so the placement is reported.
+from discovery_analysis import _ollama_placement
+
+
+@pytest.mark.parametrize("size, vram, want", [
+    (5_000_000_000, 5_000_000_000, "GPU"),
+    (5_000_000_000, 0, "CPU"),
+    (5_000_000_000, 2_500_000_000, "partial GPU (50%)"),
+])
+async def test_placement_is_read_from_ollama(size, vram, want):
+    async def get(url, timeout):
+        assert url.endswith("/api/ps")
+        return {"models": [{"name": "other:1b", "size": 1, "size_vram": 1},
+                           {"name": "qwen2.5:7b", "size": size, "size_vram": vram}]}
+    assert await _ollama_placement("qwen2.5:7b", get) == want
+
+
+async def test_placement_unknown_is_none_not_a_guess():
+    async def get(url, timeout):
+        raise OSError("down")
+    assert await _ollama_placement("qwen2.5:7b", get) is None
+
+
+async def test_local_analysis_reports_its_placement():
+    async def post(url, payload, timeout):
+        return {"message": {"content": json.dumps({"items": [dict(_item("S0"), news_sentiment="GOOD")]})}}
+
+    async def get(url, timeout):
+        return {"models": [{"name": "qwen2.5:7b", "size": 10, "size_vram": 0}]}
+
+    out = await analyze_top(PICKS[:1], model="ollama:qwen2.5:7b", http_post=post, http_get=get)
+    assert out["device"] == "CPU"
