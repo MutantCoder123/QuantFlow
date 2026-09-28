@@ -15,6 +15,8 @@ import { api } from './core/api.js';
 import { connectLive } from './core/live.js';
 import { createStore } from './core/store.js';
 import * as blotterC from './components/blotter.js';
+import * as diagnoseC from './components/diagnose/index.js';
+import * as legacyC from './components/legacy.js';
 import * as figuresC from './components/figures-line.js';
 import * as journalC from './components/journal.js';
 import * as settingsC from './components/settings-drawer.js';
@@ -33,22 +35,28 @@ function savedRange() {
 const store = createStore({
   range: savedRange(), now: Date.now() / 1000, live: null, liveAt: null,
   metrics: null, metricsError: null, equity: null, equityError: null, trades: null, tradesError: null,
+  breakdowns: null, breakdownsError: null, diagnostics: null, diagnosticsError: null,
   actionError: null, drawer: false, openTrade: null, scrollTo: false,
 });
 connectLive(store);
 
 const visible = () => root && !root.classList.contains('hidden');
 
-// One refresh = the three range-scoped reads, applied only if the range
-// hasn't changed while they were in flight.
+// One refresh = the range-scoped reads, applied only if the range hasn't
+// changed while they were in flight. A failed read keeps the last good data
+// and records why.
 async function refresh() {
   const range = store.get().range;
-  const [m, e, t] = await Promise.all([api.metrics(range), api.equity(range), api.trades(range)]);
+  const [m, e, t, b, d] = await Promise.all([api.metrics(range), api.equity(range), api.trades(range),
+    api.breakdowns(range), api.diagnostics(range)]);
   if (store.get().range !== range) return;
+  const s = store.get();
   store.set({
-    metrics: m.ok ? m.data : store.get().metrics, metricsError: m.ok ? null : m.error,
-    equity: e.ok ? e.data : store.get().equity, equityError: e.ok ? null : e.error,
-    trades: t.ok ? t.data.trades : store.get().trades, tradesError: t.ok ? null : t.error,
+    metrics: m.ok ? m.data : s.metrics, metricsError: m.ok ? null : m.error,
+    equity: e.ok ? e.data : s.equity, equityError: e.ok ? null : e.error,
+    trades: t.ok ? t.data.trades : s.trades, tradesError: t.ok ? null : t.error,
+    breakdowns: b.ok ? b.data.breakdowns : s.breakdowns, breakdownsError: b.ok ? null : b.error,
+    diagnostics: d.ok ? d.data : s.diagnostics, diagnosticsError: d.ok ? null : d.error,
   });
 }
 
@@ -57,8 +65,9 @@ const actions = {
   refresh,
   setRange(range) {
     try { localStorage.setItem(RANGE_KEY, range); } catch { /* a per-viewer convenience only */ }
-    store.set({ range, metrics: null, equity: null, trades: null, metricsError: null,
-      equityError: null, tradesError: null, openTrade: null });
+    store.set({ range, metrics: null, equity: null, trades: null, breakdowns: null, diagnostics: null,
+      metricsError: null, equityError: null, tradesError: null, breakdownsError: null, diagnosticsError: null,
+      openTrade: null });
     refresh();
   },
   async pause() {
@@ -80,7 +89,7 @@ function mountTab() {
   if (mounted || !root) return;
   mounted = true;
   root.textContent = '';
-  const parts = [statusC, statementC, tapeC, figuresC, blotterC, journalC, settingsC].map((c) => {
+  const parts = [statusC, statementC, tapeC, figuresC, blotterC, diagnoseC, journalC, legacyC, settingsC].map((c) => {
     const el = root.appendChild(document.createElement('div'));
     el.className = 'pf-part';
     return c.mount(el, store, actions);

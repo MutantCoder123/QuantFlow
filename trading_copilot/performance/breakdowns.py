@@ -36,6 +36,9 @@ DIMENSIONS = {
     "symbol": lambda t: t.get("symbol"),
     "cluster": lambda t: t.get("cluster"),
     "direction": lambda t: t.get("side"),
+    # "which market conditions pay?" -- side and regime together, e.g. "LONG|TREND_EXPANSION"
+    "regime_side": lambda t: (f"{t.get('side')}|{(t.get('context') or {}).get('regime')}"
+                              if t.get("side") and (t.get("context") or {}).get("regime") else None),
     "exit_reason": lambda t: t.get("reason"),
     "score_bucket": lambda t: score_bucket((t.get("context") or {}).get("composite")),
     "verdict": _ctx("verdict"),

@@ -527,7 +527,14 @@ async def legacy_trades():
             data = json.load(f)
     except FileNotFoundError:
         data = {}
-    trades = list(data.values()) if isinstance(data, dict) else list(data)
+    # The file is {symbol: [trade, ...]}; flatten to one list of trades
+    # (older copies held {trade_id: trade}, so accept either).
+    trades = []
+    for v in (data.values() if isinstance(data, dict) else data):
+        if isinstance(v, list):
+            trades.extend(t for t in v if isinstance(t, dict))
+        elif isinstance(v, dict):
+            trades.append(v)
     return {"status": "success", "source": "legacy_mock_platform",
             "note": "Made on a mock trading platform before the current engine; "
                     "does not represent the current engine and is excluded from every metric.",

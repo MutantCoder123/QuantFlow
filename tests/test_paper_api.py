@@ -59,11 +59,26 @@ def test_engine_not_started_is_reported_not_faked(monkeypatch):
 
 
 def test_legacy_trades_are_labelled_and_separate(tmp_path, monkeypatch):
+    # the real file's shape: {symbol: [trade, ...]}
     f = tmp_path / "trade_history.json"
-    f.write_text(json.dumps({"T1": {"trade_id": "T1", "symbol": "SAIL", "status": "CLOSED",
-                                    "realized_pnl": 60.0}}))
+    f.write_text(json.dumps({
+        "SAIL": [{"trade_id": "T1", "symbol": "SAIL", "status": "CLOSED", "realized_pnl": 60.0},
+                 {"trade_id": "T2", "symbol": "SAIL", "status": "CLOSED", "realized_pnl": -20.0}],
+        "IDEA": [{"trade_id": "T3", "symbol": "IDEA", "status": "CLOSED", "realized_pnl": 5.0}]}))
     monkeypatch.setattr(api_server, "TRADE_HISTORY_PATH", f)
     body = client.get("/api/legacy/trades").json()
     assert body["source"] == "legacy_mock_platform"
     assert "does not represent the current engine" in body["note"]
-    assert body["trades"][0]["trade_id"] == "T1"
+    assert [t["trade_id"] for t in body["trades"]] == ["T1", "T2", "T3"]       # trades, not symbols
+
+
+def test_legacy_trades_accept_the_older_flat_shape(tmp_path, monkeypatch):
+    f = tmp_path / "trade_history.json"
+    f.write_text(json.dumps({"T1": {"trade_id": "T1", "symbol": "SAIL"}}))
+    monkeypatch.setattr(api_server, "TRADE_HISTORY_PATH", f)
+    assert [t["trade_id"] for t in client.get("/api/legacy/trades").json()["trades"]] == ["T1"]
+
+
+def test_the_real_legacy_file_reads_as_trades():
+    body = client.get("/api/legacy/trades").json()
+    assert body["trades"] and all(isinstance(t, dict) and "trade_id" in t for t in body["trades"])

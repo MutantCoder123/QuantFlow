@@ -41,7 +41,9 @@ def test_buckets_below_minimum_keep_sums_but_withhold_rates():
 def test_every_dimension_and_ordinal_order():
     b = all_breakdowns(trades(), 1)
     assert set(b) == {"regime", "session_phase", "symbol", "cluster", "direction", "exit_reason",
-                      "score_bucket", "verdict", "hour", "config_version"}
+                      "score_bucket", "verdict", "hour", "config_version", "regime_side"}
+    assert row(b["regime_side"], "LONG|TREND_EXPANSION")["n"] == 2
+    assert row(b["regime_side"], "SHORT|LUNCH_CHOP")["n"] == 1
     assert [r["label"] for r in b["hour"]] == ["09:00", "11:00", "13:00"]
     assert [r["label"] for r in b["score_bucket"]] == ["0.1-0.2", "0.2-0.3", "0.3-0.4", "0.4-0.5"]
     assert row(b["direction"], "SHORT")["n"] == 1 and row(b["verdict"], "ADJUST")["n"] == 1
@@ -73,6 +75,7 @@ def test_excursions_by_hand():
     assert val(e["avg_given_back_r"]) == pytest.approx((0 + 1.5 + 0.36 + 0.08) / 4)
     assert val(e["winner_capture_pct"]) == pytest.approx((1.0 + 0.64) / 2 * 100)
     assert len(e["points"]) == 4 and "gates.stop_proximity_pct" in e["tunes"]
+    assert len(e["tunes"]) == len(set(e["tunes"]))
 
 
 def test_calibration_buckets_and_monotonic_check():

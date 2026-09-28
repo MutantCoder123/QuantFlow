@@ -237,6 +237,67 @@
 }
 #tab-performance .pf-xb-legend { display: flex; gap: 14px; }
 
+/* -------------------------------------------------------------------- why */
+#tab-performance .pf-why { display: flex; flex-direction: column; gap: 14px; }
+#tab-performance .pf-qselect { display: none; }
+#tab-performance .pf-why-grid { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 24px; align-items: start; }
+#tab-performance .pf-qlist { display: flex; flex-direction: column; border-top: 1px solid var(--rule); }
+#tab-performance .pf-qlist button {
+  display: flex; justify-content: space-between; align-items: center; text-align: left;
+  background: transparent; color: var(--mute); border: 0; border-bottom: 1px solid var(--rule); padding: 13px 14px;
+}
+#tab-performance .pf-qlist button:hover { color: var(--paper); }
+#tab-performance .pf-qlist button[aria-selected="true"] { background: var(--slate); color: var(--paper); }
+#tab-performance .pf-qlist button:focus-visible { outline-offset: -2px; }
+#tab-performance .pf-answer { padding: 22px 24px; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+#tab-performance .pf-h3 { margin: 0; font: 400 var(--t-h2)/1.2 var(--f-head); }
+#tab-performance .pf-notyet {
+  min-height: 220px; border: 1px dashed var(--rule); border-radius: var(--r-input); display: flex;
+  align-items: center; justify-content: center; color: var(--amber); padding: 0 24px; text-align: center;
+}
+#tab-performance .pf-finding { margin: 0; max-width: 760px; font-size: var(--t-h3); line-height: 1.45; text-wrap: pretty; }
+#tab-performance .pf-tunes { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+#tab-performance .pf-tunes code {
+  font: 400 var(--t-small) var(--f-code); color: var(--paper); background: var(--raise);
+  border: 1px solid var(--rule); border-radius: var(--r-input); padding: 3px 8px;
+}
+#tab-performance .pf-bars { display: flex; flex-direction: column; }
+#tab-performance .pf-bar-row {
+  display: grid; grid-template-columns: 240px minmax(0, 1fr) 190px; gap: 16px; align-items: center;
+  padding: 7px 0; border-bottom: 1px solid var(--rule);
+}
+#tab-performance .pf-bar-track { position: relative; height: 14px; }
+#tab-performance .pf-bar-zero { position: absolute; left: 50%; top: -7px; bottom: -7px; width: 1px; background: var(--rule-strong); }
+#tab-performance .pf-bar { position: absolute; top: 2px; height: 10px; min-width: 2px; background: var(--jade); }
+#tab-performance .pf-bar[data-tone="loss"] { background: var(--coral); }
+#tab-performance .pf-bar[data-tone="amber"] { background: var(--amber); opacity: .45; }
+#tab-performance .pf-bar-value { text-align: right; }
+#tab-performance [data-tone="amber"] { color: var(--amber); }
+#tab-performance .pf-scatter { position: relative; margin: 24px 0 0 36px; max-width: 100%; }
+#tab-performance .pf-scatter svg { position: absolute; left: 0; top: 0; overflow: visible; }
+#tab-performance .pf-scatter .pf-axis { position: absolute; }
+#tab-performance .pf-scatter .pf-axis.pf-loss { color: var(--coral); }
+#tab-performance .pf-sc-y { left: -36px; }
+#tab-performance .pf-sc-ytitle { left: -36px; top: -24px; }
+#tab-performance .pf-sc-half { stroke: var(--mute); stroke-dasharray: 3 4; fill: none; }
+#tab-performance .pf-sc-stop { stroke: var(--coral); stroke-dasharray: 3 4; fill: none; }
+#tab-performance .pf-sc-win { fill: var(--jade); fill-opacity: .85; }
+#tab-performance .pf-sc-loss { fill: var(--coral); fill-opacity: .85; }
+#tab-performance .pf-key-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--jade); }
+#tab-performance .pf-key-dot[data-tone="loss"] { background: var(--coral); }
+
+/* ----------------------------------------------------------------- legacy */
+#tab-performance .pf-legacy { margin-top: -16px; }
+#tab-performance .pf-legacy-toggle {
+  display: flex; align-items: center; gap: 12px; width: 100%; background: transparent; border: 0;
+  border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding: 14px 0; color: var(--mute); text-align: left;
+}
+#tab-performance .pf-legacy-body { padding-top: 12px; display: flex; flex-direction: column; gap: 12px; }
+#tab-performance .pf-legacy-table .pf-row {
+  grid-template-columns: 120px 110px 60px 70px 190px 100px 100px minmax(200px, 1fr); gap: 14px; padding: 10px 0;
+}
+#tab-performance .pf-reason { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t-small); }
+
 /* --------------------------------------------------------- settings drawer */
 #tab-performance .pf-scrim { position: fixed; inset: 0; background: rgba(6, 8, 13, .66); z-index: 45; }
 #tab-performance .pf-drawer {
@@ -340,6 +401,25 @@
   #tab-performance .pf-search input { width: 100%; }
   #tab-performance .pf-divider { display: none; }
   #tab-performance .pf-drawer { border-radius: 0; }
+
+  #tab-performance .pf-qselect { display: flex; flex-direction: column; gap: 6px; }
+  #tab-performance .pf-qselect select {
+    min-height: 44px; padding: 0 12px; background: var(--ink); color: var(--paper);
+    border: 1px solid var(--rule); border-radius: var(--r-input); font: 400 var(--t-body) var(--f-body);
+  }
+  #tab-performance .pf-why-grid { grid-template-columns: 1fr; }
+  #tab-performance .pf-qlist { display: none; }
+  #tab-performance .pf-answer { padding: 16px; gap: 14px; }
+  #tab-performance .pf-h3 { font-size: var(--t-h3); }
+  #tab-performance .pf-finding { font-size: var(--t-body); }
+  #tab-performance .pf-bar-row { grid-template-columns: 1fr auto; grid-template-areas: "label value" "track track"; gap: 4px 10px; }
+  #tab-performance .pf-bar-label { grid-area: label; font-size: var(--t-small); }
+  #tab-performance .pf-bar-value { grid-area: value; font-size: var(--t-small); }
+  #tab-performance .pf-bar-track { grid-area: track; height: 8px; }
+  #tab-performance .pf-bar { top: 1px; height: 6px; }
+  #tab-performance .pf-scatter { margin-left: 30px; }
+  #tab-performance .pf-legacy-table .pf-row { grid-template-columns: 1fr auto; grid-template-areas: none; }
+  #tab-performance .pf-legacy-table .pf-row > :not(:nth-child(2)):not(:nth-child(6)) { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

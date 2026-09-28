@@ -73,7 +73,7 @@ def excursions(trades: list, min_n: int) -> dict:
         "reached_target_pct": gated(len(reached) / n * 100.0 if n else None, n, min_n),
         "avg_given_back_r": gated(mean(gave_back) if gave_back else None, len(gave_back), min_n),
         "winner_capture_pct": gated(mean(capture) * 100.0 if capture else None, len(capture), min_n),
-        "tunes": TUNES["stops"] + TUNES["targets"],
+        "tunes": list(dict.fromkeys(TUNES["stops"] + TUNES["targets"])),   # no key twice
     }
 
 
