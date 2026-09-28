@@ -28,11 +28,13 @@ def init(mirror: dict) -> PaperBroker | None:
     try:
         from core.costs import load_costs
         from core.policy_config import load_policy
-        horizon = load_policy().horizon
+        policy = load_policy()
+        horizon = policy.horizon
         _broker = PaperBroker(store=EventStore(), settings=PaperSettings(), costs_cfg=load_costs(),
                               mirror=mirror,
                               entry_cutoff=horizon.get("entry_cutoff_ist", "13:45"),
-                              square_off=horizon.get("square_off_ist", "15:20"))
+                              square_off=horizon.get("square_off_ist", "15:20"),
+                              config_version=policy.version)
         stale = _broker.recover()
         logger.info(f"Paper engine ready: {len(_broker.open)} open, {len(_broker.closed)} closed"
                     + (f", {stale} stale position(s) closed" if stale else ""))

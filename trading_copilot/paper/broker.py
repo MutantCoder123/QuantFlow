@@ -43,8 +43,11 @@ def _hm(s: str) -> tuple[int, int]:
 class PaperBroker:
     def __init__(self, store: EventStore, settings, costs_cfg: dict,
                  clock=time.time, mirror=None, entry_cutoff: str = "13:45",
-                 square_off: str = "15:20"):
+                 square_off: str = "15:20", config_version: int | None = None):
         self.store = store
+        # the decision-policy version in force, stamped on every OPEN so
+        # performance can be compared across tuning changes
+        self.config_version = config_version
         self.settings = settings
         self.costs_cfg = costs_cfg
         # Same map core.risk.size() consults internally -- a different one
@@ -212,7 +215,8 @@ class PaperBroker:
             "token": s.get("token"), "side": side, "qty": int(sized.qty),
             "entry_price": fill, "ltp_at_entry": ltp, "stop": stop, "target": target,
             "risk_amount": float(sized.risk_amount), "cluster": cluster,
-            "signal_id": s.get("signal_id"), "settings": eff, "context": self._context(s),
+            "signal_id": s.get("signal_id"), "config_version": self.config_version,
+            "settings": eff, "context": self._context(s),
         })
         if ev is None:
             return None

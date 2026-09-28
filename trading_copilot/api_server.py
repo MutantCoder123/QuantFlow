@@ -4,8 +4,8 @@ import asyncio
 import logging
 import csv
 import aiohttp
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Query
+from fastapi.responses import HTMLResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
@@ -364,18 +364,138 @@ async def paper_positions():
 
 
 @app.get("/api/paper/trades")
-async def paper_trades():
-    b, err = _paper_or_error()
-    return err or {"status": "success", "trades": list(b.closed)}
+async def paper_trades(rng: str = Query("all", alias="range"),
+                       frm: str | None = Query(None, alias="from"), to: str | None = None):
+    sc, _, err = _paper_scope(rng, frm, to)
+    return err or {"status": "success", "range": _range_body(rng, sc), "trades": sc.trades}
 
 
 @app.get("/api/paper/rejections")
-async def paper_rejections():
-    b, err = _paper_or_error()
+async def paper_rejections(rng: str = Query("all", alias="range"),
+                           frm: str | None = Query(None, alias="from"), to: str | None = None):
+    sc, _, err = _paper_scope(rng, frm, to)
+    return err or {"status": "success", "range": _range_body(rng, sc), "rejections": sc.rejections}
+
+
+# ---- Paper performance (pure metrics over the event log) -----------------
+def _paper_scope(rng, frm, to):
+    """(scope, min_n, error). Reads the event log directly, so the figures
+    are there even when the decision loop isn't running."""
+    import time as _time
+    from paper import runtime as paper_rt
+    from paper.settings import PaperSettings
+    from paper.store import EventStore
+    from performance.scope import select
+    b = paper_rt.broker()
+    store = b.store if b else EventStore()
+    settings = b.settings if b else PaperSettings()
+    now = b._now() if b else _time.time()
+    try:
+        sc = select(store.load(), rng, now, settings.effective()["capital"], frm, to)
+    except ValueError as e:
+        return None, None, {"status": "error", "message": str(e)}
+    return sc, settings.options().get("metrics_min_n") or {}, None
+
+
+def _range_body(rng, sc):
+    return {"name": rng, "first_day": sc.first_day, "last_day": sc.last_day,
+            "session_days": len(sc.session_days)}
+
+
+def _paper_arms(sc):
+    """Arms-journal rows (every escalation, both arms) inside the range."""
+    import datetime as _dt
+    from journal.arms import ArmJournal
+    from paths import SIGNALS_DIR
+    from performance.scope import ist_day
+    first = sc.first_day or (sc.session_days[0] if sc.session_days else None)
+    days = 1 if first is None else (_dt.date.today() - _dt.date.fromisoformat(first)).days + 2
+    rows = ArmJournal(SIGNALS_DIR / "arms").load_all(last_n_days=max(1, days))
+    out = []
+    for r in rows:
+        try:
+            d = ist_day(int(r["ts"]))
+        except (KeyError, TypeError, ValueError):
+            continue
+        if (sc.first_day is None or d >= sc.first_day) and (sc.last_day is None or d <= sc.last_day):
+            out.append(r)
+    return out
+
+
+@app.get("/api/paper/metrics")
+async def paper_metrics(rng: str = Query("all", alias="range"),
+                        frm: str | None = Query(None, alias="from"), to: str | None = None):
+    from performance.metrics import daily, headline, risk_adjusted
+    sc, min_n, err = _paper_scope(rng, frm, to)
     if err:
         return err
-    from paper.store import rebuild
-    return {"status": "success", "rejections": rebuild(b.store.load()).rejections}
+    return {"status": "success", "range": _range_body(rng, sc), "min_n": min_n,
+            "headline": headline(sc, min_n), "risk_adjusted": risk_adjusted(sc, min_n),
+            "daily": daily(sc)}
+
+
+@app.get("/api/paper/equity")
+async def paper_equity(rng: str = Query("all", alias="range"),
+                       frm: str | None = Query(None, alias="from"), to: str | None = None):
+    from performance.metrics import curve
+    sc, _, err = _paper_scope(rng, frm, to)
+    return err or {"status": "success", "range": _range_body(rng, sc), **curve(sc)}
+
+
+@app.get("/api/paper/breakdowns")
+async def paper_breakdowns(rng: str = Query("all", alias="range"), by: str | None = None,
+                           frm: str | None = Query(None, alias="from"), to: str | None = None):
+    from performance.breakdowns import all_breakdowns, breakdown
+    sc, min_n, err = _paper_scope(rng, frm, to)
+    if err:
+        return err
+    need = int(min_n.get("bucket", 10))
+    try:
+        body = {by: breakdown(sc.trades, by, need)} if by else all_breakdowns(sc.trades, need)
+    except ValueError as e:
+        return {"status": "error", "message": str(e)}
+    return {"status": "success", "range": _range_body(rng, sc), "min_n": need, "breakdowns": body}
+
+
+@app.get("/api/paper/diagnostics")
+async def paper_diagnostics(rng: str = Query("all", alias="range"),
+                            frm: str | None = Query(None, alias="from"), to: str | None = None):
+    from performance.diagnostics import all_diagnostics
+    sc, min_n, err = _paper_scope(rng, frm, to)
+    if err:
+        return err
+    try:
+        arms = _paper_arms(sc)
+    except Exception as e:
+        logger.error(f"paper diagnostics: arms journal unreadable: {e}")
+        arms = []
+    return {"status": "success", "range": _range_body(rng, sc), "min_n": min_n,
+            **all_diagnostics(sc.trades, sc.rejections, arms, min_n)}
+
+
+@app.get("/api/paper/export")
+async def paper_export(rng: str = Query("all", alias="range"), fmt: str = "csv",
+                       kind: str = "trades",
+                       frm: str | None = Query(None, alias="from"), to: str | None = None):
+    from performance import export
+    from performance.metrics import daily
+    sc, _, err = _paper_scope(rng, frm, to)
+    if err:
+        return err
+    if kind == "trades":
+        rows, cols = [export.trade_row(t) for t in sc.trades], export.TRADE_COLUMNS
+    elif kind == "daily":
+        rows, cols = daily(sc), export.DAILY_COLUMNS
+    else:
+        return {"status": "error", "message": "Unknown export. Use kind=trades or kind=daily."}
+    try:
+        body = export.encode(rows, cols, fmt)
+    except ValueError as e:
+        return {"status": "error", "message": str(e)}
+    name = f"paper_{kind}_{sc.first_day or 'start'}_{sc.last_day or 'now'}.{fmt}"
+    media = "text/csv" if fmt == "csv" else "application/vnd.apache.parquet"
+    return Response(content=body, media_type=media,
+                    headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
 
 @app.get("/api/legacy/trades")
