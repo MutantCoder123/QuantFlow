@@ -138,28 +138,39 @@ async def _fetch_bars(token: str, n: int = 30) -> list[Bar] | None:
     return out or None
 
 
+async def tick(ltp_of, fetch_bars=None, last_snap: float = 0.0) -> float:
+    """One pass: mark and touch-check every open position (bars since the
+    last check; LTP-only fallback, flagged), square off at/after the
+    square-off time, and snapshot equity on its cadence. `ltp_of(symbol)` ->
+    (ltp, token) or (None, None). Returns the time of the last snapshot."""
+    b = _broker
+    if b is None:
+        return last_snap
+    fetch_bars = fetch_bars or _fetch_bars
+    try:
+        for p in list(b.open.values()):
+            ltp, token = ltp_of(p["symbol"])
+            if ltp:
+                b.mark(p["symbol"], ltp)
+            tok = token or p.get("token")
+            bars = await fetch_bars(tok) if tok else None
+            b.check_touches(p["symbol"], bars, ltp=ltp)
+        b.square_off_all(lambda s: ltp_of(s)[0])
+        now = b._now()
+        every = b.settings.options().get("equity_snapshot_seconds", 60)
+        if now - last_snap >= every and (b.open or b.closed):
+            b.equity_snapshot()
+            last_snap = now
+    except Exception as e:
+        b.error_count += 1
+        b.last_error = f"{type(e).__name__}: {e}"
+        logger.error(f"paper loop: {e}")
+    return last_snap
+
+
 async def run(ltp_of, interval_s: float = 10.0):
-    """Background task: stop/target touches against bars, square-off, and
-    per-minute equity snapshots. `ltp_of(symbol)` -> (ltp, token) or (None, None)."""
-    import time
+    """Background task: tick() every `interval_s` seconds."""
     last_snap = 0.0
     while True:
-        b = _broker
-        if b is not None:
-            try:
-                for p in list(b.open.values()):
-                    ltp, token = ltp_of(p["symbol"])
-                    if ltp:
-                        b.mark(p["symbol"], ltp)
-                    bars = await _fetch_bars(token or p.get("token")) if (token or p.get("token")) else None
-                    b.check_touches(p["symbol"], bars, ltp=ltp)
-                b.square_off_all(lambda s: ltp_of(s)[0])
-                every = b.settings.options().get("equity_snapshot_seconds", 60)
-                if time.time() - last_snap >= every and (b.open or b.closed):
-                    b.equity_snapshot()
-                    last_snap = time.time()
-            except Exception as e:
-                b.error_count += 1
-                b.last_error = f"{type(e).__name__}: {e}"
-                logger.error(f"paper loop: {e}")
+        last_snap = await tick(ltp_of, last_snap=last_snap)
         await asyncio.sleep(interval_s)
