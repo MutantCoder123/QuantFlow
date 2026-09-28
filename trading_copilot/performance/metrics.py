@@ -148,6 +148,7 @@ def headline(sc: Scope, min_n: dict) -> dict:
         "cost_drag_pct": gated(_pct(costs, gross_won) if gross_won > 0 else None, n, rates),
         "cost_per_trade_r": gated(mean(cr) if cr else None, len(cr), rates),
         "return_pct": fact(_pct(net, base), n),
+        "start_equity": fact(base, n),          # what return_pct is measured against
         "win_rate": gated(len(wins) / n * 100.0 if n else None, n, rates),
         "profit_factor": gated(_div(sum(wins), loss_sum) if loss_sum > 0 else None, n, rates),
         "expectancy": gated(mean(nets) if nets else None, n, rates),

@@ -11,8 +11,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&family=Doto:wght@900&display=swap"
         rel="stylesheet">
+    <!-- Performance tab (static/performance/, ES modules, no build step) -->
+    <link rel="stylesheet" href="/static/performance/performance.css">
     <style>
         body {
             font-family: 'Outfit', sans-serif;
@@ -59,6 +61,8 @@
                 <button onclick="switchTab('live-action')" id="tab-btn-live-action"
                     class="px-4 py-1.5 text-xs font-bold rounded-md text-slate-400 hover:text-slate-200 transition-all border border-transparent">Live
                     Action</button>
+                <button onclick="switchTab('performance')" id="tab-btn-performance"
+                    class="px-4 py-1.5 text-xs font-bold rounded-md text-slate-400 hover:text-slate-200 transition-all border border-transparent">Performance</button>
             </nav>
         </div>
         <div class="flex items-center gap-4">
@@ -462,6 +466,9 @@
             </div>
         </div>
         <!-- DISCOVERY TAB -->
+        <!-- PERFORMANCE TAB: rendered by /static/performance/main.js -->
+        <section id="tab-performance" class="hidden" aria-label="Performance"></section>
+
         <div id="tab-screener" class="hidden space-y-6">
             <div class="flex items-center justify-between">
                 <div>
@@ -725,6 +732,7 @@
             };
             socket.onmessage = (event) => {
                 const payload = JSON.parse(event.data);
+                window.dispatchEvent(new CustomEvent('qf:ws', { detail: payload }));
                 updateMacroWeather(payload.macro_state);
                 updateMarketMatrix(payload.global_state);
                 updateStaleBanner(payload.global_state);
@@ -2191,6 +2199,10 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                 const btnDashboard = document.getElementById('tab-btn-dashboard');
                 const btnDiscovery = document.getElementById('tab-btn-screener');
                 const btnLiveAction = document.getElementById('tab-btn-live-action');
+                const tabPerformance = document.getElementById('tab-performance');
+                const btnPerformance = document.getElementById('tab-btn-performance');
+                if (tabPerformance) { tabPerformance.classList.add('hidden'); tabPerformance.classList.remove('block'); }
+                if (btnPerformance) btnPerformance.className = "px-4 py-1.5 text-xs font-bold rounded-md text-slate-400 hover:text-slate-200 transition-all border border-transparent";
                 if (tabDashboard) {
                     tabDashboard.classList.add('hidden');
                     tabDashboard.classList.remove('block');
@@ -2223,6 +2235,7 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                 if (targetBtn) {
                     targetBtn.className = "px-4 py-1.5 text-xs font-bold rounded-md bg-slate-800 text-white shadow transition-all border border-slate-700/50";
                 }
+                window.dispatchEvent(new CustomEvent('qf:tab', { detail: tabId }));
                 // Polling control
                 if (tabId === 'live-action') {
                     if (typeof startLiveActionPolling === 'function') startLiveActionPolling();
@@ -3218,6 +3231,7 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
         });
 
     </script>
+    <script type="module" src="/static/performance/main.js"></script>
 </body>
 
 </html>

@@ -60,6 +60,7 @@ class PaperBroker:
         self.enabled = bool(settings.options().get("enabled", True))
         self.engine_ok = True
         self.last_error: str | None = None
+        self.failed_at: float | None = None   # when persistence first failed
         self.error_count = 0
         self.open: dict = {}          # pos_id -> position
         self.closed: list = []        # closed trades (all days loaded)
@@ -81,6 +82,8 @@ class PaperBroker:
         try:
             return self.store.append(event)
         except Exception as e:
+            if self.engine_ok:
+                self.failed_at = self._now()
             self.engine_ok = False
             self.error_count += 1
             self.last_error = f"event log not writable: {e}"
@@ -365,9 +368,11 @@ class PaperBroker:
         """Cheap live block for the /ws payload."""
         return {
             "engine_ok": self.engine_ok, "enabled": self.enabled, "last_error": self.last_error,
+            "failed_at": self.failed_at,
             "error_count": self.error_count, "as_of": self._now(),
             "open": [{k: p.get(k) for k in ("pos_id", "symbol", "side", "qty", "entry_price", "last",
-                                            "stop", "target", "risk_amount", "mae_r", "mfe_r", "ts")}
+                                            "stop", "target", "risk_amount", "mae_r", "mfe_r", "ts",
+                                            "last_mark_ts")}
                      | {"unrealized": pnl(p["side"], p["entry_price"], p.get("last", p["entry_price"]), p["qty"]),
                         "r_now": self._r(p, p.get("last", p["entry_price"]))}
                      for p in self.open.values()],

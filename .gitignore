@@ -46,3 +46,6 @@ dev-notes/
 # Paper trading runtime state and UI-written settings (local only)
 trading_copilot/data/paper/
 trading_copilot/config/paper_overrides.yaml
+
+# Browser-automation screenshots and logs (local review only)
+.playwright-mcp/

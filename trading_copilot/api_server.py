@@ -7,6 +7,7 @@ import aiohttp
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Query
 from fastapi.responses import HTMLResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import uvicorn
 
@@ -32,6 +33,20 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+# The Performance tab's ES modules and styles (no build step). Only this
+# directory is served; it holds no data. "no-cache" makes the browser
+# revalidate (ETag) on every load, so an updated module is never run
+# against a stale sibling from the cache.
+class _RevalidatedStatic(StaticFiles):
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
+app.mount("/static", _RevalidatedStatic(directory=os.path.join(os.path.dirname(__file__), "static")),
+          name="static")
 
 watchlist_path = str(WATCHLIST_PATH)
 watchlist = load_watchlist_from_csv(watchlist_path)
@@ -825,7 +840,7 @@ def _paper_live_block():
     try:
         from paper import runtime as paper_rt
         b = paper_rt.broker()
-        return b.summary() if b is not None else {"engine_ok": False, "running": False}
+        return dict(b.summary(), running=True) if b is not None else {"engine_ok": False, "running": False}
     except Exception as e:
         return {"engine_ok": False, "running": False, "last_error": str(e)}
 
