@@ -55,7 +55,9 @@ class IntradayGatekeeper:
         current_decimal = current_time_ist.hour + current_time_ist.minute / 60.0
         if current_decimal >= 15.333:  # 15:20 IST
             # Force override
-            return cls._create_response("Close", priority=10, confidence=10, llm_auth=False)
+            res = cls._create_response("Close", priority=10, confidence=10, llm_auth=False)
+            res["Exit_Rule"] = "SQUARE_OFF"
+            return res
             
         # Extract Structured Intelligence
         micro = structured_payload.get("1_live_microstructure", {})
@@ -131,7 +133,10 @@ class IntradayGatekeeper:
             )
 
             if stop_proximity_hit or polarity_flipped:
-                return cls._create_response("Close", priority=10, confidence=9, llm_auth=True)
+                res = cls._create_response("Close", priority=10, confidence=9, llm_auth=True)
+                # Which rule fired -- paper trading reports exit economics per rule.
+                res["Exit_Rule"] = "STOP_PROXIMITY" if stop_proximity_hit else "WHALE_FLIP"
+                return res
                 
             # FAILURE TO LAUNCH GATE
             if time_in_trade_minutes > 45 and -0.5 <= pnl_pct <= 0.1:

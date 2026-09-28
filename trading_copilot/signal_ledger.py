@@ -110,6 +110,7 @@ class SignalLedger:
         }
 
         cls._append_to_log(record, date_str)
+        return signal_id
 
     @classmethod
     def recover_pending(cls, days: int = 2) -> int:

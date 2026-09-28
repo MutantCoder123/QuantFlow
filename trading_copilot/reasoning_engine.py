@@ -345,7 +345,7 @@ class ReasoningEngine:
             return rejection_msg
 
         api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
+        if not api_key and not str(model_name).startswith("ollama:"):
             error_msg = "Error: GEMINI_API_KEY is missing from the environment."
             cls.latest_reports[cls._normalize_symbol(symbol)] = error_msg
             return error_msg
@@ -355,7 +355,8 @@ class ReasoningEngine:
             try:
                 cls.llm_trigger_count += 1
                 logger.info(f"Triggering LLM Reasoning for {symbol} using {model_name}...")
-                client = genai.Client(api_key=api_key)
+                is_local = str(model_name).startswith("ollama:")
+                client = None if is_local else genai.Client(api_key=api_key)
                 
                 # Format payload for the prompt without indentation to save tokens
                 user_payload = json.dumps(payload_copy, separators=(',', ':'))
@@ -488,10 +489,16 @@ class ReasoningEngine:
                 
                 full_prompt = f"SYSTEM INSTRUCTION:\n{strict_prompt}\n\nDATA PAYLOAD:\n{user_payload}"
                 
-                response = await client.aio.models.generate_content(
-                    model=model_name,
-                    contents=full_prompt
-                )
+                if is_local:
+                    # Paper mode can run the judge on a local model
+                    # (config/paper.yaml judge_model: "ollama:<tag>").
+                    from discovery_analysis import _generator
+                    response = type("R", (), {"text": await _generator(model_name, None, None)(full_prompt)})()
+                else:
+                    response = await client.aio.models.generate_content(
+                        model=model_name,
+                        contents=full_prompt
+                    )
                 
                 report_text = response.text.strip()
                 # Clean markdown blocks if LLM hallucinated them
@@ -607,13 +614,26 @@ class ReasoningEngine:
                         # Phase 10: Record to Signal Ledger for outcome tracking
                         if is_autonomous:
                             from signal_ledger import SignalLedger
-                            SignalLedger.record_signal(
+                            signal_id = SignalLedger.record_signal(
                                 symbol=symbol,
                                 execution_ticket=ticket,
                                 math_setup=payload_copy.get("math_setup", {}),
                                 market_regime=payload_copy.get("market_regime", {}),
                                 ltp=payload_copy.get("ltp", 0.0)
                             )
+                            # Autonomous paper trading: open (or close) a
+                            # simulated position. Guarded -- never raises.
+                            from paper import runtime as paper_rt
+                            norm = cls._normalize_symbol(symbol)
+                            held = cls.user_positions.get(norm)
+                            paper_rt.on_ticket(
+                                norm, ticket, risk_params,
+                                payload_copy.get("math_setup", {}) or {},
+                                payload_copy.get("market_regime", {}) or {},
+                                TerminalDashboard.active_states.get(target_token, {}) or {},
+                                signal_id,
+                                manual_position=bool(held) and not (
+                                    isinstance(held, dict) and held.get("source") == "paper"))
                             
                         cls.alert_counter += 1
                         cls.global_alerts.insert(0, {
@@ -702,7 +722,8 @@ class ReasoningEngine:
         P&L source is wired (Phase 4/5).
         """
         from core.risk import Portfolio, cluster_of, load_clusters
-        book = Portfolio()
+        from paper import runtime as paper_rt
+        book = Portfolio(realized_loss_today=paper_rt.realized_loss_today())
         clusters = load_clusters()
         for sym, pos in list(cls.user_positions.items()):
             if not isinstance(pos, dict):
@@ -716,6 +737,23 @@ class ReasoningEngine:
             if qty > 0 and entry > 0 and stop > 0:
                 book.add_open(sym, cluster_of(sym, clusters), qty * abs(entry - stop))
         return book
+
+    @classmethod
+    def _ltp_of(cls, symbol: str):
+        """(ltp, token) for a normalised symbol from the live feed, or
+        (None, None). A price older than the paper stale limit is not used."""
+        try:
+            from paper.settings import PaperSettings
+            stale = PaperSettings().options().get("stale_price_seconds", 15)
+        except Exception:
+            stale = 15
+        for key, payload in list(TerminalDashboard.active_states.items()):
+            sym = payload.get("symbol") or key
+            if cls._normalize_symbol(sym) == symbol:
+                if float(payload.get("data_age_s", 0.0) or 0.0) > stale:
+                    return None, payload.get("token") or key
+                return payload.get("ltp"), payload.get("token") or key
+        return None, None
 
     @classmethod
     def _unsizeable_positions(cls) -> list:
@@ -799,6 +837,13 @@ class ReasoningEngine:
 
         asyncio.create_task(_feature_flush())
 
+        # ---- Autonomous paper trading: recover state, mirror open paper
+        # positions into user_positions (so Path A manages them), and run
+        # the touch/square-off/equity task. ----
+        from paper import runtime as paper_rt
+        paper_rt.init(cls.user_positions)
+        asyncio.create_task(paper_rt.run(cls._ltp_of))
+
         async def _arm_resolver():
             """Label both arms of every escalation once its horizon has
             elapsed, reusing the ledger's cross-process bar bridge (§4.5)."""
@@ -868,6 +913,7 @@ class ReasoningEngine:
                         user_context={"position": current_pos} if current_pos else {},
                         ltp=ltp
                     )
+                    paper_rt.on_gatekeeper(norm_sym, gatekeeper_res, ltp)
                     
                     # ---- Log a feature vector for THIS symbol/tick, whether
                     # it gets proposed, rejected, or gated — before the
@@ -923,7 +969,7 @@ class ReasoningEngine:
                         cls.last_math_advice[norm_sym] = current_advice
 
                         if gatekeeper_res["llm_authorized"]:
-                            if cls.llm_enabled.get(norm_sym):
+                            if cls.llm_enabled.get(norm_sym) or paper_rt.autonomous():
                                 # Authorized, toggled ON, and stable -- an
                                 # escalation candidate. Defer the actual
                                 # LLM trigger until every symbol's rank for
@@ -978,7 +1024,7 @@ class ReasoningEngine:
                         async def run_and_unlock(s=norm_sym, p=cand["current_pos"], sp=cand["structured"]):
                             try:
                                 await cls.analyze_stock(
-                                    s, "gemini-2.5-flash", "",
+                                    s, paper_rt.judge_model(), "",
                                     user_position=p,
                                     is_autonomous=True,
                                     precomputed_payload=sp

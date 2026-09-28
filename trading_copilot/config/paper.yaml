@@ -1,0 +1,27 @@
+# Paper trading (autonomous, simulated fills, no real orders).
+# Hand-edited defaults. Values changed from the dashboard are written to
+# paper_overrides.yaml (machine-owned, gitignored) -- never to this file and
+# never to risk.yaml. Capital and risk limits default to risk.yaml.
+
+enabled: true
+
+# Escalate every authorised signal to the LLM judge, ignoring the per-symbol
+# AI toggles (still subject to the top-N attention gate). Without this the
+# pipeline only reaches the judge for symbols switched on by hand.
+autonomous: true
+
+# Model for the LLM judge in the autonomous loop. "ollama:<tag>" runs locally.
+judge_model: gemini-2.5-flash
+
+fill:
+  slippage_pct: 0.03        # per leg, always against us
+
+# A metric is reported as "not enough data yet" below these.
+metrics_min_n:
+  rates: 20                 # win rate, expectancy, profit factor
+  bucket: 10                # any breakdown bucket
+  days: 20                  # Sharpe / Sortino / Calmar
+  calibration: 15           # per score bucket
+
+equity_snapshot_seconds: 60
+stale_price_seconds: 15     # older than this, the price is not trusted for a fill

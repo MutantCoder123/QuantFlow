@@ -1,3 +1,4 @@
+import json
 import os
 import asyncio
 import logging
@@ -15,7 +16,7 @@ from diagnostic_ui import TerminalDashboard
 from config import load_watchlist_from_csv
 from reasoning_engine import ReasoningEngine, attention_rank
 from history_manager import HistoryManager
-from paths import INSTITUTIONAL_FLOW_PATH, WATCHLIST_PATH, ensure_dirs
+from paths import INSTITUTIONAL_FLOW_PATH, TRADE_HISTORY_PATH, WATCHLIST_PATH, ensure_dirs
 
 ensure_dirs()
 
@@ -303,6 +304,95 @@ async def get_session_review(date: str | None = None):
         return {"status": "success", "data": data}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+# ---- Autonomous paper trading (simulated fills, no real orders) ----------
+def _paper_or_error():
+    from paper import runtime as paper_rt
+    b = paper_rt.broker()
+    if b is None:
+        return None, {"status": "error", "engine_ok": False,
+                      "message": "The paper engine is not running (it starts with the decision loop)."}
+    return b, None
+
+
+def _paper_settings_body(b):
+    from paper.settings import EDITABLE
+    return {"settings": b.settings.effective(), "sources": b.settings.sources(),
+            "editable": list(EDITABLE),
+            "rules": {k: v[2] for k, v in EDITABLE.items()}}
+
+
+@app.get("/api/paper/settings")
+async def get_paper_settings():
+    b, err = _paper_or_error()
+    return err or {"status": "success", **_paper_settings_body(b)}
+
+
+@app.post("/api/paper/settings")
+async def save_paper_settings(changes: dict):
+    b, err = _paper_or_error()
+    if err:
+        return err
+    ok, errors = b.update_settings(changes)
+    if not ok:
+        return {"status": "error", "errors": errors, **_paper_settings_body(b)}
+    return {"status": "success", **_paper_settings_body(b)}
+
+
+@app.post("/api/paper/enable")
+async def enable_paper():
+    b, err = _paper_or_error()
+    if err:
+        return err
+    b.resume()
+    return {"status": "success", "enabled": b.enabled}
+
+
+@app.post("/api/paper/disable")
+async def disable_paper():
+    b, err = _paper_or_error()
+    if err:
+        return err
+    b.pause()
+    return {"status": "success", "enabled": b.enabled}
+
+
+@app.get("/api/paper/positions")
+async def paper_positions():
+    b, err = _paper_or_error()
+    return err or {"status": "success", **b.summary()}
+
+
+@app.get("/api/paper/trades")
+async def paper_trades():
+    b, err = _paper_or_error()
+    return err or {"status": "success", "trades": list(b.closed)}
+
+
+@app.get("/api/paper/rejections")
+async def paper_rejections():
+    b, err = _paper_or_error()
+    if err:
+        return err
+    from paper.store import rebuild
+    return {"status": "success", "rejections": rebuild(b.store.load()).rejections}
+
+
+@app.get("/api/legacy/trades")
+async def legacy_trades():
+    """The mock-platform trades from before the current engine. Read-only,
+    labelled, and never included in any paper metric."""
+    try:
+        with open(TRADE_HISTORY_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        data = {}
+    trades = list(data.values()) if isinstance(data, dict) else list(data)
+    return {"status": "success", "source": "legacy_mock_platform",
+            "note": "Made on a mock trading platform before the current engine; "
+                    "does not represent the current engine and is excluded from every metric.",
+            "trades": trades}
+
 
 @app.get("/api/risk/exposure")
 async def get_risk_exposure():
@@ -601,6 +691,7 @@ async def websocket_endpoint(websocket: WebSocket):
             payload = {
                 "global_market_context": local_macro_context,
                 "global_state": enriched_states,
+                "paper": _paper_live_block(),
                 "macro_state": {"pcr": pcr, "fii_net": fii_net, "dii_net": dii_net, "date": date_str,
                                "ad_ratio": ad_ratio, "ad_ratio_source": ad_ratio_source}
             }
@@ -608,6 +699,16 @@ async def websocket_endpoint(websocket: WebSocket):
             await asyncio.sleep(0.5)
     except WebSocketDisconnect: pass
     except Exception as e: logger.error(f"WebSocket loop exception: {e}")
+
+def _paper_live_block():
+    """Live paper account for the dashboard socket; says so when it isn't running."""
+    try:
+        from paper import runtime as paper_rt
+        b = paper_rt.broker()
+        return b.summary() if b is not None else {"engine_ok": False, "running": False}
+    except Exception as e:
+        return {"engine_ok": False, "running": False, "last_error": str(e)}
+
 
 class LedgerOpenRequest(BaseModel):
     symbol: str
