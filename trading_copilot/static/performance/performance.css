@@ -89,19 +89,257 @@
 #tab-performance .pf-fig[data-tone="amber"] { color: var(--amber); }
 #tab-performance .pf-sub { margin: 0; color: var(--mute); }
 
+/* ----------------------------------------------------------- shared bits */
+#tab-performance .pf-h2 { margin: 0; font: 500 var(--t-h3)/1.2 var(--f-head); }
+#tab-performance .pf-mute { color: var(--mute); }
+#tab-performance .pf-amber { color: var(--amber); }
+#tab-performance .pf-profit, #tab-performance [data-tone="profit"] { color: var(--jade); }
+#tab-performance .pf-loss, #tab-performance [data-tone="loss"] { color: var(--coral); }
+#tab-performance .pf-indigo { color: var(--indigo-text); }
+#tab-performance .pf-error { color: var(--coral); font-size: var(--t-small); }
+#tab-performance .pf-num { text-align: right; }
+#tab-performance .pf-note { display: block; font-size: var(--t-small); line-height: 1.3; }
+#tab-performance .pf-sr {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+#tab-performance .pf-only-narrow { display: none; }
+#tab-performance .pf-plate { background: var(--slate); border: 1px solid var(--rule); border-radius: var(--r-plate); }
+#tab-performance .pf-sec-head { display: flex; align-items: baseline; gap: 16px; padding-bottom: 12px; }
+#tab-performance .pf-sec-head.pf-wrap { flex-wrap: wrap; align-items: center; }
+#tab-performance .pf-foot { padding-top: 12px; }
+#tab-performance a { color: var(--indigo-text); }
+#tab-performance a:hover { color: #B5B8FB; }
+#tab-performance .pf-actions { display: flex; gap: 8px; }
+#tab-performance a.pf-pill { color: var(--indigo-text); text-decoration: none; display: inline-flex; align-items: center; }
+
+/* --------------------------------------------------------------- the tape */
+#tab-performance .pf-tape { display: flex; flex-direction: column; gap: 14px; padding: 20px 24px 18px; }
+#tab-performance .pf-tape-head { display: flex; align-items: baseline; gap: 20px; flex-wrap: wrap; }
+#tab-performance .pf-legend { display: flex; gap: 20px; align-items: center; }
+#tab-performance .pf-legend span { display: inline-flex; align-items: center; gap: 6px; }
+#tab-performance .pf-legend i { display: inline-block; }
+#tab-performance .pf-key-net { width: 18px; border-top: 2px solid var(--paper); }
+#tab-performance .pf-key-gross { width: 18px; border-top: 1.5px dashed var(--mute); }
+#tab-performance .pf-key-up, #tab-performance .pf-key-down { width: 3px; height: 10px; background: var(--jade); }
+#tab-performance .pf-key-down { background: var(--coral); }
+#tab-performance .pf-key-set { width: 1px; height: 12px; background: var(--indigo); }
+#tab-performance .pf-tape-box { position: relative; max-width: 100%; }
+#tab-performance .pf-tape-box svg { position: absolute; left: 0; top: 0; overflow: visible; }
+#tab-performance .pf-grid { stroke: var(--rule); fill: none; }
+#tab-performance .pf-baseline { stroke: var(--rule-strong); stroke-dasharray: 2 4; fill: none; }
+#tab-performance .pf-setline { stroke: var(--indigo); fill: none; }
+#tab-performance .pf-gross { stroke: var(--mute); stroke-opacity: .6; stroke-width: 1.25; stroke-dasharray: 3 4; fill: none; }
+#tab-performance .pf-net { stroke: var(--paper); stroke-width: 1.75; fill: none; stroke-linejoin: round; }
+#tab-performance .pf-up { stroke: var(--jade); stroke-width: 3; }
+#tab-performance .pf-down { stroke: var(--coral); stroke-width: 3; }
+#tab-performance .pf-tick { cursor: pointer; }
+#tab-performance .pf-tick:hover path { stroke-width: 5; }
+#tab-performance .pf-dd-area { fill: var(--coral); fill-opacity: .18; }
+#tab-performance .pf-dd-line { stroke: var(--coral); stroke-width: 1.25; fill: none; }
+#tab-performance .pf-band, #tab-performance .pf-axis, #tab-performance .pf-setlabel, #tab-performance .pf-dip {
+  position: absolute; font-size: var(--t-small); color: var(--mute); white-space: nowrap; line-height: 1.5;
+}
+#tab-performance .pf-band { left: 0; background: var(--slate); padding-right: 8px; }
+#tab-performance .pf-setlabel { color: var(--indigo-text); }
+#tab-performance .pf-dip { color: var(--coral); }
+/* the one orchestrated moment: a newly closed trade's tick drops onto the tape */
+#tab-performance .pf-tick-new { animation: pf-drop 400ms cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes pf-drop { from { transform: scaleY(0); opacity: 0; } to { transform: scaleY(1); opacity: 1; } }
+
+/* ------------------------------------------------------------ figures line */
+#tab-performance .pf-figures { display: flex; flex-wrap: wrap; column-gap: 32px; row-gap: 8px; margin-top: -20px; }
+#tab-performance .pf-figure { display: inline-flex; gap: 6px; }
+#tab-performance .pf-figure-label, #tab-performance .pf-figure-n { color: var(--mute); }
+#tab-performance .pf-figure-value { font-weight: 500; }
+#tab-performance .pf-figure.pf-amber > span { color: var(--amber); }
+
+/* ------------------------------------------------------------------ tables */
+#tab-performance .pf-table { border-top: 1px solid var(--rule); overflow-x: auto; }
+#tab-performance .pf-row {
+  display: grid; gap: 16px; align-items: center; padding: 14px 0;
+  border-bottom: 1px solid var(--rule); min-width: max-content;
+}
+#tab-performance .pf-head { padding: 10px 0; font-size: var(--t-small); color: var(--mute); }
+#tab-performance .pf-empty { display: block; color: var(--mute); padding: 16px 0; min-width: 0; }
+#tab-performance .pf-sym { font-weight: 500; }
+#tab-performance [role="row"][tabindex] { cursor: pointer; }
+#tab-performance [role="row"][tabindex]:hover { background: #121826; }
+#tab-performance [role="row"][tabindex]:focus-visible { outline-offset: -2px; }
+
+/* blotter */
+#tab-performance .pf-blotter-table .pf-row {
+  grid-template-columns: 130px 70px 80px 190px 120px 110px minmax(220px, 1fr) 230px;
+}
+#tab-performance .pf-risk { font-size: var(--t-body); }
+#tab-performance .pf-rail-cell { display: flex; align-items: center; gap: 10px; font-size: var(--t-small); }
+#tab-performance .pf-stop-px { color: var(--coral); }
+#tab-performance .pf-target-px { color: var(--jade); }
+#tab-performance .pf-rail { position: relative; flex: 1; height: 14px; min-width: 80px; }
+#tab-performance .pf-rail > span { position: absolute; display: block; }
+#tab-performance .pf-rail-track { left: 0; right: 0; top: 6px; height: 2px; background: var(--rule); }
+#tab-performance .pf-rail-seg { top: 6px; height: 2px; background: var(--coral); }
+#tab-performance .pf-rail-seg[data-ahead="true"], #tab-performance .pf-rail-dot[data-ahead="true"] { background: var(--jade); }
+#tab-performance .pf-rail-stop, #tab-performance .pf-rail-target { top: 2px; width: 3px; height: 10px; background: var(--coral); }
+#tab-performance .pf-rail-stop { left: 0; }
+#tab-performance .pf-rail-target { right: 0; background: var(--jade); }
+#tab-performance .pf-rail-entry { top: 0; width: 1px; height: 14px; background: var(--mute); }
+#tab-performance .pf-rail-dot {
+  top: 2px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%;
+  background: var(--coral); box-shadow: 0 0 0 2px var(--ink);
+}
+#tab-performance .pf-time { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.3; }
+
+/* journal */
+#tab-performance .pf-journal-table .pf-row {
+  grid-template-columns: 120px 120px 56px 80px 180px 110px 90px 140px minmax(110px, 1fr) 56px 20px;
+  gap: 14px; padding: 11px 0;
+}
+#tab-performance .pf-journal-table .pf-head { padding: 10px 0; }
+#tab-performance .pf-net { font-weight: 500; }
+#tab-performance .pf-chev { color: var(--indigo-text); text-align: center; }
+#tab-performance .pf-chip {
+  display: inline-flex; align-items: center; gap: 7px; align-self: flex-start; padding: 2px 9px;
+  border: 1px solid var(--rule); border-radius: var(--r-input); font-size: var(--t-small); background: var(--slate);
+}
+#tab-performance .pf-chip i { width: 6px; height: 6px; border-radius: 50%; background: var(--mute); }
+#tab-performance .pf-chip i[data-tone="profit"] { background: var(--jade); }
+#tab-performance .pf-chip i[data-tone="loss"] { background: var(--coral); }
+#tab-performance .pf-filters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+#tab-performance .pf-filters select, #tab-performance .pf-search input {
+  background: var(--slate); color: var(--paper); border: 1px solid var(--rule); border-radius: var(--r-input);
+  padding: 6px 12px; font: 400 var(--t-small) var(--f-body);
+}
+#tab-performance .pf-search input { background: var(--ink); width: 180px; }
+#tab-performance .pf-search input::placeholder { color: var(--mute); }
+#tab-performance .pf-divider { width: 1px; height: 20px; background: var(--rule); margin: 0 6px; }
+#tab-performance .pf-story {
+  display: grid; grid-template-columns: 1.1fr 1fr 1.1fr 300px 1fr; gap: 28px;
+  padding: 20px 20px 22px; background: var(--slate); border-bottom: 1px solid var(--rule);
+}
+#tab-performance .pf-story > div { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+#tab-performance .pf-story strong { font-weight: 500; }
+#tab-performance .pf-quote { color: #B7C0D0; text-wrap: pretty; }
+#tab-performance .pf-costs {
+  display: grid; grid-template-columns: 1fr auto; column-gap: 16px; margin-top: 6px;
+  font-size: var(--t-small); color: var(--mute);
+}
+#tab-performance .pf-costs .pf-total { color: var(--paper); border-top: 1px solid var(--rule); padding-top: 3px; margin-top: 3px; }
+#tab-performance .pf-xb { position: relative; height: 28px; margin-top: 8px; }
+#tab-performance .pf-xb > span { position: absolute; display: block; }
+#tab-performance .pf-xb-track { left: 0; right: 0; top: 13px; height: 2px; background: var(--rule); }
+#tab-performance .pf-xb-range { top: 11px; height: 6px; background: var(--rule-strong); border-radius: 3px; }
+#tab-performance .pf-xb-stop, #tab-performance .pf-xb-target { top: 6px; width: 2px; height: 16px; background: var(--coral); }
+#tab-performance .pf-xb-target { background: var(--jade); }
+#tab-performance .pf-xb-entry { top: 4px; width: 1px; height: 20px; background: var(--mute); }
+#tab-performance .pf-xb-exit {
+  top: 9px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%;
+  background: var(--paper); box-shadow: 0 0 0 2px var(--slate);
+}
+#tab-performance .pf-xb-legend { display: flex; gap: 14px; }
+
+/* --------------------------------------------------------- settings drawer */
+#tab-performance .pf-scrim { position: fixed; inset: 0; background: rgba(6, 8, 13, .66); z-index: 45; }
+#tab-performance .pf-drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(460px, 100vw); z-index: 46;
+  display: flex; flex-direction: column; background: var(--slate); border-left: 1px solid var(--rule);
+  border-radius: var(--r-plate) 0 0 var(--r-plate); animation: pf-slide 200ms ease-out both;
+}
+@keyframes pf-slide { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+#tab-performance .pf-drawer-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 26px 28px 18px; border-bottom: 1px solid var(--rule);
+}
+#tab-performance .pf-drawer-title { font-size: var(--t-h2); }
+#tab-performance .pf-close {
+  width: 34px; height: 34px; border-radius: var(--r-pill); border: 1px solid var(--rule);
+  background: transparent; font-size: 18px;
+}
+#tab-performance .pf-drawer-body { flex: 1; overflow-y: auto; padding: 22px 28px; display: flex; flex-direction: column; gap: 30px; }
+#tab-performance .pf-group { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 18px; }
+#tab-performance .pf-group legend { display: flex; flex-direction: column; gap: 4px; padding: 0; margin-bottom: 18px; }
+#tab-performance .pf-group-title { font: 500 var(--t-h3)/1.2 var(--f-head); }
+#tab-performance .pf-field { display: flex; flex-direction: column; gap: 6px; }
+#tab-performance .pf-input {
+  display: flex; align-items: center; gap: 8px; padding: 9px 12px; background: var(--ink);
+  border: 1px solid var(--rule); border-radius: var(--r-input);
+}
+#tab-performance .pf-input:focus-within { border-color: var(--indigo); outline: 2px solid var(--indigo); outline-offset: 2px; }
+#tab-performance .pf-input.pf-invalid { border-color: var(--coral); }
+#tab-performance .pf-input input {
+  flex: 1; min-width: 0; background: transparent; border: 0; color: var(--paper); font: inherit; outline: none;
+}
+#tab-performance .pf-source { display: flex; gap: 10px; font-size: var(--t-small); }
+#tab-performance .pf-drawer-foot {
+  padding: 18px 28px 26px; border-top: 1px solid var(--rule); display: flex; flex-direction: column; gap: 14px;
+}
+#tab-performance .pf-save-row { display: flex; align-items: center; gap: 14px; font-size: var(--t-small); }
+#tab-performance .pf-primary {
+  background: var(--indigo); color: #fff; border: 0; border-radius: var(--r-pill); padding: 10px 22px; font-weight: 500;
+}
+#tab-performance .pf-primary:disabled { opacity: .5; cursor: default; }
+
 /* ---------------------------------------------------------- narrow screens */
 @media (max-width: 640px) {
   #tab-performance { padding: 18px 16px 40px; border-radius: 14px; }
   #tab-performance:not(.hidden) { gap: 32px; }
-  /* title and Pause share the first row; status lines, then the range, below */
+  /* title and the actions share the first row; status lines, then the range, below */
   #tab-performance .pf-status { gap: 6px 12px; }
   #tab-performance .pf-grow { display: none; }
-  #tab-performance .pf-pill { order: 1; margin-left: auto; }
+  #tab-performance .pf-actions { order: 1; margin-left: auto; }
   #tab-performance .pf-paper, #tab-performance .pf-engine { order: 2; width: 100%; }
   #tab-performance .pf-seg { order: 3; width: 100%; margin-top: 6px; }
   #tab-performance .pf-seg button { flex: 1; min-height: 38px; }
   #tab-performance .pf-pill { min-height: 44px; }
   #tab-performance .pf-sentence { font-size: var(--t-lg); line-height: 1.25; }
+  #tab-performance .pf-only-narrow { display: inline; }
+
+  #tab-performance .pf-tape { padding: 14px 16px 12px; }
+  #tab-performance .pf-tape-box { overflow: hidden; }
+  #tab-performance .pf-legend { display: none; }
+
+  #tab-performance .pf-figures { flex-direction: column; row-gap: 0; margin-top: -12px; border-top: 1px solid var(--rule); }
+  #tab-performance .pf-figure { justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--rule); flex-wrap: wrap; }
+  #tab-performance .pf-figure-label { flex: 1; }
+
+  #tab-performance .pf-risk { font-size: var(--t-small); }
+  #tab-performance .pf-sec-head { flex-wrap: wrap; }
+  #tab-performance .pf-table { overflow-x: visible; }
+  #tab-performance .pf-head { display: none; }
+  #tab-performance .pf-row { min-width: 0; gap: 4px 10px; padding: 12px 0; }
+  #tab-performance .pf-blotter-table .pf-row {
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "sym unr" "side r" "rail rail" "px time";
+  }
+  #tab-performance .pf-pos .pf-sym { grid-area: sym; }
+  #tab-performance .pf-pos .pf-side { grid-area: side; font-size: var(--t-small); white-space: nowrap; }
+  #tab-performance .pf-pos .pf-rail-cell { margin: 4px 0; }
+  #tab-performance .pf-pos .pf-qty { display: none; }
+  #tab-performance .pf-pos .pf-unr { grid-area: unr; }
+  #tab-performance .pf-pos .pf-r { grid-area: r; font-size: var(--t-small); }
+  #tab-performance .pf-pos .pf-rail-cell { grid-area: rail; }
+  #tab-performance .pf-pos .pf-px { grid-area: px; font-size: var(--t-small); }
+  #tab-performance .pf-pos .pf-time { grid-area: time; font-size: var(--t-small); }
+
+  #tab-performance .pf-journal-table .pf-row {
+    grid-template-columns: 1fr auto; grid-template-areas: "sym net" "when r" "exit exit"; padding: 10px 0;
+  }
+  #tab-performance .pf-journal-table .pf-sym { grid-area: sym; }
+  #tab-performance .pf-journal-table .pf-net { grid-area: net; }
+  #tab-performance .pf-journal-table .pf-when { grid-area: when; font-size: var(--t-small); }
+  #tab-performance .pf-journal-table .pf-r { grid-area: r; font-size: var(--t-small); }
+  #tab-performance .pf-journal-table .pf-exit-cell { grid-area: exit; }
+  #tab-performance .pf-journal-table .pf-row > .pf-side,
+  #tab-performance .pf-journal-table .pf-row > .pf-qty,
+  #tab-performance .pf-journal-table .pf-row > .pf-px,
+  #tab-performance .pf-journal-table .pf-row > .pf-regime,
+  #tab-performance .pf-journal-table .pf-row > .pf-score,
+  #tab-performance .pf-journal-table .pf-row > .pf-chev { display: none; }
+  #tab-performance .pf-story { grid-template-columns: 1fr; gap: 18px; padding: 16px; }
+  #tab-performance .pf-filters { width: 100%; }
+  #tab-performance .pf-search { flex-basis: 100%; }
+  #tab-performance .pf-search input { width: 100%; }
+  #tab-performance .pf-divider { display: none; }
+  #tab-performance .pf-drawer { border-radius: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

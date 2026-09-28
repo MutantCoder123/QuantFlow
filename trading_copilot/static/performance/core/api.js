@@ -30,6 +30,9 @@ const q = (range) => `range=${encodeURIComponent(range)}`;
 export const api = {
   metrics: (range, o) => request(`/api/paper/metrics?${q(range)}`, o),
   equity: (range, o) => request(`/api/paper/equity?${q(range)}`, o),
+  trades: (range, o) => request(`/api/paper/trades?${q(range)}`, o),
+  settings: (o) => request('/api/paper/settings', o),
+  saveSettings: (changes, o) => request('/api/paper/settings', { method: 'POST', body: changes, ...o }),
   pause: (o) => request('/api/paper/disable', { method: 'POST', ...o }),
   resume: (o) => request('/api/paper/enable', { method: 'POST', ...o }),
 };

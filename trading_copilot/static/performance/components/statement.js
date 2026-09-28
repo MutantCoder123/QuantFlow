@@ -4,6 +4,7 @@
 
 import { html, render } from '../core/dom.js';
 import { hms, inr, isoDay, pct, weekdayDayMonth } from '../core/format.js';
+import { roll } from '../core/motion.js';
 
 const PHRASE = { today: 'today', '5d': 'over the last 5 days', '1m': 'over the last 30 days', all: 'since paper trading began' };
 
@@ -70,7 +71,7 @@ export function statement(metrics, live, now) {
 
   const dd = h.max_drawdown.value;
   const lead = net > 0 ? 'Up ' : net < 0 ? 'Down ' : 'Flat, ';
-  const segs = [T(lead), F(inr(Math.abs(net), { signed: false }), tone), T(` ${phrase} on `), F(String(n)),
+  const segs = [T(lead), { ...F(inr(Math.abs(net), { signed: false }), tone), roll: Math.abs(net) }, T(` ${phrase} on `), F(String(n)),
     T(' trades. That’s '), F(pct(Math.abs(h.return_pct.value), { dp: 2 }), tone),
     T(` of ${inr(h.start_equity.value, { signed: false })}. `)];
   if (dd < 0) segs.push(T('The deepest dip was '), F(inr(Math.abs(dd), { signed: false }), 'loss'));
@@ -84,17 +85,26 @@ export function statement(metrics, live, now) {
 }
 
 export function mount(el) {
+  let prev = null;     // {n, net}: when a close adds a trade, the net figure rolls to its new value
   function update(state) {
     const s = statement(state.metrics, state.live, state.now);
     render(el, html`
       <section class="pf-statement" aria-label="Statement">
         <p class="pf-meta">${s.meta}</p>
         <p class="pf-sentence">${s.segs.map((g) => (g.fig
-          ? html`<span class="pf-fig" data-tone="${g.tone}">${g.t}</span>`
+          ? html`<span class="pf-fig" data-tone="${g.tone}" ${g.roll !== undefined ? html`data-roll="1"` : ''}>${g.t}</span>`
           : g.t))}</p>
         ${s.sub ? html`<p class="pf-sub">${s.sub}</p>` : ''}
         ${state.metricsError ? html`<p class="pf-inline-error" role="alert">Couldn’t load the figures: ${state.metricsError}</p>` : ''}
       </section>`);
+    const h = state.metrics && state.metrics.headline;
+    if (!h) return;
+    const now = { n: h.trades.value, net: Math.abs(h.net_pnl.value), range: state.range };
+    const span = el.querySelector('[data-roll]');
+    if (span && prev && prev.range === now.range && now.n > prev.n && now.net !== prev.net) {
+      roll(prev.net, now.net, (v) => { span.textContent = inr(v, { signed: false }); });
+    }
+    if (!prev || prev.n !== now.n || prev.range !== now.range) prev = now;
   }
   return { update, destroy() { el.textContent = ''; } };
 }

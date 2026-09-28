@@ -19,3 +19,15 @@ export function createStore(initial = {}) {
     },
   };
 }
+
+// Wrap a component's update so it runs only when the parts of state it
+// reads have changed (by identity). pick(state) -> array of those parts.
+export function whenChanged(pick, update) {
+  let last = null;
+  return (state) => {
+    const now = pick(state);
+    if (last && now.length === last.length && now.every((v, i) => v === last[i])) return;
+    last = now;
+    update(state);
+  };
+}

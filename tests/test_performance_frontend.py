@@ -71,3 +71,38 @@ def test_metrics_say_what_the_return_is_measured_against(tmp_path, monkeypatch):
     monkeypatch.setattr(paper_rt, "_broker", b)
     h = client.get("/api/paper/metrics?range=all").json()["headline"]
     assert h["start_equity"]["value"] == 1_000_000
+
+
+def test_settings_say_what_use_default_restores(tmp_path, monkeypatch):
+    b, _, _ = make(tmp_path)
+    monkeypatch.setattr(paper_rt, "_broker", b)
+    body = client.post("/api/paper/settings", json={"risk_per_trade_pct": 0.4}).json()
+    assert body["settings"]["risk_per_trade_pct"] == 0.4
+    assert body["defaults"]["risk_per_trade_pct"] == 0.5 and body["sources"]["risk_per_trade_pct"] == "override"
+    assert set(body["defaults"]) == set(body["editable"])
+
+
+def test_live_block_carries_the_trade_clock(tmp_path, monkeypatch):
+    b, _, _ = make(tmp_path)
+    monkeypatch.setattr(paper_rt, "_broker", b)
+    blk = api_server._paper_live_block()
+    from core.policy_config import load_policy
+    p = load_policy()
+    assert blk["clock"] == {"failure_to_launch_min": p.gates["failure_to_launch_min"],
+                            "stagnation_min": p.gates["stagnation_min"],
+                            "entry_cutoff": p.horizon["entry_cutoff_ist"], "square_off": p.horizon["square_off_ist"]}
+    assert blk["stale_price_seconds"] == 15
+
+
+def test_equity_lists_session_days_and_the_starting_equity(tmp_path, monkeypatch):
+    from test_performance_metrics import NOW, book
+    b, _, _ = make(tmp_path, t=NOW)
+    for e in book():
+        b.store.append(e)
+    monkeypatch.setattr(paper_rt, "_broker", b)
+    eq = client.get("/api/paper/equity?range=today").json()
+    assert eq["session_days"] == ["2026-09-22"]
+    # capital 10 lakh (make()'s risk.yaml) plus Monday's banked +500
+    assert eq["start_equity"] == 1_000_500
+    empty = client.get("/api/paper/equity?range=custom&from=2026-01-01&to=2026-01-02").json()
+    assert empty["session_days"] == [] and empty["start_equity"] == 1_000_000

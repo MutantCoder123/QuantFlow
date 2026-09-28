@@ -97,3 +97,18 @@ export function tone(n) {
   if (!known(n) || Math.abs(n) < 1e-9) return 'flat';
   return n > 0 ? 'profit' : 'loss';
 }
+
+// IST has no daylight saving: +05:30 all year, so plain arithmetic is exact.
+const IST_OFFSET_S = 19800;
+export function istDay(ts) {
+  return new Date(Math.floor((ts + IST_OFFSET_S) / 86400) * 86400000).toISOString().slice(0, 10);
+}
+export function istMinutes(ts) {
+  return Math.floor((((ts + IST_OFFSET_S) % 86400) + 86400) % 86400 / 60);
+}
+
+// 0.50 -> "0.5", 2 -> "2", 0.125 -> "0.13": for settings values.
+export function trim(n, dp = 2) {
+  if (!known(n)) return DASH;
+  return String(Number(n.toFixed(dp)));
+}

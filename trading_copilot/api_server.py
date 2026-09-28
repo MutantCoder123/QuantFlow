@@ -333,7 +333,7 @@ def _paper_or_error():
 def _paper_settings_body(b):
     from paper.settings import EDITABLE
     return {"settings": b.settings.effective(), "sources": b.settings.sources(),
-            "editable": list(EDITABLE),
+            "defaults": b.settings.defaults(), "editable": list(EDITABLE),
             "rules": {k: v[2] for k, v in EDITABLE.items()}}
 
 
@@ -454,7 +454,12 @@ async def paper_equity(rng: str = Query("all", alias="range"),
                        frm: str | None = Query(None, alias="from"), to: str | None = None):
     from performance.metrics import curve
     sc, _, err = _paper_scope(rng, frm, to)
-    return err or {"status": "success", "range": _range_body(rng, sc), **curve(sc)}
+    if err:
+        return err
+    start = sc.start_ts()
+    return {"status": "success", "range": _range_body(rng, sc), "session_days": sc.session_days,
+            "start_equity": (sc.capital_at(start) + sc.prior_net) if start is not None else sc.current_capital,
+            **curve(sc)}
 
 
 @app.get("/api/paper/breakdowns")
@@ -835,12 +840,32 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect: pass
     except Exception as e: logger.error(f"WebSocket loop exception: {e}")
 
+_PAPER_CLOCK: dict | None = None
+
+
+def _paper_clock() -> dict:
+    """The trade clock the blotter shows against, from the decision policy
+    (read once; a policy change needs a restart anyway)."""
+    global _PAPER_CLOCK
+    if _PAPER_CLOCK is None:
+        from core.policy_config import load_policy
+        p = load_policy()
+        _PAPER_CLOCK = {"failure_to_launch_min": p.gates.get("failure_to_launch_min"),
+                        "stagnation_min": p.gates.get("stagnation_min"),
+                        "entry_cutoff": p.horizon.get("entry_cutoff_ist"),
+                        "square_off": p.horizon.get("square_off_ist")}
+    return _PAPER_CLOCK
+
+
 def _paper_live_block():
     """Live paper account for the dashboard socket; says so when it isn't running."""
     try:
         from paper import runtime as paper_rt
         b = paper_rt.broker()
-        return dict(b.summary(), running=True) if b is not None else {"engine_ok": False, "running": False}
+        if b is None:
+            return {"engine_ok": False, "running": False}
+        return dict(b.summary(), running=True, clock=_paper_clock(),
+                    stale_price_seconds=b.settings.options()["stale_price_seconds"])
     except Exception as e:
         return {"engine_ok": False, "running": False, "last_error": str(e)}
 

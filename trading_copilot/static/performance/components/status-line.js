@@ -40,8 +40,10 @@ export function engineStatus(live, liveAt, now) {
   const marks = (live.open || []).map((p) => p.last_mark_ts).filter((t) => typeof t === 'number');
   if (!(live.open || []).length) return { tone: 'ok', text: 'Engine running, nothing open' };
   if (!marks.length) return { tone: 'warn', text: 'Engine running, no price yet for open positions' };
-  const oldest = now - Math.min(...marks);
-  return { tone: oldest > 15 ? 'warn' : 'ok', text: `Engine running, prices ${duration(oldest)} old` };
+  // the page clock ticks once a second, so a fresh mark can be a hair "in the future"
+  const oldest = Math.max(0, now - Math.min(...marks));
+  const age = oldest < 1 ? 'under 1 s' : duration(oldest);
+  return { tone: oldest > 15 ? 'warn' : 'ok', text: `Engine running, prices ${age} old` };
 }
 
 export function mount(el, store, actions) {
@@ -51,6 +53,7 @@ export function mount(el, store, actions) {
     if (b.dataset.range) actions.setRange(b.dataset.range);
     if (b.dataset.act === 'pause') actions.pause();
     if (b.dataset.act === 'resume') actions.resume();
+    if (b.dataset.act === 'settings') actions.openSettings(b);
   });
 
   function update(state) {
@@ -61,14 +64,17 @@ export function mount(el, store, actions) {
       <header class="pf-status">
         <h1 class="pf-title">Performance</h1>
         <span class="pf-meta pf-paper"><span class="pf-ring" aria-hidden="true"></span>Paper account — simulated fills, no real orders</span>
-        <span class="pf-meta pf-engine" data-tone="${s.tone}" role="status"><span class="pf-dot" aria-hidden="true"></span>${s.text}</span>
+        <span class="pf-meta pf-engine" data-tone="${s.tone}"><span class="pf-dot" aria-hidden="true"></span>${s.text}</span>
         <span class="pf-grow"></span>
         <div class="pf-seg" role="radiogroup" aria-label="Range">
-          ${RANGES.map(([k, label]) => html`<button type="button" role="radio" data-range="${k}"
+          ${RANGES.map(([k, label]) => html`<button type="button" role="radio" data-range="${k}" data-key="range-${k}"
               aria-checked="${state.range === k ? 'true' : 'false'}">${label}</button>`)}
         </div>
-        ${canToggle ? html`<button type="button" class="pf-pill" data-act="${paused ? 'resume' : 'pause'}"
-            >${paused ? 'Resume' : 'Pause'}</button>` : ''}
+        <div class="pf-actions">
+          <button type="button" class="pf-pill" data-act="settings" data-key="settings" aria-haspopup="dialog">Settings</button>
+          ${canToggle ? html`<button type="button" class="pf-pill" data-act="${paused ? 'resume' : 'pause'}" data-key="toggle"
+              >${paused ? 'Resume' : 'Pause'}</button>` : ''}
+        </div>
       </header>
       ${state.actionError ? html`<p class="pf-inline-error" role="alert">${state.actionError}</p>` : ''}
       ${s.banner ? html`<div class="pf-banner" role="alert"><span class="pf-dot" aria-hidden="true"></span>

@@ -32,9 +32,22 @@ export function html(strings, ...values) {
 
 export const isSafe = (v) => v instanceof Safe;
 
+// Replace el's content. Focus survives a re-render: an element carrying
+// data-key gets focus back if it (by key) had it before.
 export function render(el, markup) {
   if (!(markup instanceof Safe)) throw new TypeError('render() takes html`` output only');
+  const doc = el.ownerDocument;
+  const active = doc && doc.activeElement;
+  const key = active && el.contains && el.contains(active) && active.getAttribute ? active.getAttribute('data-key') : null;
+  const caret = key && typeof active.selectionStart === 'number' ? [active.selectionStart, active.selectionEnd] : null;
   el.innerHTML = markup.s;
+  if (key) {
+    const again = el.querySelector(`[data-key="${globalThis.CSS && CSS.escape ? CSS.escape(key) : key}"]`);
+    if (again) {
+      again.focus({ preventScroll: true });
+      if (caret && typeof again.setSelectionRange === 'function') again.setSelectionRange(caret[0], caret[1]);
+    }
+  }
 }
 
 export const qs = (sel, root = document) => root.querySelector(sel);

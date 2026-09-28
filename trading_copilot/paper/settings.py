@@ -51,6 +51,11 @@ class PaperSettings:
             "slippage_pct": float((paper.get("fill") or {}).get("slippage_pct", 0.03)),
         }
 
+    def defaults(self) -> dict:
+        """What each editable field reverts to on "use default"."""
+        d = self._defaults()
+        return {k: d[k] for k in EDITABLE}
+
     def options(self) -> dict:
         """Non-editable engine options from paper.yaml."""
         p = _load(self.paper_path)

@@ -81,3 +81,8 @@ test('engine status in words', () => {
   assert.equal(down.banner.what, 'The paper engine stopped at 11:42 (event log not writable: disk full).');
   assert.equal(down.banner.fix, 'Live figures are frozen at that time. Check disk space, then restart the web process.');
 });
+
+test('price age never goes negative', () => {
+  const s = engineStatus({ ...live(1), open: [{ last_mark_ts: NOW + 0.5 }] }, NOW, NOW);
+  assert.equal(s.text, 'Engine running, prices under 1 s old');
+});
