@@ -236,6 +236,27 @@ function costs(ctx) {
   return { kind: 'bars', bars, finding: parts.join(' '), tunes: c.tunes || [] };
 }
 
+// --------------------------------------------------------------- 9 versions
+function versions(ctx) {
+  const min = minN(ctx, 'bucket', 10);
+  const rows = (ctx.breakdowns.config_version || []).filter((x) => x.key !== null && x.key !== undefined);
+  const bars = toBars(rows, { value: (x) => val(x.expectancy_r), fmt: r, label: (x) => `Policy v${x.key}`, min, rank: false });
+  const ok = rows.filter((x) => x.n >= min && val(x.expectancy_r) !== null);
+  let finding;
+  if (ok.length >= 2) {
+    const [prev, last] = ok.slice(-2);
+    const d = val(last.expectancy_r) - val(prev.expectancy_r);
+    finding = `Policy v${last.key} averages ${r(val(last.expectancy_r))} per trade across ${last.n}, against `
+      + `${r(val(prev.expectancy_r))} across ${prev.n} for v${prev.key}: ${d > 0 ? 'better' : d < 0 ? 'worse' : 'no different'}`
+      + `${d ? ` by ${Math.abs(d).toFixed(2)} R` : ''}.`;
+  } else if (rows.length <= 1) {
+    finding = 'Only one policy version has traded in this range. The comparison starts after the next change to the decision policy.';
+  } else {
+    finding = `Each version needs ${min} trades to be compared; ${ok.length ? 'only one has' : 'none has'} that many yet.`;
+  }
+  return { kind: 'bars', bars, finding, tunes: [] };
+}
+
 export const QUESTIONS = [
   ['conditions', 'Which market conditions pay?', conditions],
   ['stocks', 'Which stocks cost us?', stocks],
@@ -245,6 +266,7 @@ export const QUESTIONS = [
   ['ai', 'Is the AI worth it?', ai],
   ['timing', 'When in the day is the edge?', timing],
   ['costs', 'Are costs eating the edge?', costs],
+  ['versions', 'Did my last change help?', versions],
 ];
 
 /** Pure: the answer to question `id`, or the not-yet state for all of them. */

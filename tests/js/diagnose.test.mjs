@@ -112,6 +112,16 @@ test('timing and costs', () => {
   assert.equal(c.finding, 'Costs took ₹3,978 across 48 trades, 24.2% of the gross winnings. The average trade paid ₹83 (0.02 R). 3 trades were a gross win but a net loss.');
 });
 
+test('did my last change help: compares the two latest versions that qualify', () => {
+  const c = ctx();
+  c.breakdowns.config_version = [bucket(1, 30, -0.1, -900), bucket(2, 18, 0.25, 2100)];
+  const a = answer('versions', c);
+  assert.deepEqual(a.bars.map((b) => b.label), ['Policy v1', 'Policy v2']);
+  assert.equal(a.finding, `Policy v2 averages +0.25 R per trade across 18, against ${MINUS}0.10 R across 30 for v1: better by 0.35 R.`);
+  c.breakdowns.config_version = [bucket(1, 48, 0.1, 100)];
+  assert.match(answer('versions', c).finding, /^Only one policy version has traded in this range/);
+});
+
 test('bars scale to the largest qualifying value, not a small bucket', () => {
   const bars = toBars([{ key: 'a', n: 12, v: 1 }, { key: 'b', n: 12, v: -0.5 }, { key: 'c', n: 2, v: 9 }],
     { value: (x) => x.v, fmt: String, label: (x) => x.key, min: 10, isFact: true });

@@ -418,23 +418,9 @@ def _range_body(rng, sc):
 
 
 def _paper_arms(sc):
-    """Arms-journal rows (every escalation, both arms) inside the range."""
-    import datetime as _dt
-    from journal.arms import ArmJournal
-    from paths import SIGNALS_DIR
-    from performance.scope import ist_day
-    first = sc.first_day or (sc.session_days[0] if sc.session_days else None)
-    days = 1 if first is None else (_dt.date.today() - _dt.date.fromisoformat(first)).days + 2
-    rows = ArmJournal(SIGNALS_DIR / "arms").load_all(last_n_days=max(1, days))
-    out = []
-    for r in rows:
-        try:
-            d = ist_day(int(r["ts"]))
-        except (KeyError, TypeError, ValueError):
-            continue
-        if (sc.first_day is None or d >= sc.first_day) and (sc.last_day is None or d <= sc.last_day):
-            out.append(r)
-    return out
+    """Arms-journal rows inside the range (a seam the tests replace)."""
+    from performance.sources import load_arms
+    return load_arms(sc)
 
 
 @app.get("/api/paper/metrics")
@@ -491,6 +477,34 @@ async def paper_diagnostics(rng: str = Query("all", alias="range"),
         arms = []
     return {"status": "success", "range": _range_body(rng, sc), "min_n": min_n,
             **all_diagnostics(sc.trades, sc.rejections, arms, min_n)}
+
+
+@app.get("/api/paper/report")
+async def paper_report(rng: str = Query("all", alias="range"), fmt: str = "json", download: int = 0,
+                       frm: str | None = Query(None, alias="from"), to: str | None = None):
+    """The evidence report. It recommends only; nothing writes config from it."""
+    import time as _time
+    from paper import runtime as paper_rt
+    from performance.report import build, to_markdown
+    sc, min_n, err = _paper_scope(rng, frm, to)
+    if err:
+        return err
+    try:
+        arms = _paper_arms(sc)
+    except Exception as e:
+        logger.error(f"paper report: arms journal unreadable: {e}")
+        arms = []
+    b = paper_rt.broker()
+    rep = build(sc, arms, min_n, b._now() if b else _time.time())
+    if fmt == "json":
+        return {"status": "success", "range": _range_body(rng, sc), "report": rep}
+    if fmt != "md":
+        return {"status": "error", "message": "Unknown format. Use fmt=json or fmt=md."}
+    headers = {}
+    if download:
+        name = f"paper_evidence_{sc.first_day or 'start'}_{sc.last_day or 'now'}.md"
+        headers["Content-Disposition"] = f'attachment; filename="{name}"'
+    return Response(content=to_markdown(rep), media_type="text/plain; charset=utf-8", headers=headers)
 
 
 @app.get("/api/paper/export")

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from pathlib import Path
 
 from paper.broker import PaperBroker
 from paper.fills import Bar
@@ -140,6 +141,47 @@ async def _fetch_bars(token: str, n: int = 30) -> list[Bar] | None:
     return out or None
 
 
+_report_day: str | None = None      # the IST day whose evidence report is already written
+
+
+def write_day_report(b: PaperBroker, reports_dir=None) -> str | None:
+    """After the square-off on a day the engine traded (or logged anything),
+    write that day's evidence report once: <store>/reports/evidence_<day>.md
+    and .json, over all paper history. It recommends only -- nothing here or
+    downstream changes configuration. Returns the path written, or None."""
+    global _report_day
+    import json
+    from paper.store import ist_date
+    from performance.report import build, to_markdown
+    from performance.scope import select
+    from performance.sources import load_arms
+    if not b._past(b.square_off_at):
+        return None
+    today = ist_date(b._now())
+    if _report_day == today:
+        return None
+    out = Path(reports_dir) if reports_dir else b.store.dir / "reports"
+    md = out / f"evidence_{today}.md"
+    if md.exists():
+        _report_day = today
+        return None
+    events = b.store.load()
+    if not any(ist_date(e.get("ts", 0)) == today for e in events):
+        return None                                    # no session today: nothing to report
+    sc = select(events, "all", b._now(), b.settings.effective()["capital"])
+    try:
+        arms = load_arms(sc)
+    except Exception:
+        arms = []
+    rep = build(sc, arms, b.settings.options()["metrics_min_n"], b._now())
+    out.mkdir(parents=True, exist_ok=True)
+    md.write_text(to_markdown(rep), encoding="utf-8")
+    (out / f"evidence_{today}.json").write_text(json.dumps(rep, default=float, indent=1), encoding="utf-8")
+    _report_day = today
+    logger.info(f"Paper evidence report written: {md}")
+    return str(md)
+
+
 async def tick(ltp_of, fetch_bars=None, last_snap: float = 0.0) -> float:
     """One pass: mark and touch-check every open position (bars since the
     last check; LTP-only fallback, flagged), square off at/after the
@@ -158,6 +200,13 @@ async def tick(ltp_of, fetch_bars=None, last_snap: float = 0.0) -> float:
             bars = await fetch_bars(tok) if tok else None
             b.check_touches(p["symbol"], bars, ltp=ltp)
         b.square_off_all(lambda s: ltp_of(s)[0])
+        try:
+            write_day_report(b)
+        except Exception as e:                      # one attempt a day, never a loop of errors
+            global _report_day
+            from paper.store import ist_date
+            _report_day = ist_date(b._now())
+            logger.error(f"paper: evidence report failed: {e}")
         now = b._now()
         every = b.settings.options().get("equity_snapshot_seconds", 60)
         if now - last_snap >= every and (b.open or b.closed):

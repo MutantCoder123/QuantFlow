@@ -97,7 +97,13 @@ export function mount(el, store) {
     const err = state.diagnosticsError || state.breakdownsError;
     render(el, html`
       <section class="pf-why" aria-label="Why">
-        <h2 class="pf-h2">Why</h2>
+        <div class="pf-sec-head pf-wrap">
+          <h2 class="pf-h2">Why</h2>
+          <span class="pf-grow"></span>
+          <span class="pf-meta">Evidence report for this range:
+            <a href="/api/paper/report?range=${encodeURIComponent(state.range)}&fmt=md" target="_blank" rel="noopener" data-key="report-view">view</a> ·
+            <a href="/api/paper/report?range=${encodeURIComponent(state.range)}&fmt=md&download=1" download data-key="report-dl">download</a></span>
+        </div>
         <label class="pf-qselect"><span class="pf-meta">Question</span>
           <select data-qselect data-key="qselect">${QUESTIONS.map(([id, q]) => html`<option value="${id}" ${id === selected ? 'selected' : ''}>${q}</option>`)}</select></label>
         <div class="pf-why-grid">
@@ -121,6 +127,6 @@ export function mount(el, store) {
       </section>`);
   }
 
-  const update = whenChanged((s) => [s.metrics, s.breakdowns, s.diagnostics, s.diagnosticsError, s.breakdownsError], draw);
+  const update = whenChanged((s) => [s.metrics, s.breakdowns, s.diagnostics, s.diagnosticsError, s.breakdownsError, s.range], draw);
   return { update, destroy() { el.textContent = ''; } };
 }
