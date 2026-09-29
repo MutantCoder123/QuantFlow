@@ -1,0 +1,39 @@
+/* The Settings sheet (st- prefix). Built to the canvas's Settings artboard. */
+
+.st-drawer { width: min(820px, 100vw); }
+.st-head { flex-direction: row; align-items: center; justify-content: space-between; }
+.st-head h2 { margin: 0; font: 500 var(--t-h2)/1.2 var(--f-head); }
+.st-body { display: grid; grid-template-columns: 200px minmax(0, 1fr); flex: 1; min-height: 0; }
+.st-nav { border-right: 1px solid var(--rule); padding: 16px 12px; display: flex; flex-direction: column; gap: 2px; }
+.st-nav a { padding: 10px 12px; border-radius: var(--r-input); color: var(--mute); text-decoration: none; }
+.st-nav a:hover { color: var(--paper); }
+.st-nav a[aria-current="page"] { background: var(--raise); color: var(--paper); }
+.st-panel { padding: 20px 24px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; min-height: 0; }
+.st-sec-head { display: flex; flex-direction: column; gap: 4px; }
+.st-search { position: relative; }
+.st-search .qf-search { width: 100%; }
+.st-results { position: absolute; left: 0; right: 0; top: 42px; z-index: 5; max-height: 300px; overflow-y: auto;
+  background: var(--slate); border: 1px solid var(--rule-strong); border-radius: var(--r-input); padding: 4px; }
+.st-results p { margin: 8px; }
+.st-result { display: flex; justify-content: space-between; width: 100%; padding: 10px 12px; border: 0; border-radius: 6px;
+  background: transparent; text-align: left; }
+.st-result:hover, .st-result:focus-visible { background: var(--raise); }
+.st-list { border-radius: var(--r-input); }
+.st-list .qf-table td { height: 40px; }
+.st-foot { margin-top: auto; border-top: 1px solid var(--rule); padding-top: 16px; display: flex; align-items: center;
+  justify-content: flex-end; gap: 12px; flex-wrap: wrap; }
+.st-foot .qf-cap, .st-foot p { margin: 0 auto 0 0; }
+.st-prompt { min-height: 380px; flex: 1; }
+.st-form { display: flex; flex-direction: column; gap: 16px; max-width: 360px; }
+.st-switch-row { gap: 12px; }
+.st-checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px 14px; }
+.st-check { display: flex; align-items: center; gap: 8px; font-size: 14px; padding: 6px 0; }
+.st-check input { accent-color: var(--indigo); width: 16px; height: 16px; }
+
+@media (max-width: 640px) {
+  .st-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .st-nav { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--rule); padding: 8px; }
+  .st-nav a { white-space: nowrap; padding: 8px 12px; }
+  .st-panel { padding: 16px; }
+  .st-prompt { min-height: 300px; }
+}

@@ -3,8 +3,8 @@
 // Contract with the shell (static/shell/main.js) -- the only coupling:
 //   - <section id="tab-performance" class="hidden"> is the mount point; the
 //     shell shows it on #performance and emits `qf:tab` ({detail: 'performance'}).
-//   - The shell's socket re-broadcasts every /ws message as a window event
-//     `qf:ws` ({detail: payload}); payload.paper is the live block.
+//   - The shell's store (window.QF.store) holds the latest /ws payload as
+//     `live`; its .paper is the live block (shared/live.js).
 //   - window.QF.actions.inspect(symbol) opens a stock (a blotter row).
 // Every figure is computed in Python (/api/paper/*). This code formats and
 // renders, nothing more. Components: mount(el, store, actions) ->
@@ -37,7 +37,7 @@ const store = createStore({
   breakdowns: null, breakdownsError: null, diagnostics: null, diagnosticsError: null,
   actionError: null, drawer: false, openTrade: null, scrollTo: false,
 });
-connectLive(store);
+connectLive(store, window.QF.store);
 
 const visible = () => root && !root.classList.contains('hidden');
 

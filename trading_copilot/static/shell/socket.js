@@ -1,6 +1,5 @@
-// The app's one /ws connection. Every payload goes into the store as `live`
-// and is re-broadcast as a `qf:ws` window event, which the Performance tab
-// (and, until they are replaced, the old tabs' inline code) listen to.
+// The app's one /ws connection. Every payload goes into the store as `live`;
+// every tab reads it from there.
 
 const RECONNECT_MS = 3000;
 
@@ -26,9 +25,6 @@ export function connectSocket(store, { target = globalThis, WebSocketImpl = glob
       let payload;
       try { payload = JSON.parse(event.data); } catch { return; }
       store.set({ live: payload, liveAt: clock(), connected: true });
-      if (typeof target.dispatchEvent === 'function' && typeof CustomEvent === 'function') {
-        target.dispatchEvent(new CustomEvent('qf:ws', { detail: payload }));
-      }
     };
     socket.onclose = () => {
       store.set({ connected: false });

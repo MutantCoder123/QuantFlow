@@ -46,7 +46,9 @@ export function laneGeometry(lanes, { width, labelW = 130, rowH = 38, max = 10 }
         holds: l.holds.map((h) => ({ x: f1(clampX(h.start)), w: f1(Math.max(3, clampX(h.end) - clampX(h.start))), kind: h.kind })),
       };
     }),
-    hours: [[0, '09:15'], [45, '10:00'], [105, '11:00'], [165, '12:00'], [225, '13:00'], [285, '14:00'], [345, '15:00'], [375, '15:30']]
+    // every hour on a wide screen; on a narrow one, every other so the labels don't collide
+    hours: (width - labelW < 500 ? [[0, '09:15'], [105, '11:00'], [225, '13:00'], [375, '15:30']]
+      : [[0, '09:15'], [45, '10:00'], [105, '11:00'], [165, '12:00'], [225, '13:00'], [285, '14:00'], [345, '15:00'], [375, '15:30']])
       .map(([m, t]) => ({ x: f1(x(m)), t })),
     nowX: (ts) => f1(clampX(ts)),
     more: Math.max(0, (lanes || []).length - shown.length),

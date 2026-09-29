@@ -1,18 +1,18 @@
 // QuantFlow shell: boots the app.
 //
-// Owns the one /ws socket (store.live, re-broadcast as `qf:ws`), the hash
+// Owns the one /ws socket (store.live), the hash
 // router, the app bar, and which tab section is visible. Tab modules are
 // imported the first time their tab is shown, and each mounts into its own
 // <section id="tab-…">. Overlays (the Inspector, Settings) open over the
 // current tab from a hash (#inspect/SAIL, #settings) so Back closes them.
 //
 // Contract with the tabs: `qf:tab` ({detail: tab id}) fires on every switch;
-// window.QF = {store, actions} is the one global, for the Performance tab
-// and the old inline code that is still being replaced.
+// window.QF = {store, actions, prompt} is the one global (Performance opens a
+// stock through QF.actions.inspect).
 
 import { createStore } from '../shared/store.js';
 import { connectSocket } from './socket.js';
-import { DEFAULT_TAB, TABS, hashForInspect, hashForSettings, hashForTab, parseHash, tabFromOld } from './router.js';
+import { DEFAULT_TAB, TABS, hashForInspect, hashForSettings, hashForTab, parseHash } from './router.js';
 import * as appBar from './app-bar.js';
 import * as prompt from '../shared/prompt.js';
 import { syncAll } from '../shared/positions.js';
@@ -21,7 +21,7 @@ import { bootAuto } from '../shared/auto-analyze.js';
 const SECTIONS = Object.fromEntries(TABS.map((t) => [t.id, `tab-${t.id}`]));
 const LABEL = Object.fromEntries(TABS.map((t) => [t.id, t.label]));
 
-// A tab listed here is rendered by its module; the others are still the old markup.
+// Each tab's module, imported the first time the tab is shown (Performance loads itself).
 const TAB_MODULES = {
   market: () => import('../market/index.js'),
   signals: () => import('../signals/index.js'),
@@ -30,6 +30,7 @@ const TAB_MODULES = {
 };
 const OVERLAYS = {
   inspect: () => import('../inspector/index.js'),
+  settings: () => import('../settings/index.js'),
 };
 
 const first = parseHash(location.hash);
@@ -130,8 +131,6 @@ window.QF = { store, actions, prompt };
 prompt.loadPrompt();        // migrates a stored prompt once, as the old page did at load
 syncAll();                  // the server forgets manual positions on restart; resend them
 bootAuto(store);            // and its auto-analysis loops: re-apply a saved "on"
-// The old page's tab switch, for anything that still calls it.
-window.switchTab = (id) => actions.go(tabFromOld(id));
 
 lastTab = store.get().tab;
 showTab(lastTab);

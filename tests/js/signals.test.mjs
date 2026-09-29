@@ -26,6 +26,8 @@ test('lanes sit on the session axis, clamped to 09:15-15:30', () => {
   assert.equal(g.lanes[0].marks[1].x, '130');           // before the open: clamped
   assert.equal(g.lanes[0].holds[0].w, '3');            // an instant hold still shows
   assert.equal(g.hours[g.hours.length - 1].x, '505');
+  assert.equal(g.hours.length, 4);                              // narrow: every other hour
+  assert.equal(laneGeometry([], { width: 1300 }).hours.length, 8);
   assert.equal(laneGeometry(Array.from({ length: 12 }, (_, i) => ({ symbol: `S${i}`, marks: [], holds: [] })), { width: 400 }).more, 2);
 });
 

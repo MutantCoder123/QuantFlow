@@ -61,6 +61,7 @@ body.qf-app {
   background: var(--coral-ground); border-bottom: 1px solid var(--coral-edge); color: var(--paper); font-size: 14px;
 }
 .qf-feed-banner .qf-dot { background: var(--coral); }
+.qf-feed-banner[hidden] { display: none; }
 
 /* the alert tray: a popover under the bell */
 .qf-alerts { position: relative; }

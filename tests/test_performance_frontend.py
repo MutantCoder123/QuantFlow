@@ -43,7 +43,8 @@ def test_index_carries_the_hooks_and_only_the_hooks():
     # the shell owns the socket and the tab switch; the page no longer does
     assert "new WebSocket" not in page and "function switchTab" not in page
     socket = (STATIC / "shell" / "socket.js").read_text(encoding="utf-8")
-    assert "new CustomEvent('qf:ws', { detail: payload })" in socket
+    assert "store.set({ live: payload" in socket and "qf:ws" not in socket    # one store, no event bridge
+    assert "connectLive(store, window.QF.store)" in (STATIC / "performance" / "main.js").read_text(encoding="utf-8")
     shell = (STATIC / "shell" / "main.js").read_text(encoding="utf-8")
     assert "new CustomEvent('qf:tab', { detail: tab })" in shell
     # the tab's markup and logic live in /static, not here

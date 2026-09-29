@@ -67,6 +67,6 @@
   .sg-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 0; }
   .sg-stage { padding: 0 12px; }
   .sg-lane-line { left: 96px; }
-  .sg-queue th:nth-child(1), .sg-queue td:nth-child(1), .sg-queue th:nth-child(5), .sg-queue td:nth-child(5),
-  .sg-queue th:nth-child(6), .sg-queue td:nth-child(6) { display: none; }
+  .sg-queue th:nth-child(1), .sg-queue tr[data-row] td:nth-child(1), .sg-queue th:nth-child(5),
+  .sg-queue tr[data-row] td:nth-child(5), .sg-queue th:nth-child(6), .sg-queue tr[data-row] td:nth-child(6) { display: none; }
 }

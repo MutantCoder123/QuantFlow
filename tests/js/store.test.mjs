@@ -17,16 +17,18 @@ test('store notifies with the changed keys, and only on change', () => {
   assert.equal(calls.length, 2);
 });
 
-test('live takes the paper block from the page socket event', () => {
+test('the live paper block comes from the shell store, not a second socket', () => {
+  const app = createStore({ live: null });
   const s = createStore({});
-  const target = new EventTarget();
-  const off = connectLive(s, target, () => 100);
-  target.dispatchEvent(new CustomEvent('qf:ws', { detail: { global_state: {} } }));
+  const off = connectLive(s, app, () => 100);
+  app.set({ live: { global_state: {} } });
   assert.equal(s.get().live, undefined);        // no paper block: nothing changes
-  target.dispatchEvent(new CustomEvent('qf:ws', { detail: { paper: { engine_ok: true } } }));
+  app.set({ live: { paper: { engine_ok: true } } });
   assert.deepEqual(s.get().live, { engine_ok: true });
   assert.equal(s.get().liveAt, 100);
   off();
+  app.set({ live: { paper: { engine_ok: false } } });
+  assert.deepEqual(s.get().live, { engine_ok: true });   // unsubscribed
 });
 
 test('api calls resolve to ok/error, never throw', async () => {
