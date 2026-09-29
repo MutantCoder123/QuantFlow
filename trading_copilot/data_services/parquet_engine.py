@@ -86,6 +86,11 @@ def _calculate_option_metrics(opt_data: list):
 
     return atm_iv, pcr, max_pain_strike
 
+def _expiry_str(expiry) -> str:
+    """The contracts API returns expiry as a datetime; the chain API wants
+    YYYY-MM-DD and answers 400 "Invalid expiry" to the ISO timestamp."""
+    return expiry.strftime("%Y-%m-%d") if hasattr(expiry, "strftime") else str(expiry)[:10]
+
 def _sync_symbol_sync(symbol: str, hist_api, opt_api):
     """Synchronous file I/O and API calls for a single symbol."""
     try:
@@ -140,7 +145,7 @@ def _sync_symbol_sync(symbol: str, hist_api, opt_api):
                 if expiries:
                     opt_res = opt_api.get_put_call_option_chain(
                         instrument_key=ikey,
-                        expiry_date=expiries[0]
+                        expiry_date=_expiry_str(expiries[0])
                     )
                     if opt_res.data:
                         atm_iv, pcr, max_pain = _calculate_option_metrics(opt_res.data)
