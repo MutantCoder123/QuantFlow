@@ -71,3 +71,38 @@ def test_open_positions_share_a_total_value_limit():
 def test_the_caps_scale_with_their_settings():
     lim = RiskLimits(capital=1_000_000, max_position_value_x=2.0, max_open_value_x=5.0)
     assert size(NBCC, Portfolio(), lim, 1e7).qty == 20_000   # 2x lets the full risk size through
+
+
+# -- slivers (2026-09-29: the last Rs 255 of open-value room bought 1 SAIL) ---
+SAIL = Proposal(symbol="SAIL", bias="LONG", entry=184.02, stop=182.89,
+                target=187.0, composite=0.30, regime="TREND_EXPANSION")
+
+
+def test_the_last_sliver_of_open_value_room_is_not_traded():
+    book = Portfolio()
+    book.add_open("S0", cluster="C0", risk_amount=1000, value=4_999_745)
+    assert getattr(size(SAIL, book, LIM, 1e7), "reason", "") == "SIZE_TOO_SMALL"
+
+
+def test_the_last_sliver_of_a_cluster_budget_is_not_traded():
+    book = Portfolio()
+    book.add_open("MCX", cluster="FINANCIALS", risk_amount=9_988.0)
+    p = Proposal(symbol="360ONE", bias="LONG", entry=1037.51, stop=1028.23,
+                 target=1055.0, composite=0.30, regime="TREND_EXPANSION")
+    assert getattr(size(p, book, LIM, 1e7), "reason", "") == "SIZE_TOO_SMALL"
+
+
+def test_a_trade_at_the_floor_still_opens():
+    """Rs 500 of risk is 10% of the Rs 5,000 budget: allowed."""
+    book = Portfolio()
+    book.add_open("ADANIENT", cluster="ADANI", risk_amount=9_500.0)
+    p = Proposal(symbol="ADANIGREEN", bias="LONG", entry=100.0, stop=98.0,
+                 target=105.0, composite=0.34, regime="TREND_EXPANSION")
+    assert size(p, book, LIM, 1e7).risk_amount == 500.0
+
+
+def test_the_floor_follows_its_setting():
+    book = Portfolio()
+    book.add_open("S0", cluster="C0", risk_amount=1000, value=4_999_745)
+    lim = RiskLimits(capital=1_000_000, min_trade_risk_frac=0.0)
+    assert size(SAIL, book, lim, 1e7).qty == 1

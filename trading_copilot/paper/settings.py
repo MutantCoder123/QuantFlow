@@ -53,6 +53,7 @@ class PaperSettings:
             "max_adv_participation": float(risk.get("max_adv_participation", 0.02)),
             "max_position_value_x": float(risk.get("max_position_value_x", 1.0)),
             "max_open_value_x": float(risk.get("max_open_value_x", 5.0)),
+            "min_trade_risk_frac": float(risk.get("min_trade_risk_frac", 0.1)),
             "slippage_pct": float((paper.get("fill") or {}).get("slippage_pct", 0.03)),
         }
 
@@ -92,7 +93,8 @@ class PaperSettings:
                           max_cluster_risk_pct=e["max_cluster_risk_pct"],
                           max_adv_participation=e["max_adv_participation"],
                           max_position_value_x=e["max_position_value_x"],
-                          max_open_value_x=e["max_open_value_x"])
+                          max_open_value_x=e["max_open_value_x"],
+                          min_trade_risk_frac=e["min_trade_risk_frac"])
 
     # -- writing -----------------------------------------------------------
     @staticmethod

@@ -59,6 +59,10 @@ class RiskLimits:
     # Rs 64 lakh at once on Rs 10 lakh capital.
     max_position_value_x: float = 1.0     # one position's value <= capital x this
     max_open_value_x: float = 5.0         # all open positions' value <= capital x this
+    # A trade squeezed by the caps into a sliver of its normal risk is not
+    # worth its charges: on 2026-09-29 the last Rs 255 of open-value room
+    # bought 1 SAIL. Below this fraction of the per-trade risk, skip it.
+    min_trade_risk_frac: float = 0.1
 
 
 @dataclass
@@ -93,6 +97,7 @@ def load_risk_limits(path: Path | None = None) -> RiskLimits:
         max_adv_participation=float(d.get("max_adv_participation", 0.02)),
         max_position_value_x=float(d.get("max_position_value_x", 1.0)),
         max_open_value_x=float(d.get("max_open_value_x", 5.0)),
+        min_trade_risk_frac=float(d.get("min_trade_risk_frac", 0.1)),
     )
 
 
@@ -125,6 +130,9 @@ def size(p: Proposal, book: Portfolio, lim: RiskLimits,
 
     if qty <= 0:
         return Rejection("SIZE_ROUNDS_TO_ZERO")
+    budget = lim.capital * lim.risk_per_trade_pct / 100.0
+    if qty * risk_per_share < budget * lim.min_trade_risk_frac:
+        return Rejection("SIZE_TOO_SMALL")
 
     return SizedProposal(
         symbol=p.symbol, bias=p.bias, entry=p.entry, stop=p.stop,

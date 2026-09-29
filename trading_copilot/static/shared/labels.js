@@ -66,6 +66,7 @@ const REJECTION = {
   DAILY_LOSS_LIMIT: 'Daily loss limit',
   SIZE_ROUNDS_TO_ZERO: 'Rounds to zero shares',
   OPEN_VALUE_LIMIT: 'Open positions at their cap',
+  SIZE_TOO_SMALL: 'Too small to be worth the charges',
   SIZING_ERROR: 'Sizing failed',
   UNKNOWN: 'Unknown reason',
 };
