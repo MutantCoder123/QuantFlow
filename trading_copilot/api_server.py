@@ -579,8 +579,10 @@ async def get_risk_exposure():
             open_risk = book.risk_in_cluster(cluster_id)
             pct_of_limit = open_risk / limit_per_cluster if limit_per_cluster > 0 else 0.0
 
+            from views.market import SECTOR_NAMES
             cluster_data.append({
                 "cluster": cluster_id,
+                "name": SECTOR_NAMES.get(cluster_id, str(cluster_id).replace("_", " ").title()),
                 "open_risk": round(open_risk, 2),
                 "limit": round(limit_per_cluster, 2),
                 "pct_of_limit": round(pct_of_limit, 4)
@@ -797,6 +799,105 @@ async def market_index_history(rng: str = Query("1M", alias="range")):
         return {"status": "success", **index_history(_nifty_daily(), rng, _dt.now(ZoneInfo("Asia/Kolkata")).date())}
     except ValueError as e:
         return {"status": "error", "message": str(e)}
+
+
+# ---- Signals tab (views.signals) ---------------------------------------------
+def _today_ist() -> str:
+    from datetime import datetime as _dt
+    from zoneinfo import ZoneInfo
+    return _dt.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d")
+
+
+def _paper_events_today() -> list:
+    """Today's paper events (OPEN / CLOSE / REJECT ...), read from the day's log only."""
+    from paths import DATA_DIR
+    path = DATA_DIR / "paper" / f"events_{_today_ist()}.jsonl"
+    out = []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    out.append(json.loads(line))
+                except ValueError:
+                    continue
+    except FileNotFoundError:
+        pass
+    return out
+
+
+@app.get("/api/signals/queue")
+async def signals_queue():
+    """One row per stock with an idea: the math, the risk layer, the AI and the
+    paper engine resolved into four stages, ordered by attention."""
+    from views.signals import order_queue, parse_report, queue_row
+    paper = {p["symbol"]: p for p in (_paper_live_block().get("open") or [])}
+    rejects = {}
+    for e in _paper_events_today():
+        if e.get("type") == "REJECT":
+            rejects[e.get("symbol")] = e
+    rows, quiet = [], 0
+    for key, st in list(local_active_states.items()):
+        if key.startswith("NSE_INDEX|"):
+            continue
+        sym = ReasoningEngine._normalize_symbol(st.get("symbol") or key)
+        try:
+            sp = ReasoningEngine.build_structured_payload(sym, dict(st, symbol=sym))
+        except Exception as e:
+            logger.error(f"signals queue: payload for {sym}: {e}")
+            sp = None
+        rank = attention_rank(sp) if sp else None
+        row = queue_row(sym, sp, parse_report(ReasoningEngine.latest_reports.get(sym)), paper.get(sym),
+                        rejects.get(sym), rank if rank not in (None, float("-inf")) else None)
+        if row:
+            rows.append(row)
+        else:
+            quiet += 1
+    return make_json_serializable({"status": "success", "rows": order_queue(rows), "quiet": quiet,
+                                   "ai_calls": getattr(ReasoningEngine, "llm_trigger_count", 0),
+                                   "top_n": 5})
+
+
+def _funnel_body() -> dict:
+    """Read the day's feature log, arms journal and paper events and shape them
+    (runs in a worker thread: the feature log is tens of thousands of rows)."""
+    import time as _time
+    from datetime import datetime as _dt
+    from zoneinfo import ZoneInfo
+    from journal.arms import ArmJournal
+    from journal.feature_log import FeatureLog
+    from paths import FEATURES_DIR, SIGNALS_DIR
+    from views.signals import funnel, timeline
+    day = _today_ist()
+    try:
+        df = FeatureLog(FEATURES_DIR).load_day(day)
+        records = df[["ts", "symbol", "decision"]].to_dict("records") if not df.empty else []
+    except Exception as e:
+        logger.error(f"signals funnel: feature log unreadable: {e}")
+        records = []
+    live_log = getattr(ReasoningEngine, "_feature_log", None)       # rows not flushed to disk yet
+    if live_log is not None:
+        with live_log._lock:
+            records += [{"ts": r["ts"], "symbol": r["symbol"], "decision": r["decision"]} for r in live_log._buf]
+    ist = ZoneInfo("Asia/Kolkata")
+    arms = [a for a in ArmJournal(SIGNALS_DIR / "arms").load_all(1)
+            if a.get("ts") and _dt.fromtimestamp(a["ts"], ist).strftime("%Y-%m-%d") == day]
+    events = _paper_events_today()
+    return make_json_serializable({"status": "success", "date": day, **funnel(records, arms, events),
+                                   "timeline": timeline(arms, events, _time.time())})
+
+
+_funnel_cache = {"at": 0.0, "body": None}
+
+
+@app.get("/api/signals/funnel")
+async def signals_funnel():
+    """Where today's ideas stop, and the day stock by stock (cached 20 s)."""
+    import time as _time
+    if _funnel_cache["body"] and _time.time() - _funnel_cache["at"] < 20:
+        return _funnel_cache["body"]
+    body = await asyncio.to_thread(_funnel_body)
+    _funnel_cache.update(at=_time.time(), body=body)
+    return body
 
 
 class NewsInstantRequest(BaseModel): model: str = DEFAULT_MODEL

@@ -18,6 +18,7 @@
     <link rel="stylesheet" href="/static/shared/base.css">
     <link rel="stylesheet" href="/static/inspector/inspector.css">
     <link rel="stylesheet" href="/static/market/market.css">
+    <link rel="stylesheet" href="/static/signals/signals.css">
     <!-- Performance tab (static/performance/, ES modules, no build step) -->
     <link rel="stylesheet" href="/static/performance/performance.css">
     <style>
@@ -162,70 +163,8 @@
             </section>
 
         </div>
-        <!-- SIGNALS TAB (was Live Action) -->
-        <div id="tab-signals" class="hidden qf-legacy space-y-6">
-            <div class="flex items-center justify-between mb-4">
-                <div>
-                    <h2 class="text-xl font-bold text-white flex items-center gap-2">
-                        <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                        </svg>
-                        Live Action
-                    </h2>
-                    <p class="text-sm text-slate-400 mt-1">Dynamic algorithmic trade setups ordered by AI Priority
-                        Score.</p>
-                </div>
-                <div class="flex items-center gap-4 bg-slate-900 border border-slate-700/80 p-2 rounded-lg">
-                    <div class="flex items-center gap-3">
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" id="global-auto-analyze" class="sr-only peer"
-                                onchange="toggleGlobalAutoAnalyze()">
-                            <div
-                                class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600">
-                            </div>
-                            <span class="ml-2 text-xs font-semibold text-slate-300">Global Auto-Analyze</span>
-                        </label>
-                        <div class="h-4 w-px bg-slate-700"></div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-xs text-slate-400">Freq (s):</span>
-                            <input type="number" id="global-analyze-interval" value="90" min="10"
-                                class="w-16 bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1 text-center focus:outline-none focus:border-indigo-500">
-                        </div>
-                        <div class="h-4 w-px bg-slate-700"></div>
-                        <div class="flex items-center gap-2" title="Total number of times the LLM was triggered for deep analysis">
-                            <span class="text-xs text-slate-400">LLM Triggers:</span>
-                            <span id="llm-trigger-counter" class="text-xs font-bold text-indigo-400 bg-indigo-900/30 px-2 py-0.5 rounded border border-indigo-500/30">0</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div id="live-action-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                <!-- Action Cards go here -->
-            </div>
-            <div class="flex justify-center mt-2">
-                <button id="live-action-show-more" onclick="toggleLiveActionShowAll()"
-                    class="hidden px-4 py-2 text-xs font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors">
-                </button>
-            </div>
-            <!-- CLUSTER EXPOSURE VIEW (Task 5.3) -->
-            <section class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
-                <div class="flex items-center justify-between mb-3">
-                    <div>
-                        <h2 class="text-base font-bold text-white">Cluster Exposure</h2>
-                        <p class="text-xs text-slate-500">Open risk per cluster against max_cluster_risk_pct limits. Red ≥90%.</p>
-                    </div>
-                    <button onclick="loadExposure()"
-                        class="text-xs px-2 py-1 rounded border border-slate-700 text-slate-300 hover:bg-slate-800">Refresh</button>
-                </div>
-                <div id="exposure-status" class="text-xs text-slate-500 mb-2">Not loaded.</div>
-                <div id="exposure-message" class="hidden mb-3 px-2 py-1 rounded text-[11px] font-bold"></div>
-                <div id="exposure-container" class="space-y-2">
-                    <div class="text-center text-xs text-slate-600">Loading…</div>
-                </div>
-            </section>
-
-        </div>
+        <!-- SIGNALS TAB: rendered by /static/signals/index.js -->
+        <section id="tab-signals" class="hidden" aria-label="Signals"></section>
         <!-- DISCOVERY TAB -->
         <!-- PERFORMANCE TAB: rendered by /static/performance/main.js -->
         <section id="tab-performance" class="hidden" aria-label="Performance"></section>
@@ -292,16 +231,8 @@
     </main>
     <!-- WebSocket Logic -->
     <script>
-        // The shell (static/shell/socket.js) owns the /ws connection and
-        // re-broadcasts each message as `qf:ws`; the old panels still on this
-        // page read it here until their replacements ship.
+        // The old panels still on this page (Review, Discovery, Settings) call the API directly.
         const apiBase = '';
-        window.latestGlobalState = {};
-        // The old Live Action cards (Signals, until Phase 4) read the latest stock states.
-        function onLivePayload(payload) {
-            window.latestGlobalState = (payload && payload.global_state) || {};
-        }
-        window.addEventListener('qf:ws', (e) => onLivePayload(e.detail));
         // Task 4.4: reliability view. Renders the realised win rate per
         // |composite| decile against the diagonal a calibrated score would sit
         // on, and says plainly when the curve is flat (= no predictive power).
@@ -363,75 +294,6 @@
                 statusEl.textContent = 'Could not load reliability data: ' + e.message;
                 verdictEl.classList.add('hidden');
                 body.innerHTML = `<tr><td colspan="5" class="py-4 text-center text-slate-600">No data.</td></tr>`;
-            }
-        }
-
-        async function loadExposure() {
-            const statusEl = document.getElementById('exposure-status');
-            const messageEl = document.getElementById('exposure-message');
-            const containerEl = document.getElementById('exposure-container');
-            if (!containerEl) return;
-            statusEl.textContent = 'Loading...';
-            messageEl.classList.add('hidden');
-            try {
-                const res = await fetch(`${apiBase}/api/risk/exposure`);
-                const json = await res.json();
-                if (json.status !== 'success') throw new Error(json.message || 'failed');
-                const d = json.data;
-
-                statusEl.textContent = `Capital: ₹${(d.capital / 10000000).toFixed(1)} Cr · Max per cluster: ${d.max_cluster_risk_pct}%`;
-
-                // Positions the book could not size (missing qty/entry/stop)
-                // carry UNKNOWN risk, not zero. Claiming "fully within limits"
-                // over them would be a reassurance about exactly the exposure
-                // we failed to measure.
-                const unsizeable = d.unsizeable_positions || [];
-
-                if (!d.clusters || d.clusters.length === 0) {
-                    messageEl.classList.remove('hidden');
-                    if (unsizeable.length) {
-                        messageEl.className = 'mb-3 px-2 py-1 rounded text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30';
-                        messageEl.textContent =
-                            `No measurable exposure, but ${unsizeable.length} open position(s) could not be sized `
-                            + `(missing qty/entry/stop): ${unsizeable.join(', ')}. Risk unknown, not zero.`;
-                    } else {
-                        messageEl.className = 'mb-3 px-2 py-1 rounded text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30';
-                        messageEl.textContent = 'No open positions. Fully within limits.';
-                    }
-                    containerEl.innerHTML = '';
-                } else {
-                    if (unsizeable.length) {
-                        messageEl.classList.remove('hidden');
-                        messageEl.className = 'mb-3 px-2 py-1 rounded text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30';
-                        messageEl.textContent =
-                            `${unsizeable.length} open position(s) excluded from these bars `
-                            + `(missing qty/entry/stop): ${unsizeable.join(', ')}.`;
-                    } else {
-                        messageEl.classList.add('hidden');
-                    }
-                    containerEl.innerHTML = d.clusters.map(c => {
-                        const barWidth = Math.min(c.pct_of_limit * 100, 100);
-                        const isRed = c.pct_of_limit >= 0.90;
-                        const barColor = isRed ? 'bg-rose-500/70' : 'bg-slate-500/50';
-                        const percentText = (c.pct_of_limit * 100).toFixed(1);
-
-                        return `<div class="border border-slate-800/50 rounded p-3 bg-slate-950/30">
-                            <div class="flex justify-between items-center mb-2">
-                                <span class="text-sm font-semibold text-slate-200">${c.cluster}</span>
-                                <span class="text-xs ${isRed ? 'text-rose-400 font-bold' : 'text-slate-400'}">
-                                    ₹${c.open_risk.toLocaleString()} / ₹${c.limit.toLocaleString()} (${percentText}%)
-                                </span>
-                            </div>
-                            <div class="relative h-3 bg-slate-800 rounded overflow-hidden">
-                                <div class="absolute inset-y-0 left-0 ${barColor} rounded" style="width:${Math.max(0, barWidth)}%"></div>
-                            </div>
-                        </div>`;
-                    }).join('');
-                }
-            } catch (e) {
-                statusEl.textContent = 'Could not load exposure data: ' + e.message;
-                messageEl.classList.add('hidden');
-                containerEl.innerHTML = '<div class="text-center text-xs text-slate-600 py-4">Error loading data.</div>';
             }
         }
 
@@ -536,18 +398,10 @@
             }
         }
 
-        // The Inspector (static/inspector) replaced the AI, position and ledger
-        // modals. The old tabs' buttons open it through these two names.
-        function openJsonModal(symbol) { if (window.QF) window.QF.actions.inspect(symbol); }
-        function openPositionModal(symbol) { if (window.QF) window.QF.actions.inspect(symbol); }
         function escapeHtml(str) {
             const div = document.createElement('div');
             div.innerText = str == null ? '' : String(str);
             return div.innerHTML;
-        }
-        // --- Symbol Normalizer (must match backend _normalize_symbol) ---
-        function normalizeSymbol(s) {
-            return s.split('|').pop().split('-')[0];
         }
     </script>
     <!-- Modals -->
@@ -653,12 +507,6 @@
             renderWatchlist();
         }
         let activeWatchlistStream = null;
-        // The shell shows and hides the tabs; the old Live Action cards poll
-        // only while Signals is on screen.
-        window.addEventListener('qf:tab', (e) => {
-            if (e.detail === 'signals') startLiveActionPolling();
-            else stopLiveActionPolling();
-        });
         function fmtNum(v, d) {
             return (typeof v === 'number' && isFinite(v)) ? v.toFixed(d) : 'n/a';
         }
@@ -1063,7 +911,6 @@
             fetchNewsState();
             loadParquetSymbols();
             loadReliability();
-            loadExposure();
             loadSessionReview();
             resumeDiscovery();
             loadDiscoveryModels();
@@ -1113,322 +960,6 @@
             </div>
         </div>
     </div>
-    <script>
-        // Live Action Global State
-        window.dismissedLiveReports = {}; // { "RELIANCE": { dismissedAt: timestamp, text: "..." } }
-        // Attention ranking (§4.6): the Live Action grid sorts by attention_rank
-        // (ev_r x freshness, computed server-side per Task 5.1) and collapses
-        // everything past the top N below a "Show more" toggle.
-        const ATTENTION_TOP_N = 5;
-        window.liveActionShowAll = false;
-        function toggleLiveActionShowAll() {
-            window.liveActionShowAll = !window.liveActionShowAll;
-            renderLiveActionGrid(window.latestLiveReports || {});
-        }
-        function getAttentionRank(symbol) {
-            const state = window.latestGlobalState && window.latestGlobalState[symbol];
-            const rank = state && state.attention_rank;
-            // Missing or rejected (server sends null for -inf) sinks to the
-            // bottom, same as a rejected setup.
-            return (typeof rank === 'number' && isFinite(rank)) ? rank : -Infinity;
-        }
-        function startLiveActionPolling() {
-            if (window.liveActionPollInterval) clearInterval(window.liveActionPollInterval);
-            pollLiveActionCards();
-            window.liveActionPollInterval = setInterval(pollLiveActionCards, 3000);
-        }
-        function stopLiveActionPolling() {
-            if (window.liveActionPollInterval) clearInterval(window.liveActionPollInterval);
-        }
-        async function pollLiveActionCards() {
-            if (document.getElementById('tab-signals').classList.contains('hidden')) return;
-            try {
-                const res = await fetch(`${apiBase}/api/reasoning/all_reports`);
-                const data = await res.json();
-                if (data.status === 'success' && data.reports) {
-                    window.latestLiveReports = data.reports;
-                    renderLiveActionGrid(data.reports, data.llm_trigger_count || 0);
-                }
-            } catch (e) {
-                console.error("Failed to poll live action reports", e);
-            }
-        }
-        function renderLiveActionGrid(reportsObj, triggerCount = 0) {
-            const grid = document.getElementById('live-action-grid');
-            const counterElement = document.getElementById('llm-trigger-counter');
-            if (counterElement) counterElement.innerText = triggerCount;
-
-            let cardsData = [];
-            const now = Date.now();
-            for (const [symbol, text] of Object.entries(reportsObj)) {
-                const dismissed = window.dismissedLiveReports[symbol];
-                // Auto-expire dismissals after 60s so cards reappear with fresh data
-                if (dismissed && (now - dismissed.dismissedAt) < 60000 && dismissed.text === text) continue;
-
-                let cleanText = text.trim();
-                if (cleanText.startsWith('```json')) cleanText = cleanText.substring(7);
-                else if (cleanText.startsWith('```')) cleanText = cleanText.substring(3);
-                if (cleanText.endsWith('```')) cleanText = cleanText.substring(0, cleanText.length - 3);
-                cleanText = cleanText.trim();
-
-                try {
-                    const actionData = JSON.parse(cleanText);
-                    cardsData.push({ symbol, text, actionData });
-                } catch (e) {
-                    // Not valid JSON, ignore
-                }
-            }
-            // Sort by attention rank descending (ev_r x freshness, §4.6);
-            // ties (including two unranked cards) fall back to Priority Score.
-            // Explicit >/</=== comparisons, not subtraction: both operands
-            // can be -Infinity (rejected/unranked), and
-            // -Infinity - (-Infinity) === NaN, which Array.sort handles as
-            // undefined ordering -- jittery re-sorts on every 3s poll for
-            // the common case of two suppressed/unranked cards.
-            cardsData.sort((a, b) => {
-                const rankA = getAttentionRank(a.symbol);
-                const rankB = getAttentionRank(b.symbol);
-                if (rankA !== rankB) return rankA > rankB ? -1 : 1;
-                const scoreA = a.actionData.Priority_Score || 0;
-                const scoreB = b.actionData.Priority_Score || 0;
-                return scoreB - scoreA;
-            });
-
-            const showMoreBtn = document.getElementById('live-action-show-more');
-            const collapsedCount = cardsData.length - ATTENTION_TOP_N;
-            if (showMoreBtn) {
-                if (collapsedCount > 0) {
-                    showMoreBtn.classList.remove('hidden');
-                    showMoreBtn.textContent = window.liveActionShowAll
-                        ? 'Show fewer'
-                        : `Show ${collapsedCount} more`;
-                } else {
-                    showMoreBtn.classList.add('hidden');
-                }
-            }
-
-            if (cardsData.length === 0) {
-                grid.innerHTML = `<div class="col-span-full text-center text-slate-500 py-12">No actionable setups detected yet. Turn on Auto-Analyze or hit Instant Analyze on a stock.</div>`;
-                return;
-            }
-            let html = '';
-            cardsData.forEach((card, idx) => {
-                const d = card.actionData;
-                const score = d.Priority_Score || 0;
-                const isHighPriority = score > 6;
-                const isUnstable = !!d.unstable;
-                const borderGlow = isUnstable
-                    ? 'border-slate-700/40 opacity-60'
-                    : (isHighPriority ? 'border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'border-slate-700/80');
-                // Collapse below the attention-rank top N (§4.6) behind the
-                // "Show more" toggle instead of removing them from the DOM.
-                const collapsedClass = (!window.liveActionShowAll && idx >= ATTENTION_TOP_N) ? 'hidden' : '';
-
-                let stabilizingBadge = '';
-                if (isUnstable) {
-                    stabilizingBadge = `<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-slate-800 text-slate-400 border border-slate-600" title="Advice is still flickering -- needs 3 stable ticks before it's actionable.">STABILIZING</span>`;
-                }
-
-                let rejectionBadge = '';
-                let isSuppressed = false;
-                if ((d.math_rejection && d.math_rejection !== "UNKNOWN") || d.llm_authorized === false) {
-                    isSuppressed = true;
-                    const reason = d.math_rejection && d.math_rejection !== "UNKNOWN" ? d.math_rejection : (d.Reason || "Gatekeeper suppressed");
-                    rejectionBadge = `<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-amber-900/20 text-amber-500 border border-amber-700/50" title="Reason: ${reason}">GATEKEEPER SUPPRESSED</span>`;
-                }
-
-                let pendingIndicator = '';
-                if (d.Status_Tag === "PENDING_LLM" && !isSuppressed) {
-                    pendingIndicator = `
-            <div class="flex items-center gap-1.5 ml-1 bg-slate-800/80 px-2 py-0.5 rounded border border-rose-500/30" title="LLM Analysis Triggered. Waiting for result.">
-                <span class="relative flex h-2 w-2">
-                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                  <span class="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
-                </span>
-                <span class="text-[9px] text-rose-400 font-bold uppercase tracking-wider">LLM Analyze Pending</span>
-            </div>`;
-                } else if (d.Status_Tag === "LLM_ANALYZED") {
-                    pendingIndicator = `
-            <div class="flex items-center gap-1.5 ml-1 bg-slate-800/80 px-2 py-0.5 rounded border border-emerald-500/30" title="LLM Analysis Complete.">
-                <span class="relative flex h-2 w-2">
-                  <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
-                <span class="text-[9px] text-emerald-400 font-bold uppercase tracking-wider">Analyzed</span>
-            </div>`;
-                } else if (d.Is_Math_Setup && !isSuppressed && !d.Status_Tag) {
-                    pendingIndicator = `
-            <div class="flex items-center gap-1.5 ml-1 bg-slate-800/80 px-2 py-0.5 rounded border border-blue-500/30" title="Math Setup Received.">
-                <span class="text-[9px] text-blue-400 font-bold uppercase tracking-wider">Math Only</span>
-            </div>`;
-                }
-
-                const actionStr = (d.Action || '').toUpperCase();
-                const actionClass = actionStr === 'SHORT' ? 'bg-rose-900/40 text-rose-300 border-rose-700/50' :
-                    (actionStr === 'WAIT' || actionStr === 'HOLD' ? 'bg-amber-900/40 text-amber-300 border-amber-700/50' :
-                        'bg-emerald-900/40 text-emerald-300 border-emerald-700/50');
-                // Escape text for onclick
-                const escapedText = card.text.replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\n/g, '\\n');
-
-                const state = window.latestGlobalState && window.latestGlobalState[card.symbol];
-                let ltpText = '';
-                if (state && state.ltp) {
-                    ltpText = `<span class="text-xs text-slate-300 font-mono ml-2 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">LTP: ${parseFloat(state.ltp).toFixed(2)}</span>`;
-                }
-
-                let timeText = '';
-                if (d.Generated_Time && d.Generated_Time !== "UNKNOWN") {
-                    timeText = `<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-slate-800 text-slate-400 border border-slate-700 flex items-center gap-1" title="Time Generated"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>${d.Generated_Time}</span>`;
-                }
-
-                html += `
-        <div class="bg-slate-900 border rounded-xl p-4 relative overflow-hidden flex flex-col shrink-0 ${borderGlow} transition-all ${collapsedClass}">
-            <div class="flex justify-between items-start mb-3">
-                <div class="flex flex-wrap items-center gap-1.5">
-                    <h3 class="text-xl font-bold text-white tracking-tight mr-1">${card.symbol.split('|').pop()}</h3>
-                    ${ltpText}
-                    ${timeText}
-                    <span class="px-2 py-0.5 text-xs font-bold rounded ${isHighPriority ? 'bg-emerald-900/60 text-emerald-400 border border-emerald-700' : 'bg-slate-800 text-slate-400 border border-slate-700'}">Pri: ${score}</span>
-                    <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-indigo-900/40 text-indigo-300 border border-indigo-700">Conf: ${d.Confidence_Score || '-'}</span>
-                    ${rejectionBadge}
-                    ${stabilizingBadge}
-                    ${pendingIndicator}
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="px-2 py-0.5 text-xs font-bold rounded ${actionClass} border uppercase">${d.Action || 'N/A'}</span>
-                    <button onclick="dismissActionCard('${card.symbol}', '${escapedText}')" class="text-slate-500 hover:text-rose-500 transition-colors" title="Dismiss Card">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    </button>
-                </div>
-            </div>
-            <div class="grid grid-cols-2 gap-2 mb-4 mt-2">
-                <div class="bg-slate-800/50 p-1.5 rounded border border-slate-700/50 text-center">
-                    <div class="text-[10px] text-slate-400 uppercase tracking-wider mb-0.5">Entry</div>
-                    <div class="text-sm font-bold text-indigo-400">${d.Entry_Target_Price || 'N/A'}</div>
-                </div>
-                <div class="bg-slate-800/50 p-1.5 rounded border border-slate-700/50 text-center">
-                    <div class="text-[10px] text-slate-400 uppercase tracking-wider mb-0.5">Target</div>
-                    <div class="text-sm font-bold text-emerald-400">${d.Exit_Target_Price || 'N/A'}</div>
-                </div>
-                <div class="bg-slate-800/50 p-1.5 rounded border border-slate-700/50 text-center">
-                    <div class="text-[10px] text-slate-400 uppercase tracking-wider mb-0.5">Stop Loss</div>
-                    <div class="text-sm font-bold text-rose-400">${d.Stoploss || 'N/A'}</div>
-                </div>
-                <div class="bg-slate-800/50 p-1.5 rounded border border-slate-700/50 text-center">
-                    <div class="text-[10px] text-slate-400 uppercase tracking-wider mb-0.5">Risk</div>
-                    <div class="text-sm font-bold text-amber-400">${d.Risk_Percentage ? d.Risk_Percentage + '%' : 'N/A'}</div>
-                </div>
-            </div>
-            <div class="flex justify-between items-center gap-2 mt-auto pt-2 border-t border-slate-800">
-                <button onclick="forceReasoning('${card.symbol}')" class="flex-1 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-700/50 py-1.5 rounded text-xs font-bold transition-colors">Instant</button>
-                <button onclick="openJsonModal('${card.symbol}')" class="w-8 h-8 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 rounded transition-colors" title="Settings">⚙️</button>
-                <button onclick="showLiveAnalysisModal('${escapedText}')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 py-1.5 rounded text-xs font-bold transition-colors">Analysis</button>
-            </div>
-            <div class="flex justify-between items-center gap-2 mt-2">
-                <button onclick="openPositionModal('${card.symbol}')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 py-1.5 rounded text-[10px] uppercase font-bold transition-colors">Position</button>
-                <button onclick="acceptLiveActionCard('${card.symbol}', '${escapedText}')" class="flex-1 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-700/50 py-1.5 rounded text-[10px] uppercase font-bold transition-colors">Accept</button>
-            </div>
-        </div>
-        `;
-            });
-            grid.innerHTML = html;
-        }
-        function showLiveAnalysisModal(text) {
-            let cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
-            alert("AI Analysis:\n\n" + cleanText);
-        }
-        // Accept opens the stock's trade log in the Inspector, prefilled from
-        // this card (it was the ledger modal).
-        function acceptLiveActionCard(symbol, text) {
-            if (window.QF) window.QF.actions.inspect(symbol, { log: true });
-            window.dismissedLiveReports[symbol] = { dismissedAt: Date.now(), text: text };
-            pollLiveActionCards();
-        }
-        function dismissActionCard(symbol, text) {
-            window.dismissedLiveReports[symbol] = { dismissedAt: Date.now(), text: text };
-            pollLiveActionCards();
-        }
-        function openLiveSettingsModal(symbol) {
-            const freq = prompt(`Enter Auto-Analyze frequency in seconds for ${symbol}:`, "60");
-            if (freq) {
-                const normSym = normalizeSymbol(symbol);
-                const allPos = JSON.parse(localStorage.getItem('user_positions')) || {};
-                const userPosition = allPos[normSym] || null;
-                fetch(`${apiBase}/api/reasoning/loop/start`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ symbol: normSym, interval: parseInt(freq), user_position: userPosition })
-                });
-                alert(`Started auto-analyze for ${symbol} every ${freq} seconds.`);
-            }
-        }
-        function toggleGlobalAutoAnalyze() {
-            const isChecked = document.getElementById('global-auto-analyze').checked;
-            const freq = document.getElementById('global-analyze-interval').value;
-            const symbols = window.globalWatchlistSymbols || Object.keys(window.latestGlobalState || {});
-            const allPos = JSON.parse(localStorage.getItem('user_positions')) || {};
-
-            // Persist global state
-            localStorage.setItem('global_auto_analyze', isChecked);
-            localStorage.setItem('global_analyze_interval', freq);
-
-            // Visually sync the individual modal toggle if it's currently showing
-            if (window.currentViewingToken) {
-                const modalToggle = document.getElementById('toggle-auto-analyze');
-                if (modalToggle) modalToggle.checked = isChecked;
-            }
-
-            // Visually sync all individual matrix toggles
-            document.querySelectorAll('input[id^="auto-analyze-"]').forEach(el => {
-                el.checked = isChecked;
-            });
-
-            symbols.forEach(sym => {
-                const normSym = normalizeSymbol(sym);
-                if (isChecked) {
-                    fetch(`${apiBase}/api/reasoning/loop/start`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ symbol: normSym, interval: parseInt(freq), user_position: allPos[normSym] || null })
-                    });
-                } else {
-                    fetch(`${apiBase}/api/reasoning/loop/stop`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ symbol: normSym })
-                    });
-                }
-            });
-        }
-
-        document.addEventListener("DOMContentLoaded", () => {
-            const isGlobalActive = localStorage.getItem('global_auto_analyze') !== 'false';
-            const globalFreq = localStorage.getItem('global_analyze_interval') || '90';
-
-            const globalToggle = document.getElementById('global-auto-analyze');
-            if (globalToggle) globalToggle.checked = isGlobalActive;
-
-            const globalInterval = document.getElementById('global-analyze-interval');
-            if (globalInterval) globalInterval.value = globalFreq;
-
-            // If global auto-analyze was active before reload, trigger it
-            if (isGlobalActive) {
-                // Retry until WebSocket has delivered data
-                let retryCount = 0;
-                const retryInterval = setInterval(() => {
-                    retryCount++;
-                    const syms = Object.keys(window.latestGlobalState || {});
-                    if (syms.length > 0) {
-                        clearInterval(retryInterval);
-                        toggleGlobalAutoAnalyze();
-                    } else if (retryCount > 30) { // Give up after 30 seconds
-                        clearInterval(retryInterval);
-                        console.warn("Global auto-analyze: gave up waiting for WebSocket data");
-                    }
-                }, 1000);
-            }
-        });
-
-    </script>
     <!-- Overlays open over the current tab (#inspect/SAIL, #settings) -->
     <div id="overlay-inspect"></div>
     <div id="overlay-settings"></div>

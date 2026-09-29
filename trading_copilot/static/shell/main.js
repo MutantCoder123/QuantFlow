@@ -16,6 +16,7 @@ import { DEFAULT_TAB, TABS, hashForInspect, hashForSettings, hashForTab, parseHa
 import * as appBar from './app-bar.js';
 import * as prompt from '../shared/prompt.js';
 import { syncAll } from '../shared/positions.js';
+import { bootAuto } from '../shared/auto-analyze.js';
 
 const SECTIONS = Object.fromEntries(TABS.map((t) => [t.id, `tab-${t.id}`]));
 const LABEL = Object.fromEntries(TABS.map((t) => [t.id, t.label]));
@@ -23,6 +24,7 @@ const LABEL = Object.fromEntries(TABS.map((t) => [t.id, t.label]));
 // A tab listed here is rendered by its module; the others are still the old markup.
 const TAB_MODULES = {
   market: () => import('../market/index.js'),
+  signals: () => import('../signals/index.js'),
 };
 const OVERLAYS = {
   inspect: () => import('../inspector/index.js'),
@@ -125,6 +127,7 @@ setInterval(() => store.set({ now: Date.now() / 1000 }), 1000);
 window.QF = { store, actions, prompt };
 prompt.loadPrompt();        // migrates a stored prompt once, as the old page did at load
 syncAll();                  // the server forgets manual positions on restart; resend them
+bootAuto(store);            // and its auto-analysis loops: re-apply a saved "on"
 // The old page's tab switch, for anything that still calls it.
 window.switchTab = (id) => actions.go(tabFromOld(id));
 
