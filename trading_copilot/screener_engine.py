@@ -345,6 +345,7 @@ class PreMarketScreener:
         """`progress(scanned, total)` is called after each batch."""
         logger.info("Initiating Phase 0 Pre-Market Screener...")
         self.selected = None
+        self.universe = None
         
         # Fetch News Catalyst Cache
         catalyst_cache = {}
@@ -398,6 +399,11 @@ class PreMarketScreener:
         # Sort by mathematical score descending
         filtered.sort(key=lambda x: x["score"], reverse=True)
         top_picks = filtered[:20]
+        # Every scored stock, for Discovery's universe chart: are the picks
+        # real outliers? (F4: only the top 20 used to leave this function.)
+        self.universe = [{"symbol": r["symbol"], "score": r["score"], "rs": r["rs"],
+                          "adv_crore": r["adv_crore"], "directional_bias": r["directional_bias"]}
+                         for r in filtered]
 
         # Module 4: Terminal Feedback
         logger.info(f"Successfully scanned {len(all_results)}/{len(tokens)} stocks. Top picks compiled.")

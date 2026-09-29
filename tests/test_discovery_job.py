@@ -264,3 +264,30 @@ async def test_no_selection_means_the_watchlist_was_not_written():
     job.start(scan, _no_apply)
     await _drain(job)
     assert job.status()["watchlist_written"] is False
+
+
+async def test_the_whole_scored_universe_is_published_with_the_picks():
+    """F4 (2026-09-29): only the top 20 left the scan, so Discovery could not
+    show whether the picks were real outliers. The job now carries every
+    scored stock; a scan that returns only picks and a selection still works."""
+    universe = [{"symbol": s, "score": sc, "rs": 0.1, "adv_crore": 50.0, "directional_bias": "LONG"}
+                for s, sc in (("SAIL", 70), ("IDEA", 12), ("NMDC", 5))]
+
+    async def scan(progress):
+        return [_pick("SAIL")], None, universe
+
+    async def apply(selected):
+        return [], []
+
+    job = DiscoveryJob()
+    job.start(scan, apply)
+    await _drain(job)
+    assert job.status()["universe"] == universe
+
+    async def old_scan(progress):
+        return [_pick("SAIL")], None
+
+    job2 = DiscoveryJob()
+    job2.start(old_scan, apply)
+    await _drain(job2)
+    assert job2.status()["state"] == "done" and job2.status()["universe"] is None

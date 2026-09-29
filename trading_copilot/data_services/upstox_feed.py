@@ -726,7 +726,7 @@ async def run_discovery(request: Request):
 
     async def scan(progress):
         picks = await screener.run_scan(progress=progress)
-        return picks, screener.selected
+        return picks, screener.selected, screener.universe
 
     async def apply(selected):
         return await apply_discovery_selection(state, selected)

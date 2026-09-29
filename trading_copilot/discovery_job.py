@@ -44,6 +44,7 @@ class DiscoveryJob:
             "scanned": 0,
             "total": None,
             "picks": None,              # the screener's top picks, as measured
+            "universe": None,           # every stock scored (symbol, score, rs, adv, bias)
             "watchlist_written": None,  # did the scan rewrite watchlist.csv?
             "live_added": None,         # tokens now streaming in this session
             "subscription_pending": None,  # added, but socket down: subscribes on reconnect
@@ -58,7 +59,7 @@ class DiscoveryJob:
         return dict(self._status)
 
     def start(self, scan, apply, analyze=None) -> bool:
-        """Launch a run. `scan(progress)` -> (picks, selected-or-None);
+        """Launch a run. `scan(progress)` -> (picks, selected-or-None[, universe]);
         `apply(selected)` -> (live_added, removals_deferred[, pending]);
         `analyze(picks)` -> analysis dict or None (optional)."""
         if self._task is not None and not self._task.done():
@@ -74,8 +75,9 @@ class DiscoveryJob:
 
     async def _run(self, scan, apply, analyze) -> None:
         try:
-            picks, selected = await scan(self._progress)
+            picks, selected, *more = await scan(self._progress)
             self._status["picks"] = list(picks or [])
+            self._status["universe"] = list(more[0]) if more and more[0] is not None else None
             # run_scan writes watchlist.csv exactly when it returns a selection.
             self._status["watchlist_written"] = bool(selected)
             if selected:
