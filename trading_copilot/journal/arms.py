@@ -130,8 +130,9 @@ def label_arm_record(row: dict, bars, horizon_min: int = 90,
             return None
         if entry <= 0 or stop <= 0 or target <= 0:
             return None
-        return label_outcome(bars, int(row["ts"]), entry, stop, target,
-                             bias, horizon_min=horizon_min, cost_pct=cost_pct)
+        out = label_outcome(bars, int(row["ts"]), entry, stop, target,
+                            bias, horizon_min=horizon_min, cost_pct=cost_pct)
+        return None if out["outcome"] == "NO_DATA" else out      # no bars is not a result
 
     row["math_outcome"] = _score(math_arm)
     row["llm_outcome"] = _score(llm_arm) if arm_was_taken(llm_arm) else None
@@ -158,7 +159,10 @@ async def resolve_arms(journal: ArmJournal, fetch_bars, horizon_min: int = 90,
         bars = await fetch_bars(row.get("symbol"))
         if bars is None:
             continue
-        journal.write(label_arm_record(row, bars, horizon_min, cost_pct))
+        labelled_row = label_arm_record(row, bars, horizon_min, cost_pct)
+        if labelled_row.get("math_outcome") is None:
+            continue          # the window had no bars yet: try again next pass
+        journal.write(labelled_row)
         labelled += 1
     if labelled:
         logger.info(f"Labelled {labelled} arm record(s).")
@@ -166,7 +170,8 @@ async def resolve_arms(journal: ArmJournal, fetch_bars, horizon_min: int = 90,
 
 
 def _arm_stats(outcomes: list) -> dict:
-    resolved = [o for o in outcomes if o]
+    # NO_DATA rows written before 2026-09-29's fix are not results either
+    resolved = [o for o in outcomes if o and o.get("outcome") != "NO_DATA"]
     n = len(resolved)
     if n == 0:
         return {"n": 0, "win_rate": None, "avg_r": None}
@@ -186,7 +191,8 @@ def summarise_arms(rows: list) -> dict:
     llm_outcomes = [r.get("llm_outcome") for r in rows]
 
     vetoed = [r for r in rows
-              if not arm_was_taken(r.get("llm_arm") or {}) and r.get("math_outcome")]
+              if not arm_was_taken(r.get("llm_arm") or {}) and r.get("math_outcome")
+              and r["math_outcome"].get("outcome") != "NO_DATA"]
     good_vetoes = sum(1 for r in vetoed
                       if not r["math_outcome"].get("directional_correct"))
     precision = round(good_vetoes / len(vetoed) * 100, 2) if vetoed else None

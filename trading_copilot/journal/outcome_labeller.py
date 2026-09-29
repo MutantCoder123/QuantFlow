@@ -10,10 +10,26 @@ from __future__ import annotations
 import pandas as pd
 
 
+IST = "Asia/Kolkata"
+
+
+def entry_time(entry_ts: int, bar_times: pd.Series) -> pd.Timestamp:
+    """The signal's epoch time on the bars' own clock. The feed stamps its
+    bars in naive IST, so an epoch read as naive UTC landed 5 h 30 m early
+    and the window found no bars: every outcome came back NO_DATA and was
+    stored as a 0% loss (2026-09-29). Tz-aware bars are matched in their zone."""
+    utc = pd.Timestamp(entry_ts, unit="s", tz="UTC")
+    tz = getattr(bar_times.dt, "tz", None) if len(bar_times) else None
+    return utc.tz_convert(tz) if tz is not None else utc.tz_convert(IST).tz_localize(None)
+
+
 def label_outcome(bars: pd.DataFrame, entry_ts: int, entry: float, stop: float,
                   target: float, bias: str, horizon_min: int,
                   cost_pct: float) -> dict:
-    start = pd.Timestamp(entry_ts, unit="s")
+    """Stop / target / timeout for one signal against 5-minute bars. An
+    outcome of NO_DATA means the window held no bars: it is not a result, and
+    callers must not store it as one."""
+    start = entry_time(entry_ts, bars["timestamp"])
     end = start + pd.Timedelta(minutes=horizon_min)
     w = bars[(bars["timestamp"] >= start) & (bars["timestamp"] <= end)]
 

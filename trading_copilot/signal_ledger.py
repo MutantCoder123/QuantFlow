@@ -19,6 +19,8 @@ class SignalLedger:
     # until then this is what stands between "positive" and "directionally
     # correct" so a signal can't be scored a win purely on noise.
     ROUND_TRIP_COST_PCT = 0.06
+    # A signal whose window never gets bars is void after this long, not a loss.
+    NO_DATA_VOID_S = 24 * 3600
 
     @classmethod
     def _measure_at(cls) -> list:
@@ -203,6 +205,15 @@ class SignalLedger:
                 continue
             res = label_outcome(bars, entry_ts, entry, stop, target, bias,
                                 horizon_min=m, cost_pct=cls.ROUND_TRIP_COST_PCT)
+            if res["outcome"] == "NO_DATA":
+                # No bars in the window is not an outcome. Leave it pending
+                # (the bars may arrive); a day on, it is void, never a loss.
+                if now_ts - state["targets"][m] > cls.NO_DATA_VOID_S:
+                    record["outcome"]["status"] = "VOID"
+                    for k in mins:
+                        state["resolved"][k] = True
+                    return True
+                return updated
             record["outcome"][f"pnl_{m}m_pct"] = res["pnl_pct"]
             record["outcome"][f"directional_correct_{m}m"] = res["directional_correct"]
             record["outcome"]["hit_stop"] = record["outcome"].get("hit_stop") or res["hit_stop"]

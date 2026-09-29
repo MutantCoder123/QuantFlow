@@ -8,7 +8,8 @@ fetches bars and calls this once per pending signal per tick.
 import pandas as pd
 from signal_ledger import SignalLedger
 
-ENTRY_TS = int(pd.Timestamp("2026-09-09 10:00").timestamp())
+# 10:00 IST: the feed stamps its bars in naive IST, and a signal carries an epoch
+ENTRY_TS = int(pd.Timestamp("2026-09-09 10:00", tz="Asia/Kolkata").timestamp())
 
 
 def _bars():
@@ -69,3 +70,17 @@ def test_before_any_checkpoint_is_a_noop():
     rec = _record()
     st = _state(rec)
     assert SignalLedger._resolve_one(rec, st, ENTRY_TS + 60, _bars()) is False
+
+
+def test_no_data_is_not_stored_as_a_loss_and_voids_after_a_day():
+    """A window with no bars left the record RESOLVED with pnl 0 and
+    directional_correct False -- a loss that never happened (2026-09-29)."""
+    rec = _record()
+    st = _state(rec)
+    empty = _bars().iloc[0:0]
+    later = ENTRY_TS + 100 * 60
+    assert SignalLedger._resolve_one(rec, st, later, empty) is False
+    assert rec["outcome"]["status"] == "PENDING" and "pnl_90m_pct" not in rec["outcome"]
+    a_day_on = ENTRY_TS + 26 * 3600
+    assert SignalLedger._resolve_one(rec, st, a_day_on, empty) is True
+    assert rec["outcome"]["status"] == "VOID" and all(st["resolved"].values())

@@ -9,6 +9,11 @@ the LLM vetoed the trade.
 import json
 
 import pandas as pd
+
+
+def _ist(ts):
+    """An epoch on the feed's clock: bars are stamped in naive IST."""
+    return pd.Timestamp(ts, unit="s", tz="UTC").tz_convert("Asia/Kolkata").tz_localize(None)
 import pytest
 
 from journal.arms import ArmRecord, ArmJournal, label_arm_record, summarise_arms
@@ -73,7 +78,7 @@ def test_math_arm_is_scored_even_when_the_llm_aborted():
     a math-arm outcome, so LLM veto precision becomes measurable."""
     rec = _rec(llm_arm=dict(LLM_ABORT)).to_row()
     bars = _bars()
-    bars["timestamp"] = pd.to_datetime(rec["ts"], unit="s") + pd.to_timedelta(
+    bars["timestamp"] = _ist(rec["ts"]) + pd.to_timedelta(
         [0, 5, 10, 15], unit="m")
 
     out = label_arm_record(rec, bars, horizon_min=90, cost_pct=0.06)
@@ -86,7 +91,7 @@ def test_math_arm_is_scored_even_when_the_llm_aborted():
 def test_both_arms_scored_when_the_llm_confirmed():
     rec = _rec().to_row()
     bars = _bars()
-    bars["timestamp"] = pd.to_datetime(rec["ts"], unit="s") + pd.to_timedelta(
+    bars["timestamp"] = _ist(rec["ts"]) + pd.to_timedelta(
         [0, 5, 10, 15], unit="m")
 
     out = label_arm_record(rec, bars, horizon_min=90, cost_pct=0.06)
