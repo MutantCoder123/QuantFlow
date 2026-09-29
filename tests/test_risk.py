@@ -38,3 +38,36 @@ def test_degenerate_stop_is_rejected():
     p = Proposal(symbol="X", bias="LONG", entry=100.0, stop=100.0, target=105.0,
                  composite=0.3, regime="TREND_EXPANSION")
     assert getattr(size(p, Portfolio(), LIM, 1e7), "reason", "") == "DEGENERATE_STOP"
+
+
+# -- value caps (2026-09-29: Rs 64 lakh held at once on Rs 10 lakh capital) ---
+NBCC = Proposal(symbol="NBCC", bias="LONG", entry=79.33, stop=79.08,
+                target=81.6, composite=0.30, regime="MEAN_REVERSION")
+
+
+def test_a_tight_stop_no_longer_buys_more_than_capital():
+    """Risk alone wanted 20,000 NBCC (Rs 15.9 lakh); one position is capped at 1x capital."""
+    sp = size(NBCC, Portfolio(), LIM, adv_shares=10_000_000)
+    assert sp.qty == 12_605                               # int(10,00,000 / 79.33)
+    assert sp.qty * NBCC.entry <= LIM.capital
+    assert sp.risk_amount < 5000                          # the value cap bound, not the risk budget
+
+
+def test_the_value_cap_leaves_ordinary_trades_alone():
+    sp = size(P, Portfolio(), LIM, adv_shares=10_000_000)
+    assert sp.qty == 2500                                 # Rs 2.5 lakh: well inside 1x
+
+
+def test_open_positions_share_a_total_value_limit():
+    book = Portfolio()
+    for i in range(4):                                    # Rs 45 lakh already open
+        book.add_open(f"S{i}", cluster=f"C{i}", risk_amount=1000, value=1_125_000)
+    sp = size(NBCC, book, LIM, adv_shares=10_000_000)
+    assert sp.qty == int(500_000 / 79.33)                 # only Rs 5 lakh of room left
+    book.add_open("S5", cluster="C5", risk_amount=1000, value=500_000)
+    assert getattr(size(NBCC, book, LIM, 1e7), "reason", "") == "OPEN_VALUE_LIMIT"
+
+
+def test_the_caps_scale_with_their_settings():
+    lim = RiskLimits(capital=1_000_000, max_position_value_x=2.0, max_open_value_x=5.0)
+    assert size(NBCC, Portfolio(), lim, 1e7).qty == 20_000   # 2x lets the full risk size through

@@ -8,6 +8,8 @@ Logs EVERY symbol on EVERY evaluation, including rejections, so that:
 from __future__ import annotations
 
 import datetime
+import threading
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -49,22 +51,33 @@ class FeatureLog:
         self._flush_n = flush_n
         self._buf: list[dict] = []
         self._seq = 0
+        # Per-process stamp in file names: the sequence restarts at 1 in every
+        # process, and a restart overwrote features_000001..5 (2026-09-29).
+        self._run = f"{time.time_ns() // 1_000_000:013d}"
+        self._lock = threading.Lock()      # write() on the loop, flush() via to_thread
 
     def write(self, rec: FeatureRecord) -> None:
-        self._buf.append(rec.to_row())
-        if len(self._buf) >= self._flush_n:
+        row = rec.to_row()
+        with self._lock:
+            self._buf.append(row)
+            full = len(self._buf) >= self._flush_n
+        if full:
             self.flush()
 
     def flush(self) -> Path | None:
-        if not self._buf:
-            return None
-        df = pd.DataFrame(self._buf)      # union of keys; missing -> NaN
-        self._buf.clear()
-        self._seq += 1
+        with self._lock:
+            if not self._buf:
+                return None
+            buf, self._buf = self._buf, []
+            self._seq += 1
+        df = pd.DataFrame(buf)            # union of keys; missing -> NaN
         day = datetime.datetime.now(_IST).strftime("%Y-%m-%d")
         part = self.data_dir / f"date={day}"
         part.mkdir(parents=True, exist_ok=True)
-        out = part / f"features_{self._seq:06d}.parquet"
+        out = part / f"features_{self._run}_{self._seq:06d}.parquet"
+        while out.exists():                         # never overwrite a written part
+            self._seq += 1000
+            out = part / f"features_{self._run}_{self._seq:06d}.parquet"
         df.to_parquet(out, engine="pyarrow", compression="zstd", index=False)
         return out
 

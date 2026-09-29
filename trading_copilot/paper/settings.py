@@ -13,6 +13,7 @@ from pathlib import Path
 import yaml
 
 from core.risk import RiskLimits
+from llm import DEFAULT_MODEL
 
 # field -> (default source, (lo, hi, lo_inclusive), plain-language rule)
 EDITABLE = {
@@ -20,6 +21,8 @@ EDITABLE = {
     "risk_per_trade_pct":   ("risk.yaml",  (0, 10, False),   "must be above 0% and at most 10%"),
     "max_daily_loss_pct":   ("risk.yaml",  (0, 50, False),   "must be above 0% and at most 50%"),
     "max_cluster_risk_pct": ("risk.yaml",  (0, 100, False),  "must be above 0% and at most 100%"),
+    "max_position_value_x": ("risk.yaml",  (0, 20, False),   "must be above 0 and at most 20 times capital"),
+    "max_open_value_x":     ("risk.yaml",  (0, 20, False),   "must be above 0 and at most 20 times capital"),
     "slippage_pct":         ("paper.yaml", (0, 1, True),     "must be between 0% and 1%"),
 }
 
@@ -48,6 +51,8 @@ class PaperSettings:
             "max_daily_loss_pct": float(risk.get("max_daily_loss_pct", 2.0)),
             "max_cluster_risk_pct": float(risk.get("max_cluster_risk_pct", 1.0)),
             "max_adv_participation": float(risk.get("max_adv_participation", 0.02)),
+            "max_position_value_x": float(risk.get("max_position_value_x", 1.0)),
+            "max_open_value_x": float(risk.get("max_open_value_x", 5.0)),
             "slippage_pct": float((paper.get("fill") or {}).get("slippage_pct", 0.03)),
         }
 
@@ -62,7 +67,7 @@ class PaperSettings:
         return {
             "enabled": bool(p.get("enabled", True)),
             "autonomous": bool(p.get("autonomous", True)),
-            "judge_model": str(p.get("judge_model", "gemini-2.5-flash")),
+            "judge_model": str(p.get("judge_model", DEFAULT_MODEL)),
             "stale_price_seconds": float(p.get("stale_price_seconds", 15)),
             "equity_snapshot_seconds": float(p.get("equity_snapshot_seconds", 60)),
             "metrics_min_n": dict(p.get("metrics_min_n") or {}),
@@ -85,7 +90,9 @@ class PaperSettings:
         return RiskLimits(capital=e["capital"], risk_per_trade_pct=e["risk_per_trade_pct"],
                           max_daily_loss_pct=e["max_daily_loss_pct"],
                           max_cluster_risk_pct=e["max_cluster_risk_pct"],
-                          max_adv_participation=e["max_adv_participation"])
+                          max_adv_participation=e["max_adv_participation"],
+                          max_position_value_x=e["max_position_value_x"],
+                          max_open_value_x=e["max_open_value_x"])
 
     # -- writing -----------------------------------------------------------
     @staticmethod

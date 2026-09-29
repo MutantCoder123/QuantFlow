@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import math
 import numpy as np
@@ -254,8 +255,10 @@ def main():
             if metrics:
                 baselines[symbol] = metrics
                 
-    with open(output_path, 'w') as f:
-        json.dump(baselines, f, indent=2)
+    # Atomic: the live feed reloads this file whenever its mtime changes.
+    sys.path.insert(0, base_dir)
+    from core.fileio import write_json_atomic
+    write_json_atomic(output_path, baselines, indent=2)
         
     print(f"Successfully generated {output_path} for {len(baselines)} symbols.")
 

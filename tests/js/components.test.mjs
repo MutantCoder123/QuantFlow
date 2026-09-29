@@ -6,7 +6,8 @@ import { blotterFrame, blotterRow } from '../../trading_copilot/static/performan
 import { excursionBar, exitWhy, filterOptions, filterTrades, journalRow, story } from '../../trading_copilot/static/performance/components/journal.js';
 import { errorText, parseForm } from '../../trading_copilot/static/performance/components/settings-drawer.js';
 import { whenChanged } from '../../trading_copilot/static/performance/core/store.js';
-import { MINUS } from '../../trading_copilot/static/performance/core/format.js';
+import { MINUS, inr, trim } from '../../trading_copilot/static/performance/core/format.js';
+import { settingValue } from '../../trading_copilot/static/performance/core/labels.js';
 
 // IST wall time -> epoch seconds
 const at = (day, h, m) => Date.UTC(2026, 8, day, h, m) / 1000 - 19800;
@@ -180,10 +181,10 @@ test('the excursion bar is drawn from recorded points only', () => {
 });
 
 // ---------------------------------------------------------------- settings
-const data = { settings: { capital: 1000000, slippage_pct: 0.03, risk_per_trade_pct: 0.4, max_daily_loss_pct: 2, max_cluster_risk_pct: 1 },
-  sources: { capital: 'risk.yaml', slippage_pct: 'paper.yaml', risk_per_trade_pct: 'override', max_daily_loss_pct: 'risk.yaml', max_cluster_risk_pct: 'risk.yaml' },
-  defaults: { capital: 1000000, slippage_pct: 0.03, risk_per_trade_pct: 0.5, max_daily_loss_pct: 2, max_cluster_risk_pct: 1 } };
-const form = (o) => ({ capital: '1000000', slippage_pct: '0.03', risk_per_trade_pct: '0.4', max_daily_loss_pct: '2', max_cluster_risk_pct: '1', ...o });
+const data = { settings: { capital: 1000000, slippage_pct: 0.03, risk_per_trade_pct: 0.4, max_daily_loss_pct: 2, max_cluster_risk_pct: 1, max_position_value_x: 1, max_open_value_x: 5 },
+  sources: { capital: 'risk.yaml', slippage_pct: 'paper.yaml', risk_per_trade_pct: 'override', max_daily_loss_pct: 'risk.yaml', max_cluster_risk_pct: 'risk.yaml', max_position_value_x: 'risk.yaml', max_open_value_x: 'risk.yaml' },
+  defaults: { capital: 1000000, slippage_pct: 0.03, risk_per_trade_pct: 0.5, max_daily_loss_pct: 2, max_cluster_risk_pct: 1, max_position_value_x: 1, max_open_value_x: 5 } };
+const form = (o) => ({ capital: '1000000', slippage_pct: '0.03', risk_per_trade_pct: '0.4', max_daily_loss_pct: '2', max_cluster_risk_pct: '1', max_position_value_x: '1', max_open_value_x: '5', ...o });
 
 test('the settings form sends only what changed', () => {
   assert.deepEqual(parseForm(form({}), data), { changes: {}, errors: {} });
@@ -193,6 +194,11 @@ test('the settings form sends only what changed', () => {
   // "use default" sends null, and only for a field that is actually overridden
   assert.deepEqual(parseForm(form({}), data, new Set(['risk_per_trade_pct', 'capital'])).changes, { risk_per_trade_pct: null });
   assert.equal(errorText('capital', 'must be more than ₹0'), 'Capital must be more than ₹0');
+  // the position-value caps are editable like the rest
+  assert.deepEqual(parseForm(form({ max_open_value_x: '3' }), data).changes, { max_open_value_x: 3 });
+  assert.equal(errorText('max_position_value_x', 'must be above 0'), 'Largest position must be above 0');
+  assert.equal(settingValue('max_open_value_x', 5, inr, trim), '5× capital');
+  assert.equal(settingValue('risk_per_trade_pct', 0.5, inr, trim), '0.5%');
 });
 
 test('whenChanged skips updates whose inputs are identical', () => {

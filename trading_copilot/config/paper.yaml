@@ -10,8 +10,10 @@ enabled: true
 # pipeline only reaches the judge for symbols switched on by hand.
 autonomous: true
 
-# Model for the LLM judge in the autonomous loop. "ollama:<tag>" runs locally.
-judge_model: gemini-2.5-flash
+# Model for the LLM judge in the autonomous loop. "ollama:<tag>" runs locally
+# on this machine (no API credits); a Gemini id such as gemini-2.5-flash uses
+# GEMINI_API_KEY.
+judge_model: ollama:qwen2.5:7b
 
 fill:
   slippage_pct: 0.03        # per leg, always against us

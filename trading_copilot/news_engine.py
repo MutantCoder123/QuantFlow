@@ -4,9 +4,9 @@ import logging
 import time
 import json
 from datetime import datetime, timedelta
-from google import genai
 
 import upstox_client
+from llm import DEFAULT_MODEL, generate_text
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ class NewsEngine:
     catalyst_cache = {}
     active_loop = None
     current_watchlist = {}
-    current_model = "gemini-2.5-flash"
+    current_model = DEFAULT_MODEL
     current_interval = 120
     last_fetch_time = 0
     macro_context = None
@@ -42,13 +42,8 @@ class NewsEngine:
             return None
 
     @classmethod
-    async def analyze_catalyst(cls, headline: str, summary: str, model_name: str = "gemini-2.5-flash"):
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            return "NEUTRAL - Gemini API Key missing for catalyst analysis."
-            
+    async def analyze_catalyst(cls, headline: str, summary: str, model_name: str = DEFAULT_MODEL):
         try:
-            client = genai.Client(api_key=api_key)
             prompt = (
                 f"You are a quantitative text parser. Analyze this news: {headline} - {summary}. "
                 "Categorize it and summarize it in exactly one sentence. "
@@ -56,13 +51,9 @@ class NewsEngine:
                 "If no relevant stock news is present, return 'NEUTRAL - No immediate fundamental catalyst detected.'"
             )
             
-            response = await client.aio.models.generate_content(
-                model=model_name,
-                contents=prompt
-            )
-            return response.text.strip()
+            return await generate_text(model_name, prompt)
         except Exception as e:
-            logger.error(f"Gemini API error during news parsing: {e}")
+            logger.error(f"LLM error during news parsing ({model_name}): {e}")
             return "NEUTRAL - Catalyst parsing failed due to API error."
 
     @classmethod
@@ -72,7 +63,7 @@ class NewsEngine:
         }
 
     @classmethod
-    async def fetch_live_feeds(cls, watchlist: dict, model_name: str = "gemini-2.5-flash"):
+    async def fetch_live_feeds(cls, watchlist: dict, model_name: str = DEFAULT_MODEL):
         news_api = cls._get_upstox_api()
         if not news_api:
             logger.warning("Cannot fetch news: Upstox API unauthenticated.")
@@ -249,7 +240,7 @@ class NewsEngine:
             await asyncio.sleep(cls.current_interval)
 
     @classmethod
-    async def start_news_loop(cls, watchlist: dict, interval: int = 120, model_name: str = "gemini-2.5-flash"):
+    async def start_news_loop(cls, watchlist: dict, interval: int = 120, model_name: str = DEFAULT_MODEL):
         cls.current_watchlist = watchlist
         cls.current_interval = interval
         cls.current_model = model_name
@@ -268,13 +259,8 @@ class NewsEngine:
         return True
 
     @classmethod
-    async def analyze_macro_catalyst(cls, headlines: list, model_name: str = "gemini-2.5-flash"):
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            return "NEUTRAL", "Gemini API Key missing for macro analysis."
-            
+    async def analyze_macro_catalyst(cls, headlines: list, model_name: str = DEFAULT_MODEL):
         try:
-            client = genai.Client(api_key=api_key)
             news_text = "\n".join(headlines)
             prompt = (
                 f"You are a quantitative macroeconomic analyst. Analyze these recent index headlines: \n{news_text}\n"
@@ -283,12 +269,7 @@ class NewsEngine:
                 "Format EXACTLY as:\nSENTIMENT: [ENUM]\nSUMMARY: [Your paragraph]"
             )
             
-            response = await client.aio.models.generate_content(
-                model=model_name,
-                contents=prompt
-            )
-            
-            text = response.text
+            text = await generate_text(model_name, prompt)
             import re
             sentiment_match = re.search(r"SENTIMENT:\s*(BULLISH|BEARISH|NEUTRAL|MIXED)", text, re.IGNORECASE)
             summary_match = re.search(r"SUMMARY:\s*(.*)", text, re.IGNORECASE | re.DOTALL)
@@ -302,7 +283,7 @@ class NewsEngine:
             return "NEUTRAL", "Error analyzing macro news."
 
     @classmethod
-    async def fetch_macro_news(cls, model_name: str = "gemini-2.5-flash"):
+    async def fetch_macro_news(cls, model_name: str = DEFAULT_MODEL):
         news_api = cls._get_upstox_api()
         if not news_api:
             logger.warning("Cannot fetch macro news: Upstox API unauthenticated.")

@@ -9,6 +9,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pathlib import Path
 from paths import BASE_DIR as _BASE_DIR, INSTITUTIONAL_FLOW_PATH, TOKEN_PATH, ensure_dirs
+from core.fileio import write_json_atomic
 ensure_dirs()
 STATE_FILE = INSTITUTIONAL_FLOW_PATH
 import aiohttp
@@ -40,8 +41,7 @@ class InstitutionalFlowTracker:
             "dii_net": dii_net,
         })
         state.setdefault("ad_ratio", 1.0)
-        with open(STATE_FILE, "w") as f:
-            json.dump(state, f, indent=4)
+        write_json_atomic(STATE_FILE, state, indent=4)
 
     @staticmethod
     def save_ad_ratio(ad_ratio: float):
@@ -58,8 +58,7 @@ class InstitutionalFlowTracker:
             "ad_ratio": round(float(ad_ratio), 2),
             "ad_ratio_ts": datetime.now(_IST).isoformat(),
         })
-        with open(STATE_FILE, "w") as f:
-            json.dump(state, f, indent=4)
+        write_json_atomic(STATE_FILE, state, indent=4)
 
     @staticmethod
     def load_state() -> dict:

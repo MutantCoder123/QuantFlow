@@ -54,19 +54,28 @@ class RiskLimits:
     max_daily_loss_pct: float = 2.0
     max_cluster_risk_pct: float = 1.0     # aggregate across correlated names
     max_adv_participation: float = 0.02   # never size beyond 2% of 20d avg volume
+    # Position value caps, as multiples of capital. Risk-based sizing alone
+    # let a tight stop buy anything: on 2026-09-29 four paper positions held
+    # Rs 64 lakh at once on Rs 10 lakh capital.
+    max_position_value_x: float = 1.0     # one position's value <= capital x this
+    max_open_value_x: float = 5.0         # all open positions' value <= capital x this
 
 
 @dataclass
 class Portfolio:
     realized_loss_today: float = 0.0
-    _open: list = field(default_factory=list)   # [{symbol, cluster, risk_amount}]
+    _open: list = field(default_factory=list)   # [{symbol, cluster, risk_amount, value}]
 
-    def add_open(self, symbol: str, cluster: str, risk_amount: float) -> None:
+    def add_open(self, symbol: str, cluster: str, risk_amount: float, value: float = 0.0) -> None:
         self._open.append({"symbol": symbol, "cluster": cluster,
-                           "risk_amount": float(risk_amount)})
+                           "risk_amount": float(risk_amount), "value": float(value)})
 
     def risk_in_cluster(self, cluster: str) -> float:
         return sum(p["risk_amount"] for p in self._open if p["cluster"] == cluster)
+
+    def open_value(self) -> float:
+        """Rupee value (qty x entry) of every open position."""
+        return sum(p["value"] for p in self._open)
 
 
 @lru_cache(maxsize=4)
@@ -82,6 +91,8 @@ def load_risk_limits(path: Path | None = None) -> RiskLimits:
         max_daily_loss_pct=float(d.get("max_daily_loss_pct", 2.0)),
         max_cluster_risk_pct=float(d.get("max_cluster_risk_pct", 1.0)),
         max_adv_participation=float(d.get("max_adv_participation", 0.02)),
+        max_position_value_x=float(d.get("max_position_value_x", 1.0)),
+        max_open_value_x=float(d.get("max_open_value_x", 5.0)),
     )
 
 
@@ -105,6 +116,12 @@ def size(p: Proposal, book: Portfolio, lim: RiskLimits,
     if headroom <= 0:
         return Rejection(f"CLUSTER_LIMIT_{cluster}")
     qty = min(qty, int(headroom / risk_per_share))
+
+    # Value caps: one position, then everything open together.
+    room = lim.capital * lim.max_open_value_x - book.open_value()
+    if room <= 0:
+        return Rejection("OPEN_VALUE_LIMIT")
+    qty = min(qty, int(min(lim.capital * lim.max_position_value_x, room) / p.entry))
 
     if qty <= 0:
         return Rejection("SIZE_ROUNDS_TO_ZERO")

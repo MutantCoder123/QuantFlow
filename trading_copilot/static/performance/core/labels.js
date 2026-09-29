@@ -37,4 +37,12 @@ export const SETTING = {
   risk_per_trade_pct: 'Risk per trade',
   max_daily_loss_pct: 'Daily loss limit',
   max_cluster_risk_pct: 'Per-sector limit',
+  max_position_value_x: 'Largest position',
+  max_open_value_x: 'All open positions',
 };
+
+/** A setting's value in words: ₹ for capital, "× capital" for value caps, % otherwise. */
+export const settingValue = (key, v, inr, trim) => (
+  key === 'capital' ? inr(v, { signed: false })
+    : key.endsWith('_x') ? `${trim(v, 3)}× capital`
+      : `${trim(v, 3)}%`);

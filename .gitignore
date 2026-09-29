@@ -49,3 +49,7 @@ trading_copilot/config/paper_overrides.yaml
 
 # Browser-automation screenshots and logs (local review only)
 .playwright-mcp/
+
+# launcher / backfill bookkeeping
+trading_copilot/data/.backfill.lock
+trading_copilot/data/.last_eod_backfill

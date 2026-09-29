@@ -6,7 +6,7 @@
 
 import { html, render } from '../core/dom.js';
 import { MINUS, dayMonth, hm, inr, istDay, istMinutes, r as fmtR, trim } from '../core/format.js';
-import { SETTING, exitLabel, sideLabel } from '../core/labels.js';
+import { SETTING, exitLabel, settingValue, sideLabel } from '../core/labels.js';
 import { f1, hline, linear, stepPath, vline } from '../charts/svg.js';
 import { whenChanged } from '../core/store.js';
 
@@ -30,7 +30,7 @@ export function timeAxis(days, now) {
 function settingText(change) {
   const keys = Object.keys(change.new || {});
   return keys.map((k) => {
-    const fmt = (v) => (k === 'capital' ? inr(v, { signed: false }) : `${trim(v)}%`);
+    const fmt = (v) => settingValue(k, v, inr, trim);
     return `${SETTING[k] || k} ${fmt((change.old || {})[k])} → ${fmt(change.new[k])}`;
   }).join('; ');
 }

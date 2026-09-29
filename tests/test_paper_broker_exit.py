@@ -51,7 +51,6 @@ def test_without_bars_the_ltp_is_used_and_flagged(tmp_path):
 
 # -- rule exits -------------------------------------------------------------------
 @pytest.mark.parametrize("rule, reason", [
-    ("STOP_PROXIMITY", "GATEKEEPER_STOP_PROXIMITY"),
     ("WHALE_FLIP", "GATEKEEPER_WHALE_FLIP"),
     ("SQUARE_OFF", "SQUARE_OFF"),
 ])
@@ -59,6 +58,15 @@ def test_a_path_a_close_exits_at_market_with_its_rule(tmp_path, rule, reason):
     b, _, _ = opened(tmp_path)
     ev = b.on_gatekeeper("SAIL", {"Action": "Close", "Exit_Rule": rule}, 98.4)
     assert ev["reason"] == reason and ev["exit_price"] == pytest.approx(98.4)   # slippage 0 in fixture
+
+
+def test_stop_proximity_is_ignored_the_real_stop_decides(tmp_path):
+    """MCX, 2026-09-29: a stop 0.17 % away sat inside the 0.5 % proximity band
+    from the first tick, so Path A closed the trade after 6 s."""
+    b, _, _ = opened(tmp_path)
+    assert b.on_gatekeeper("SAIL", {"Action": "Close", "Exit_Rule": "STOP_PROXIMITY"}, 98.4) is None
+    assert b.position_for("SAIL")
+    assert b.check_touches("SAIL", [bar(ist(10, 2), 99, 99, 97.9)])["reason"] == "STOP"
 
 
 def test_hold_and_wait_do_not_exit(tmp_path):

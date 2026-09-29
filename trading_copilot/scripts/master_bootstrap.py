@@ -17,6 +17,32 @@ if _BASE_DIR not in sys.path:
 import scrip_master_engine
 from derivatives_engine import implied_volatility
 
+NIFTY_IKEY = "NSE_INDEX|Nifty 50"
+# --prices-only runs at startup, often in market hours: on a 429 it gives up
+# rather than block the launcher for the 30-minute cooldown.
+NO_COOLDOWN = False
+
+
+def single_instance(name="backfill"):
+    """Hold an OS lock for the life of this process so two backfills never
+    write the same parquet at once. The OS drops it if the process dies, so
+    there is no stale lock to clean up. Returns the handle, or None if
+    another backfill holds it."""
+    path = os.path.join(_BASE_DIR, 'data', f'.{name}.lock')
+    fh = open(path, 'a+')
+    try:
+        if os.name == 'nt':
+            import msvcrt
+            fh.seek(0)
+            msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        fh.close()
+        return None
+    return fh
+
 class RateLimiter:
     def __init__(self):
         self.lock = asyncio.Lock()
@@ -48,6 +74,9 @@ async def fetch_with_rate_limit(session, url, headers, rate_limiter, params=None
             async with session.get(url, headers=headers, params=params, timeout=10) as response:
                 if response.status == 200:
                     return await response.json()
+                elif response.status == 429 and NO_COOLDOWN:
+                    print("\n[RATE LIMIT] Upstox rate limit reached; skipping (the after-close run fills it).")
+                    return None
                 elif response.status == 429:
                     # Hit external limit (likely because main.py ate some API quota).
                     await rate_limiter.trigger_hard_sleep()
@@ -445,7 +474,13 @@ async def sync_ohlcv_to_today(session, headers, rate_limiter, symbol, ikey, full
         
     return len(new_rows)
 
-async def main(dry_run=False):
+async def main(dry_run=False, prices_only=False):
+    global NO_COOLDOWN
+    NO_COOLDOWN = prices_only
+    lock = single_instance()
+    if lock is None:
+        print("[SKIP] Another backfill is already running.")
+        return
     token_path = os.path.join(_BASE_DIR, 'upstox_token.json')
     if not os.path.exists(token_path):
         print("[ERROR] Token missing.")
@@ -514,7 +549,25 @@ async def main(dry_run=False):
                 ikey = scrip_master_engine.get_instrument_key(symbol)
                 count = await sync_ohlcv_to_today(session, headers, rate_limiter, symbol, ikey, trading_days)
                 print(f"  [{symbol}] Synced {count} new OHLCV days")
-                
+
+        # Watchlist stocks outside F&O have no options history to backfill,
+        # but their daily prices are still needed.
+        fno_symbols = {m['symbol'].split('-')[0].upper() for m in fno_dict.values()}
+        for symbol in sorted(set(watchlist) - fno_symbols):
+            ikey = scrip_master_engine.get_instrument_key(symbol)
+            if ikey:
+                count = await sync_ohlcv_to_today(session, headers, rate_limiter, symbol, ikey, trading_days)
+                print(f"  [{symbol}] Synced {count} new OHLCV days (not in F&O: prices only)")
+
+        # The index is not a watchlist stock, but the macro baselines use it
+        # for beta and alpha.
+        count = await sync_ohlcv_to_today(session, headers, rate_limiter, "NIFTY50", NIFTY_IKEY, trading_days)
+        print(f"  [NIFTY50] Synced {count} new OHLCV days")
+
+        if prices_only:
+            print("\n[SUCCESS] Prices synced (--prices-only: derivatives skipped).")
+            return
+
         # PASS 2: EOD Derivatives Backfill (slow)
         print(f"\n--- Pass 2: EOD Derivatives Backfill ---")
         for token, meta, eod_missing, needs_ohlcv in tqdm(fno_items, desc="Symbols Processed"):
@@ -532,4 +585,4 @@ async def main(dry_run=False):
 
 if __name__ == "__main__":
     dry_run = "--dry-run" in sys.argv
-    asyncio.run(main(dry_run=dry_run))
+    asyncio.run(main(dry_run=dry_run, prices_only="--prices-only" in sys.argv))

@@ -245,7 +245,8 @@
                         <span class="text-xs text-slate-400 font-semibold uppercase">Model:</span>
                         <select id="news-model-select"
                             class="bg-slate-800 text-white text-xs border border-slate-600 rounded px-2 py-1 focus:outline-none focus:border-emerald-500">
-                            <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash</option>
+                            <option value="ollama:qwen2.5:7b" selected>Local: qwen2.5:7b</option>
+                            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
                             <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
                         </select>
                     </div>
@@ -485,7 +486,8 @@
                     <label class="text-[11px] text-slate-400 flex items-center gap-2">AI for top 10
                         <select id="discovery-model-select"
                             class="bg-slate-800 text-white text-xs border border-slate-600 rounded px-2 py-1 focus:outline-none focus:border-indigo-500">
-                            <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash</option>
+                            <option value="ollama:qwen2.5:7b" selected>Local: qwen2.5:7b</option>
+                            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
                         </select>
                     </label>
                     <button id="btn-run-discovery" onclick="runDiscovery()"
@@ -596,8 +598,9 @@
                                 <span class="text-xs text-slate-400 font-semibold uppercase">Model:</span>
                                 <select id="reasoning-model-select"
                                     class="bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1 focus:outline-none focus:border-indigo-500">
+                                    <option value="ollama:qwen2.5:7b" selected>Local: qwen2.5:7b</option>
                                     <option value="gemini-3-flash">Gemini 3 Flash</option>
-                                    <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash</option>
+                                    <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
                                     <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
                                     <option value="gemini-3.1-pro">Gemini 3.1 Pro</option>
                                 </select>
@@ -1099,8 +1102,11 @@
             const tableBody = document.getElementById('matrix-body');
 
             if (!globalState || Object.keys(globalState).length === 0) {
+                // Same id as the initial row, so the first real update removes
+                // it. Without it, an empty frame (e.g. a feed restart) left the
+                // spinner above the live rows for good.
                 tableBody.innerHTML = `
-                    <tr>
+                    <tr id="loading-row">
                         <td colspan="12" class="px-6 py-16 text-center text-slate-500">
                             <svg class="mx-auto h-8 w-8 animate-spin text-emerald-500 mb-3" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -1478,7 +1484,7 @@
             const btn = document.getElementById('btn-force-news');
             const block = document.getElementById('catalyst-report-block');
             const modelSelect = document.getElementById('reasoning-model-select');
-            const model = modelSelect ? modelSelect.value : 'gemini-2.5-flash';
+            const model = modelSelect ? modelSelect.value : 'ollama:qwen2.5:7b';
 
             btn.innerText = "⏳ Fetching...";
             btn.disabled = true;
@@ -1943,9 +1949,9 @@ You must cross-examine the payload fields using the following strict institution
    - Analyze \`volatility_edge.ivr_live\` and \`iv_percentile_52w\`. High levels (>70) indicate massive premium expansion. Require an overwhelming structural edge to buy into expansion.
    - Synthesize \`options_positioning.max_pain_divergence_pct\`. If divergence is > 5% and expiration is approaching, apply a structural gravity factor dragging LTP toward \`max_pain_price\`.
 
-3. BLOCK 3: MACRO STATISTICAL EDGE (THE CONCRETE WALLS)
-   - Measure LTP against \`structural_liquidity.volume_poc_price\`. This is an absolute multi-year liquidity wall. Never short directly on top of a 5-year POC floor, and never long directly under a major Value Area High rejection.
-   - Cross-check \`regime_confluence.alpha_vs_nifty_5y\`. If alpha is highly negative, the stock has persistent secular weakness. Short setups require less volume conviction than long setups.
+3. BLOCK 3: LOCAL STRUCTURAL EDGE (20-DAY)
+   - Read \`3_local_structural_edge_20d.structural_proximity_state\`. Never long directly under a 20-day Value Area High that price is testing from below, and never short directly on top of a 20-day Value Area Low it is testing from above, unless the level has clearly broken.
+   - Confirm direction with \`momentum_confluence\` and \`camarilla_pivots\` before acting on a structural level.
 
 4. BLOCK 4: CATALYST ENGINE
    - Parse the \`raw_news\` array. Map news sentiment directly against Block 1 order flow. If headlines are highly bullish but \`whale_cvd_ema_1h\` is flat/negative, classify the asset as an active Institutional Distribution Trap and avoid long entries.
@@ -1965,11 +1971,29 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
   "Confidence_Score": <int from 1 to 10>,
   "Risk_Percentage": <float>,
   "Priority_Score": <int from 1 to 10>, // Set > 6 ONLY if a high-conviction asymmetric edge or critical position exit exists right now
-  "Reason": "<string>" // CRITICAL: Exactly 1-2 dense sentences detailing the precise multi-block convergence (e.g., Whale Absorption vs. Macro Walls) that dictates this action.
+  "Reason": "<string>" // CRITICAL: Exactly 1-2 dense sentences detailing the precise multi-block convergence (e.g., Whale Absorption vs. a 20-day Value Area test) that dictates this action.
 }`;
 
         // Force update if the old prompt is still present or if it doesn't contain the new strictly JSON string check
         const currentStoredPrompt = localStorage.getItem('llm_system_prompt');
+        // 2026-09-29: block 3 named 5-year fields (structural_liquidity,
+        // regime_confluence) that the payload never carries; it now points at
+        // the 20-day block the model does get. The page saved the old default
+        // into storage on first load, so rewrite just those passages in place
+        // and keep any other edits.
+        const PROMPT_MIGRATIONS = [
+            [`3. BLOCK 3: MACRO STATISTICAL EDGE (THE CONCRETE WALLS)
+   - Measure LTP against \`structural_liquidity.volume_poc_price\`. This is an absolute multi-year liquidity wall. Never short directly on top of a 5-year POC floor, and never long directly under a major Value Area High rejection.
+   - Cross-check \`regime_confluence.alpha_vs_nifty_5y\`. If alpha is highly negative, the stock has persistent secular weakness. Short setups require less volume conviction than long setups.`, `3. BLOCK 3: LOCAL STRUCTURAL EDGE (20-DAY)
+   - Read \`3_local_structural_edge_20d.structural_proximity_state\`. Never long directly under a 20-day Value Area High that price is testing from below, and never short directly on top of a 20-day Value Area Low it is testing from above, unless the level has clearly broken.
+   - Confirm direction with \`momentum_confluence\` and \`camarilla_pivots\` before acting on a structural level.`],
+            [`detailing the precise multi-block convergence (e.g., Whale Absorption vs. Macro Walls) that dictates this action.`, `detailing the precise multi-block convergence (e.g., Whale Absorption vs. a 20-day Value Area test) that dictates this action.`],
+        ];
+        if (currentStoredPrompt) {
+            let migrated = currentStoredPrompt;
+            for (const [from, to] of PROMPT_MIGRATIONS) migrated = migrated.split(from).join(to);
+            if (migrated !== currentStoredPrompt) localStorage.setItem('llm_system_prompt', migrated);
+        }
         if (currentStoredPrompt && currentStoredPrompt.includes('===ADVICE_SPLIT===')) {
             localStorage.setItem('llm_system_prompt', DEFAULT_SYSTEM_PROMPT);
         }
@@ -2542,8 +2566,9 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
                     opt.value = m.id; opt.textContent = m.label;
                     sel.appendChild(opt);
                 });
-                if ([...sel.options].some(o => o.value === current)) sel.value = current;
-            } catch (e) { /* keep the Gemini default */ }
+                const pick = [current, body.default].find(v => [...sel.options].some(o => o.value === v));
+                if (pick) sel.value = pick;
+            } catch (e) { /* keep the static default */ }
         }
         async function resumeDiscovery() {
             // The job lives in the feed process, not the page: show the last
@@ -2562,7 +2587,7 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
         async function runDiscovery() {
             try {
                 const modelSelect = document.getElementById('discovery-model-select');
-                const model = modelSelect ? modelSelect.value : 'gemini-2.5-flash';
+                const model = modelSelect ? modelSelect.value : 'ollama:qwen2.5:7b';
                 const res = await fetch(`${apiBase}/api/discovery/run`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },

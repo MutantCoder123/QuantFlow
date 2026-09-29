@@ -14,6 +14,7 @@ from paper.broker import PaperBroker
 from paper.fills import Bar
 from paper.settings import PaperSettings
 from paper.store import EventStore
+from llm import DEFAULT_MODEL
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +73,7 @@ def autonomous() -> bool:
         return False
 
 
-def judge_model(default: str = "gemini-2.5-flash") -> str:
+def judge_model(default: str = DEFAULT_MODEL) -> str:
     try:
         return PaperSettings().options().get("judge_model") or default
     except Exception:

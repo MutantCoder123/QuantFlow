@@ -30,7 +30,8 @@ EXIT_TUNES = {
 }
 REJECT_TUNES = {
     "DAILY_LOSS_LIMIT": ["risk.max_daily_loss_pct"],
-    "SIZE_ROUNDS_TO_ZERO": ["risk.risk_per_trade_pct", "risk.max_adv_participation"],
+    "SIZE_ROUNDS_TO_ZERO": ["risk.risk_per_trade_pct", "risk.max_adv_participation", "risk.max_position_value_x"],
+    "OPEN_VALUE_LIMIT": ["risk.max_open_value_x"],
     "AFTER_ENTRY_CUTOFF": ["horizon.entry_cutoff_ist"],
     "PRICE_BEYOND_GEOMETRY": ["paper.fill.slippage_pct"],
     "NO_FRESH_PRICE": ["paper.stale_price_seconds"],

@@ -5,7 +5,7 @@
 
 import { html, render } from '../core/dom.js';
 import { inr, trim } from '../core/format.js';
-import { SETTING } from '../core/labels.js';
+import { SETTING, settingValue } from '../core/labels.js';
 
 export const FIELDS = [
   { key: 'capital', group: 'money', unit: '₹', prefix: true },
@@ -13,14 +13,17 @@ export const FIELDS = [
   { key: 'risk_per_trade_pct', group: 'risk', unit: '% of capital' },
   { key: 'max_daily_loss_pct', group: 'risk', unit: '% of capital' },
   { key: 'max_cluster_risk_pct', group: 'risk', unit: '% of capital' },
+  { key: 'max_position_value_x', group: 'size', unit: '× capital' },
+  { key: 'max_open_value_x', group: 'size', unit: '× capital' },
 ];
 const GROUPS = [
   ['money', 'Money', 'What the account holds and pays to trade'],
   ['risk', 'Risk', 'How much one trade, one day, or one sector can lose'],
+  ['size', 'Position size', 'How much stock one position, and everything open together, may hold'],
 ];
 
 const show = (key, v) => (typeof v !== 'number' ? '' : key === 'capital' ? String(Math.round(v)) : trim(v, 3));
-const defaultText = (key, v) => (key === 'capital' ? inr(v, { signed: false }) : `${trim(v, 3)}%`);
+const defaultText = (key, v) => settingValue(key, v, inr, trim);
 
 /**
  * Pure: form strings -> {changes, errors}. `resets` are fields sent back to

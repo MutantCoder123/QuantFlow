@@ -91,8 +91,8 @@ class RollingStateEngine:
                             df_copy['timestamp'] = df_copy['timestamp'].astype(str)
                         out['dfs'][token][df_key] = df_copy.to_dict(orient='records')
 
-            with open(self.cache_file, 'w') as f:
-                json.dump(out, f, default=str)
+            from core.fileio import write_json_atomic
+            write_json_atomic(self.cache_file, out, default=str)
             logger.info(f"State successfully serialized to {self.cache_file}")
         except Exception as e:
             logger.error(f"Failed to save state cache: {e}")

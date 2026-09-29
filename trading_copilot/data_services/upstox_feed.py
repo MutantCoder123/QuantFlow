@@ -30,6 +30,7 @@ load_dotenv(REPO_ROOT / '.env')
 
 import pyotp
 import requests
+from llm import DEFAULT_MODEL
 
 try:
     from playwright.async_api import async_playwright
@@ -61,6 +62,21 @@ def token_expiry(saved_at: datetime) -> datetime:
     return cutoff if saved_at < cutoff else cutoff + timedelta(days=1)
 
 
+def jwt_expiry(token: str) -> datetime | None:
+    """The token's own `exp` claim as naive IST, or None if it has none.
+
+    Extended (analytics) tokens live for a year, so the 03:30 rule above
+    must not be applied to them. The payload is read, not verified --
+    Upstox verifies it; this only decides whether to ask for a login."""
+    import base64
+    try:
+        seg = token.split(".")[1]
+        claims = json.loads(base64.urlsafe_b64decode(seg + "=" * (-len(seg) % 4)))
+        return datetime.fromtimestamp(int(claims["exp"]), _IST).replace(tzinfo=None)
+    except (IndexError, KeyError, TypeError, ValueError):
+        return None
+
+
 class UpstoxAuthenticator:
     def __init__(self):
         self.client_id = os.getenv("UPSTOX_CLIENT_ID")
@@ -78,9 +94,12 @@ class UpstoxAuthenticator:
         try:
             with open(self.token_file, "r") as f:
                 data = json.load(f)
-                # Saved as naive IST (this system runs on IST; see _now_ist).
-                saved = datetime.fromisoformat(data["timestamp"]).replace(tzinfo=None)
-                expires = token_expiry(saved)
+                # The token's own expiry wins; otherwise the daily 03:30 rule
+                # from when it was saved (naive IST; see _now_ist).
+                expires = jwt_expiry(data["access_token"])
+                if expires is None:
+                    saved = datetime.fromisoformat(data["timestamp"]).replace(tzinfo=None)
+                    expires = token_expiry(saved)
                 if _now_ist() < expires:
                     logger.info(f"Found valid cached Upstox token (expires {expires:%Y-%m-%d %H:%M} IST).")
                     return data["access_token"]
@@ -375,26 +394,63 @@ class UpstoxStreamManager:
         streamer.on("error", self._on_error)
         streamer.on("close", self._on_close)
 
-    async def _supervise(self, name, streamer, keys, mode):
-        """Keep one stream alive. streamer.connect() blocks its thread until
-        the socket drops; when the thread exits we reconnect with capped
-        exponential backoff. Previously a dropped stream was silent and
-        permanent -- the UI kept showing the last frozen frame forever (A-12).
-        """
-        import threading
+    @staticmethod
+    def socket_open(streamer) -> bool:
+        """True while the streamer's WebSocket is actually connected."""
+        ws = getattr(getattr(streamer, "feeder", None), "ws", None)
+        sock = getattr(ws, "sock", None)
+        return bool(sock is not None and getattr(sock, "connected", False))
+
+    @staticmethod
+    def _drop(streamer) -> None:
+        ws = getattr(getattr(streamer, "feeder", None), "ws", None)
+        if ws is not None:
+            try:
+                ws.close()
+            except Exception:
+                pass
+
+    # Seconds a new socket gets to open, and how long it must stay up before
+    # the backoff resets.
+    OPEN_GRACE_S = 15
+    HEALTHY_S = 60
+
+    async def _supervise(self, name, streamer, keys, mode, sleep=asyncio.sleep, clock=time.monotonic):
+        """Keep exactly one socket per stream alive (A-12: a dropped stream
+        used to be silent and permanent).
+
+        The SDK's connect() starts its own thread and returns at once, so
+        liveness is read from the socket, not a thread. The SDK's own
+        auto-reconnect is off: two reconnect owners each opened sockets
+        until Upstox refused the handshake (403, too many connections) --
+        seen on 2026-09-29. A stream with no keys opens no socket; it
+        connects once add_subscription gives it some."""
+        try:
+            streamer.auto_reconnect(False)
+        except Exception:
+            pass
+        self._setup_stream(streamer, name, keys, mode)
         backoff = 1
         while True:
+            if not keys:
+                await sleep(5)
+                continue
             try:
-                self._setup_stream(streamer, name, keys, mode)
-                t = threading.Thread(target=streamer.connect, daemon=True)
-                t.start()
-                while t.is_alive():
-                    await asyncio.sleep(1)
-                    backoff = 1                      # healthy — reset
+                self._drop(streamer)
+                streamer.connect()
+                opened = clock()
+                while not self.socket_open(streamer) and clock() - opened < self.OPEN_GRACE_S:
+                    await sleep(0.5)
+                up = clock()
+                while self.socket_open(streamer):
+                    await sleep(1)
+                if clock() - up >= self.HEALTHY_S:
+                    backoff = 1
             except Exception as e:
                 logger.error(f"{name} supervisor error: {e}", exc_info=True)
-            logger.error(f"{name} stream died; reconnecting in {backoff}s")
-            await asyncio.sleep(backoff)
+            self._drop(streamer)
+            logger.error(f"{name} stream down; reconnecting in {backoff}s")
+            await sleep(backoff)
             backoff = min(backoff * 2, 60)
 
     async def start_multiplexer(self, indices, equities, options):
@@ -640,7 +696,7 @@ async def run_discovery(request: Request):
         body = await request.json()
     except Exception:
         body = {}
-    model = (body or {}).get("model") or "gemini-2.5-flash"
+    model = (body or {}).get("model") or DEFAULT_MODEL
 
     from screener_engine import PreMarketScreener
     from discovery_analysis import analyze_top
@@ -763,9 +819,13 @@ async def start_upstox_service():
     asyncio.create_task(state_persistence_worker())
 
     async def tick_flush_worker():
+        # One failed flush must not end tick recording for the session.
         while True:
             await asyncio.sleep(30)
-            await asyncio.to_thread(rolling_engine.recorder.flush)
+            try:
+                await asyncio.to_thread(rolling_engine.recorder.flush)
+            except Exception as e:
+                logger.error(f"Tick flush failed: {e}", exc_info=True)
 
     asyncio.create_task(tick_flush_worker())
     

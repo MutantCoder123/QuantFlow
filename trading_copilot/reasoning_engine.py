@@ -8,6 +8,7 @@ import datetime
 import collections
 from google import genai
 from diagnostic_ui import TerminalDashboard
+from llm import DEFAULT_MODEL
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +98,8 @@ def _numeric_features(payload: dict) -> dict:
 # Only escalate the top N ranked symbols to the LLM per tick (§4.6, Task 5.1).
 # Not a tunable -- the UI's "collapse below top 5" grid uses the same number.
 ATTENTION_TOP_N = 5
+# LLM directives that act on an open position rather than open one.
+POSITION_DIRECTIVES = ("CLOSE_EXISTING", "REVERSE_POSITION")
 
 
 def attention_rank(sp: dict) -> float:
@@ -301,7 +304,7 @@ class ReasoningEngine:
         return sanitize_for_json(tactical_payload)
 
     @classmethod
-    async def analyze_stock(cls, symbol: str, model_name: str = "gemini-2.5-flash", prompt_override: str = None, user_position: dict = None, user_intent: dict = None, is_autonomous: bool = False, precomputed_payload: dict = None) -> str:
+    async def analyze_stock(cls, symbol: str, model_name: str = DEFAULT_MODEL, prompt_override: str = None, user_position: dict = None, user_intent: dict = None, is_autonomous: bool = False, precomputed_payload: dict = None) -> str:
         target_token = None
         if symbol in TerminalDashboard.active_states:
             target_token = symbol
@@ -610,6 +613,13 @@ class ReasoningEngine:
                     cls._write_arm_record(symbol, math_setup, ticket, risk_params)
 
                     actionable_directives = ["EXECUTE_LONG", "EXECUTE_SHORT", "CLOSE_EXISTING", "REVERSE_POSITION"]
+                    # CLOSE_EXISTING / REVERSE_POSITION manage a position; with
+                    # none open they are not trades. The local judge returned
+                    # both for a flat BHEL (2026-09-29), and they went into the
+                    # signal ledger as geometry-less SHORT signals and alerts.
+                    if action in POSITION_DIRECTIVES and not cls._has_position(symbol, user_position):
+                        logger.info(f"{symbol}: {action} ignored -- no open position to act on.")
+                        action = "NONE_NO_POSITION"
                     if verdict in ("CONFIRM", "ADJUST") and action in actionable_directives:
                         # Phase 10: Record to Signal Ledger for outcome tracking
                         if is_autonomous:
@@ -665,6 +675,11 @@ class ReasoningEngine:
                 return error_msg
 
     llm_enabled = {} # symbol -> bool
+
+    @classmethod
+    def _has_position(cls, symbol: str, user_position=None) -> bool:
+        """An open position (manual or paper) exists for `symbol`."""
+        return bool(user_position) or bool(cls.user_positions.get(cls._normalize_symbol(symbol)))
 
     _arm_journal = None
 
@@ -735,7 +750,7 @@ class ReasoningEngine:
             except (TypeError, ValueError):
                 continue
             if qty > 0 and entry > 0 and stop > 0:
-                book.add_open(sym, cluster_of(sym, clusters), qty * abs(entry - stop))
+                book.add_open(sym, cluster_of(sym, clusters), qty * abs(entry - stop), value=qty * entry)
         return book
 
     @classmethod

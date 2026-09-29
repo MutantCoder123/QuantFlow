@@ -204,7 +204,8 @@ class PaperBroker:
 
         book = Portfolio(realized_loss_today=self.realized_loss_today())
         for p in self.open.values():
-            book.add_open(p["symbol"], p["cluster"], p["risk_amount"])
+            book.add_open(p["symbol"], p["cluster"], p["risk_amount"],
+                          value=float(p["qty"]) * float(p["entry_price"]))
         prop = Proposal(symbol=s["symbol"], bias=side, entry=fill, stop=stop, target=target,
                         composite=float(s.get("composite") or 0.0),
                         regime=str(s.get("regime") or "UNKNOWN"))
@@ -305,13 +306,25 @@ class PaperBroker:
         reason, price, _ = hit
         return self._close(p, price, reason, market=False, touch_check=check)
 
+    # Path A rules paper does not act on. STOP_PROXIMITY closes anything
+    # within a fixed 0.5 % of its stop -- a stand-in for "the stop is about to
+    # be hit" when only an LTP is watched. Paper checks the real stop against
+    # bar lows/highs, and the conviction geometry often sets stops tighter
+    # than 0.5 %, so the rule closed those trades on the first tick (MCX,
+    # 2026-09-29: stop 0.17 % away, closed after 6 s for -2,335). Ruling
+    # 2026-09-29: paper ignores it; the gatekeeper is unchanged elsewhere.
+    IGNORED_PATH_A_RULES = frozenset({"STOP_PROXIMITY"})
+
     def on_gatekeeper(self, symbol: str, res: dict, ltp) -> dict | None:
-        """Act on Path A: 'Close' exits now. (A Close is escalated to the LLM
-        as well, but waiting on it near a stop would be reckless.)"""
+        """Act on Path A: 'Close' exits now, except the rules in
+        IGNORED_PATH_A_RULES. (A Close is escalated to the LLM as well, but
+        waiting on it near a stop would be reckless.)"""
         p = self.position_for(symbol)
         if p is None or str(res.get("Action", "")) != "Close":
             return None
         rule = res.get("Exit_Rule") or "UNSPECIFIED"
+        if rule in self.IGNORED_PATH_A_RULES:
+            return None
         reason = "SQUARE_OFF" if rule == "SQUARE_OFF" else f"GATEKEEPER_{rule}"
         return self._close(p, float(ltp or p.get("last") or p["entry_price"]), reason, market=True)
 

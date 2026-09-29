@@ -81,7 +81,7 @@ def test_discovery_routes_proxy_to_the_feed_process(wl):
     client.post("/api/discovery/run")
     client.post("/api/discovery/run", json={"model": "gemini-2.5-pro"})
     client.get("/api/discovery/status")
-    assert (8001, "/api/discovery/run", {"model": "gemini-2.5-flash"}) in proxied
+    assert (8001, "/api/discovery/run", {"model": "ollama:qwen2.5:7b"}) in proxied   # the local default
     assert (8001, "/api/discovery/run", {"model": "gemini-2.5-pro"}) in proxied
     assert (8001, "/api/discovery/status", None) in proxied
 
@@ -97,14 +97,14 @@ def test_no_persisted_playbook_is_carried_into_the_dashboard():
     assert not hasattr(reasoning_engine.ReasoningEngine, "generate_intraday_playbook")
 
 
-def test_model_list_offers_gemini_plus_installed_ollama_models(monkeypatch):
+def test_model_list_offers_installed_ollama_models_then_gemini(monkeypatch):
     async def tags():
         return ["qwen2.5:7b", "llama3.2:1b"]
     monkeypatch.setattr(api_server, "_ollama_models", tags)
-    models = client.get("/api/ai/models").json()["models"]
-    assert models[0]["id"] == "gemini-2.5-flash"
-    assert {"id": "ollama:qwen2.5:7b", "label": "Local: qwen2.5:7b"} in models
-    assert {"id": "ollama:llama3.2:1b", "label": "Local: llama3.2:1b"} in models
+    body = client.get("/api/ai/models").json()
+    assert [m["id"] for m in body["models"]] == ["ollama:qwen2.5:7b", "ollama:llama3.2:1b", "gemini-2.5-flash"]
+    assert {"id": "ollama:qwen2.5:7b", "label": "Local: qwen2.5:7b"} in body["models"]
+    assert body["default"] == "ollama:qwen2.5:7b"
 
 
 def test_model_list_still_works_when_ollama_is_down(monkeypatch):

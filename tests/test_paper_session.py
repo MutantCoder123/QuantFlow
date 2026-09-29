@@ -63,13 +63,14 @@ async def test_a_full_hands_off_session_reconciles(tmp_path, monkeypatch):
     assert [p["symbol"] for p in b2.open.values()] == ["IDEA"] and len(b2.closed) == 1
     assert b2.mirror["IDEA"]["direction"] == "Short"
 
-    # 12:00 long NMDC; 13:00 Path A closes it (stop proximity)
+    # 12:00 long NMDC; 13:00 Path A closes it (whale flip); stop proximity is not acted on
     clock.t = ist(12, 0)
     assert ticket("NMDC", "EXECUTE_LONG", 69.0, 72.0)["type"] == "OPEN"
     clock.t = ist(13, 0)
     prices["NMDC"] = 69.3
-    ev = paper_rt.on_gatekeeper("NMDC", {"Action": "Close", "Exit_Rule": "STOP_PROXIMITY"}, 69.3)
-    assert ev["reason"] == "GATEKEEPER_STOP_PROXIMITY"
+    assert paper_rt.on_gatekeeper("NMDC", {"Action": "Close", "Exit_Rule": "STOP_PROXIMITY"}, 69.3) is None
+    ev = paper_rt.on_gatekeeper("NMDC", {"Action": "Close", "Exit_Rule": "WHALE_FLIP"}, 69.3)
+    assert ev["reason"] == "GATEKEEPER_WHALE_FLIP"
 
     # 13:50 a late signal is refused, with a reason
     clock.t = ist(13, 50)
@@ -81,7 +82,7 @@ async def test_a_full_hands_off_session_reconciles(tmp_path, monkeypatch):
     bars.pop("2963", None)
     await paper_rt.tick(ltp_of, fetch_bars, snap)
     assert not b2.open and not b2.mirror
-    assert [t["reason"] for t in b2.closed] == ["TARGET", "GATEKEEPER_STOP_PROXIMITY", "SQUARE_OFF"]
+    assert [t["reason"] for t in b2.closed] == ["TARGET", "GATEKEEPER_WHALE_FLIP", "SQUARE_OFF"]
 
     # Books reconcile exactly
     net = sum(t["net"] for t in b2.closed)

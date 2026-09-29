@@ -40,6 +40,7 @@ import numbers
 import os
 
 import numpy as np
+from llm import DEFAULT_MODEL
 
 logger = logging.getLogger(__name__)
 
@@ -322,7 +323,7 @@ async def fill_news(picks: list, fetch) -> None:
     await asyncio.gather(*(one(p) for p in top if not p.get("news")))
 
 
-async def analyze_top(picks: list, model: str = "gemini-2.5-flash", client=None,
+async def analyze_top(picks: list, model: str = DEFAULT_MODEL, client=None,
                       http_post=None, http_get=None):
     """Analyse the top TOP_N picks: a direction-blind news pass (only if any
     pick has news), then one commentary call. None if there is nothing to

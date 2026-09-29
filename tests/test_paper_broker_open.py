@@ -172,3 +172,17 @@ def test_a_persistence_failure_stops_new_entries_and_is_reported(tmp_path):
     assert b.on_signal(sig()) is None
     assert b.engine_ok is False and "disk full" in b.last_error
     assert "SAIL" not in mirror                 # never trade on unpersisted state
+
+
+def test_the_broker_counts_open_positions_toward_the_value_limit(tmp_path):
+    """Each OPEN's qty x entry goes into the book the sizer sees."""
+    import yaml
+    b, clock, _ = make(tmp_path)
+    first = b.on_signal(sig())
+    assert first["type"] == "OPEN"
+    held = first["qty"] * first["entry_price"]
+    risk = yaml.safe_load(b.settings.risk_path.read_text())
+    risk["max_open_value_x"] = held * 0.99 / risk["capital"]     # the open position already exceeds it
+    b.settings.risk_path.write_text(yaml.safe_dump(risk))
+    second = b.on_signal(sig(symbol="BHEL", token="438"))
+    assert second["type"] == "REJECT" and second["reason"] == "OPEN_VALUE_LIMIT"

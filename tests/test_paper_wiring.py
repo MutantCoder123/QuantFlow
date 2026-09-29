@@ -102,3 +102,18 @@ def test_the_breaker_reads_paper_losses(wired):
     b.check_touches("SAIL", bars=None, ltp=97.5)                  # stopped out
     assert paper_rt.realized_loss_today() > 0
     assert ReasoningEngine._build_portfolio().realized_loss_today == paper_rt.realized_loss_today()
+
+
+@pytest.mark.parametrize("directive", ["CLOSE_EXISTING", "REVERSE_POSITION"])
+async def test_a_position_directive_with_no_position_is_not_a_signal(wired, monkeypatch, directive):
+    """2026-09-29: the local judge said CLOSE_EXISTING, then REVERSE_POSITION,
+    for a flat BHEL; both became ledger signals (SHORT, no geometry) and alerts."""
+    b, _, reply = wired
+    recorded = []
+    monkeypatch.setattr(SignalLedger, "record_signal", classmethod(lambda cls, **kw: recorded.append(kw) or "SIG-X"))
+    alerts_before = len(ReasoningEngine.global_alerts)
+    reply["text"] = _ticket(directive)
+    await ReasoningEngine.analyze_stock("SAIL", "ollama:stub", "", is_autonomous=True,
+                                        precomputed_payload=dict(PAYLOAD))
+    assert recorded == [] and not b.store.load()
+    assert len(ReasoningEngine.global_alerts) == alerts_before

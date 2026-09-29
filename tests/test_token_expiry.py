@@ -10,7 +10,7 @@ from datetime import datetime
 
 import pytest
 
-from data_services.upstox_feed import UpstoxAuthenticator, token_expiry
+from data_services.upstox_feed import UpstoxAuthenticator, jwt_expiry, token_expiry
 
 
 @pytest.mark.parametrize("saved, expires", [
@@ -43,3 +43,28 @@ def test_a_token_is_valid_until_its_expiry(tmp_path, monkeypatch):
     assert _auth(tmp_path, "2026-09-26T09:05:00")._is_token_valid() == "tok"
     monkeypatch.setattr(uf, "_now_ist", lambda: datetime(2026, 9, 27, 3, 30))
     assert _auth(tmp_path, "2026-09-26T09:05:00")._is_token_valid() is False
+
+
+def _jwt(exp):
+    import base64
+    enc = lambda d: base64.urlsafe_b64encode(json.dumps(d).encode()).decode().rstrip("=")
+    return f"{enc({'alg': 'HS256'})}.{enc({'exp': exp, 'isExtended': True})}.sig"
+
+
+def test_an_extended_token_lives_until_its_own_expiry_claim(tmp_path, monkeypatch):
+    """The long-lived analytics token was saved months ago; the 03:30 rule
+    would call it dead every morning and ask for a login."""
+    import data_services.upstox_feed as uf
+    exp = int(datetime(2027, 6, 20, 3, 30).timestamp())       # this machine's local time is IST
+    tok = _jwt(exp)
+    assert jwt_expiry(tok) == datetime.fromtimestamp(exp, uf._IST).replace(tzinfo=None)
+    a = _auth(tmp_path, "2026-06-19T10:34:07")
+    a.token_file.write_text(json.dumps({"access_token": tok, "timestamp": "2026-06-19T10:34:07"}))
+    monkeypatch.setattr(uf, "_now_ist", lambda: datetime(2026, 9, 29, 9, 15))
+    assert a._is_token_valid() == tok
+    monkeypatch.setattr(uf, "_now_ist", lambda: jwt_expiry(tok))
+    assert a._is_token_valid() is False
+
+
+def test_a_token_without_an_expiry_claim_falls_back_to_the_0330_rule():
+    assert jwt_expiry("tok") is None and jwt_expiry("a.bm90LWpzb24.c") is None

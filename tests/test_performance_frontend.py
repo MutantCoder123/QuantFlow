@@ -2,6 +2,7 @@
 agreed hooks and nothing else of it, and the live block has what the status
 line needs."""
 import re
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -106,3 +107,25 @@ def test_equity_lists_session_days_and_the_starting_equity(tmp_path, monkeypatch
     assert eq["start_equity"] == 1_000_500
     empty = client.get("/api/paper/equity?range=custom&from=2026-01-01&to=2026-01-02").json()
     assert empty["session_days"] == [] and empty["start_equity"] == 1_000_000
+
+
+def test_the_market_matrix_placeholder_is_always_removable():
+    """An empty frame (feed restart) redrew the "Waiting for market data" row
+    without its id; the next real update removes only #loading-row, so the
+    spinner stayed above the live rows for good (2026-09-29)."""
+    src = (Path(__file__).resolve().parents[1] / "trading_copilot" / "templates" / "index.html").read_text(encoding="utf-8")
+    fn = src[src.index("function updateMarketMatrix"):]
+    empty_branch = fn[:fn.index("return;")]
+    assert '<tr id="loading-row">' in empty_branch
+
+
+def test_the_page_prompt_names_no_5_year_fields_the_payload_lacks():
+    """The manual-analysis prompt told the model to weigh a 5-year POC and a
+    5-year alpha that the payload never carries (2026-09-29). Block 3 is the
+    20-day structural block; the 5-year data is a future goal (dev-notes)."""
+    src = (Path(__file__).resolve().parents[1] / "trading_copilot" / "templates" / "index.html").read_text(encoding="utf-8")
+    start = src.index("const DEFAULT_SYSTEM_PROMPT = `")
+    prompt = src[start:src.index("`;", start)]
+    for gone in ("structural_liquidity", "regime_confluence", "5-year", "_5y"):
+        assert gone not in prompt
+    assert "3_local_structural_edge_20d" in prompt

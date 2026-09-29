@@ -18,6 +18,7 @@ from config import load_watchlist_from_csv
 from reasoning_engine import ReasoningEngine, attention_rank
 from history_manager import HistoryManager
 from paths import INSTITUTIONAL_FLOW_PATH, TRADE_HISTORY_PATH, WATCHLIST_PATH, ensure_dirs
+from llm import DEFAULT_MODEL
 
 ensure_dirs()
 
@@ -150,11 +151,11 @@ async def get_dashboard():
 # Discovery runs in the feed process (port 8001): it owns the Upstox
 # client, the live state, and the watchlist it updates. It is a background
 # job there -- start returns at once, the UI polls status.
-class DiscoveryRunRequest(BaseModel): model: str = "gemini-2.5-flash"
+class DiscoveryRunRequest(BaseModel): model: str = DEFAULT_MODEL
 
 @app.post("/api/discovery/run")
 async def run_discovery(req: DiscoveryRunRequest | None = None):
-    model = req.model if req else "gemini-2.5-flash"
+    model = req.model if req else DEFAULT_MODEL
     return await proxy_post(8001, "/api/discovery/run", {"model": model}, timeout=10)
 
 async def _ollama_models() -> list:
@@ -168,14 +169,16 @@ async def _ollama_models() -> list:
 
 @app.get("/api/ai/models")
 async def list_ai_models():
-    """Models Discovery's analysis can use: Gemini, plus whatever the local
-    Ollama has installed. Ollama being down just means no local options."""
-    models = [{"id": "gemini-2.5-flash", "label": "Gemini 2.5 Flash"}]
+    """Models the AI features can use: whatever the local Ollama has
+    installed, then Gemini. `default` is the system default (llm.py); Ollama
+    being down just means no local options."""
+    models = []
     try:
         models += [{"id": f"ollama:{tag}", "label": f"Local: {tag}"} for tag in await _ollama_models()]
     except Exception as e:
         logger.info(f"Ollama not reachable for model list: {e}")
-    return {"status": "success", "models": models}
+    models.append({"id": "gemini-2.5-flash", "label": "Gemini 2.5 Flash"})
+    return {"status": "success", "models": models, "default": DEFAULT_MODEL}
 
 @app.get("/api/discovery/status")
 async def discovery_status(): return await proxy_get(8001, "/api/discovery/status", timeout=5)
@@ -185,7 +188,7 @@ async def discovery_status(): return await proxy_get(8001, "/api/discovery/statu
 # upstox_feed.py (port 8001) -- the call always errored.
 
 class InstantAnalyzeRequest(BaseModel):
-    model: str = "gemini-2.5-flash"
+    model: str = DEFAULT_MODEL
     prompt: str = ""
     user_position: dict | None = None
     user_intent: dict | None = None
@@ -193,7 +196,7 @@ class InstantAnalyzeRequest(BaseModel):
 class LoopStartRequest(BaseModel):
     symbol: str
     interval: int = 90
-    model: str = "gemini-2.5-flash"
+    model: str = DEFAULT_MODEL
     prompt: str = ""
     user_position: dict | None = None
     user_intent: dict | None = None
@@ -658,8 +661,8 @@ async def get_latest_report(symbol: str):
     is_active = ReasoningEngine.llm_enabled.get(norm, False)
     return {"status": "success", "report": report, "is_active": is_active}
 
-class NewsInstantRequest(BaseModel): model: str = "gemini-2.5-flash"
-class NewsStartRequest(BaseModel): interval: int = 120; model: str = "gemini-2.5-flash"
+class NewsInstantRequest(BaseModel): model: str = DEFAULT_MODEL
+class NewsStartRequest(BaseModel): interval: int = 120; model: str = DEFAULT_MODEL
 
 @app.post("/api/news/instant")
 async def instant_news_fetch(req: NewsInstantRequest): return await proxy_post(8003, "/api/news/instant", {"model": req.model})
