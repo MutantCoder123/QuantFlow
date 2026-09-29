@@ -60,3 +60,19 @@ def test_the_web_ui_starts_after_the_feed():
     order = [name for name, *_ in run.SERVICES]
     web = next(s for s in run.SERVICES if s[0] == "web")
     assert web[3] == 8001 and order.index("feed") < order.index("web")
+
+
+@pytest.mark.parametrize("clock,full_now", [(at(22, 53), True), (at(11, 0), False)])
+def test_the_services_never_wait_for_the_options_history(monkeypatch, clock, full_now):
+    """2026-09-29 22:53: a 429 in the options backfill held the whole start
+    for a 30-minute cooldown. Only the quick price catch-up runs first."""
+    order = []
+    monkeypatch.setattr(run, "now_ist", lambda: clock)
+    monkeypatch.setattr(run, "checks", lambda: True)
+    monkeypatch.setattr(run, "check_ports", lambda: True)
+    monkeypatch.setattr(run, "backfill", lambda full: order.append(("backfill", full)) or True)
+    monkeypatch.setattr(run, "start_services", lambda verbose: order.append(("services",)) or [])
+    monkeypatch.setattr(run, "supervise", lambda s, h, full_now=False: order.append(("supervise", full_now)))
+    monkeypatch.setattr(sys, "argv", ["run.py"])
+    run.main()
+    assert order == [("backfill", False), ("services",), ("supervise", full_now)]

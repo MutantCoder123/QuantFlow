@@ -323,12 +323,16 @@ def start_services(verbose: bool) -> list[Service]:
     return services
 
 
-def supervise(services: list[Service], history: bool):
+def supervise(services: list[Service], history: bool, full_now: bool = False):
     if wait_port(8000, 90):
         say("web", f"dashboard ready: {DASHBOARD}")
         webbrowser.open(DASHBOARD)
     say("run", "all services started. Ctrl+C stops everything. Logs: logs/run/")
     eod: threading.Thread | None = None
+    if full_now and not eod_done_today():
+        say("history", "catching up options history in the background (logs/run/backfill.log)")
+        eod = threading.Thread(target=backfill, args=(True,), daemon=True)
+        eod.start()
     while True:
         time.sleep(5)
         for s in services:
@@ -368,15 +372,16 @@ def main() -> int:
 
     history = not a.no_backfill
     if history:
+        # Only daily prices hold up the start. The options history is
+        # thousands of requests, and one 429 costs a 30-minute cooldown: it
+        # runs behind the services (supervise), never in front of them.
+        backfill(full=False)
         if market_hours():
-            backfill(full=False)                       # options history: after the close (supervise)
             say("history", "options history will be stored after 15:45 IST")
-        else:
-            backfill(full=True)
 
     services = start_services(a.verbose)
     try:
-        supervise(services, history)
+        supervise(services, history, full_now=history and not market_hours())
     except KeyboardInterrupt:
         say("run", "stopping...")
     finally:
