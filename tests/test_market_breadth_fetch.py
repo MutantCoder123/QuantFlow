@@ -67,12 +67,17 @@ class _FakeSession:
         return _FakeGet(self._resp)
 
 
+class _Writes(list):
+    counts: list
+
+
 @pytest.fixture
 def writes(monkeypatch):
     """Capture save_ad_ratio instead of touching the real state file."""
-    captured = []
+    captured = _Writes()
+    captured.counts = []                    # the advancing/declining counts, per write
     monkeypatch.setattr(InstitutionalFlowTracker, "save_ad_ratio",
-                        staticmethod(lambda v: captured.append(v)))
+                        staticmethod(lambda v, counts=None: (captured.append(v), captured.counts.append(counts))))
     # The port keeps the legacy 3s anti-bot pause; don't pay it in tests.
     real_sleep = asyncio.sleep
     monkeypatch.setattr(macro_worker.asyncio, "sleep",
@@ -90,6 +95,12 @@ def _run(monkeypatch, response, writes):
 def test_computes_the_nifty50_ad_ratio(monkeypatch, writes):
     out = _run(monkeypatch, _FakeResponse(200, ALL_INDICES), writes)
     assert out == [pytest.approx(34 / 16)]
+
+
+def test_the_counts_travel_with_the_ratio(monkeypatch, writes):
+    body = {"data": [{"index": "NIFTY 50", "advances": "7", "declines": "42", "unchanged": "1"}]}
+    _run(monkeypatch, _FakeResponse(200, body), writes)
+    assert writes.counts == [{"advances": 7, "declines": 42, "unchanged": 1}]
 
 
 def test_non_200_writes_nothing(monkeypatch, writes):

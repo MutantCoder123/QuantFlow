@@ -25,7 +25,46 @@ _IST = ZoneInfo("Asia/Kolkata")
 # a day old. Fetched on this cadence; NSE is not to be hit more often.
 BREADTH_INTERVAL_S = 300
 
+def _row_dict(row) -> dict:
+    if hasattr(row, "to_dict"):
+        return row.to_dict()
+    return row if isinstance(row, dict) else getattr(row, "__dict__", {})
+
+
+def daily_nets(rows) -> dict:
+    """{"YYYY-MM-DD": net ₹ Cr} from Upstox's FII/DII cash rows (buy - sell),
+    dated by each row's time_stamp (ms, IST midnight). Rows without a usable
+    date or amounts are skipped, never counted as zero."""
+    out = {}
+    for row in rows or []:
+        d = _row_dict(row)
+        try:
+            day = datetime.fromtimestamp(int(d["time_stamp"]) / 1000, _IST).strftime("%Y-%m-%d")
+            out[day] = round(float(d["buy_amount"]) - float(d["sell_amount"]), 2)
+        except (KeyError, TypeError, ValueError):
+            continue
+    return out
+
+
+def flow_history(fii_rows, dii_rows, keep: int = 30) -> list:
+    """[{date, fii_net, dii_net}], oldest first, for the Market tab's flow bars.
+    A day either side is missing on stays None for that side (F2)."""
+    fii, dii = daily_nets(fii_rows), daily_nets(dii_rows)
+    days = sorted(set(fii) | set(dii))[-keep:]
+    return [{"date": d, "fii_net": fii.get(d), "dii_net": dii.get(d)} for d in days]
+
+
 class InstitutionalFlowTracker:
+    @staticmethod
+    def save_history(history: list):
+        """Store the daily flow history, and date the latest figures by it."""
+        if not history:
+            return
+        state = dict(InstitutionalFlowTracker.load_state())
+        state["flow_history"] = history
+        state["date"] = history[-1]["date"]
+        write_json_atomic(STATE_FILE, state, indent=4)
+
     @staticmethod
     def save_state(fii_net: float, dii_net: float):
         # Market breadth comes from NSE's allIndices endpoint on its own
@@ -44,7 +83,7 @@ class InstitutionalFlowTracker:
         write_json_atomic(STATE_FILE, state, indent=4)
 
     @staticmethod
-    def save_ad_ratio(ad_ratio: float):
+    def save_ad_ratio(ad_ratio: float, counts: dict | None = None):
         """Mirror image of save_state: write breadth without touching FII/DII.
 
         `ad_ratio_ts` stamps THIS value specifically. The general "timestamp"
@@ -57,6 +96,8 @@ class InstitutionalFlowTracker:
         state.update({
             "ad_ratio": round(float(ad_ratio), 2),
             "ad_ratio_ts": datetime.now(_IST).isoformat(),
+            # the NIFTY 50's advancing / declining / unchanged count, for the breadth waffle
+            "breadth": counts,
         })
         write_json_atomic(STATE_FILE, state, indent=4)
 
@@ -110,6 +151,11 @@ async def fetch_market_breadth():
 
                 advances = float(row.get("advances", 0))
                 declines = float(row.get("declines", 0))
+                try:
+                    counts = {"advances": int(advances), "declines": int(declines),
+                              "unchanged": int(float(row.get("unchanged", 0) or 0))}
+                except (TypeError, ValueError):
+                    counts = None
                 if advances == 0 and declines == 0:
                     ad_ratio = 1.0
                 else:
@@ -117,7 +163,7 @@ async def fetch_market_breadth():
                         declines = max(1.0, advances / 50.0)
                     ad_ratio = advances / max(1.0, declines)
 
-                InstitutionalFlowTracker.save_ad_ratio(ad_ratio)
+                InstitutionalFlowTracker.save_ad_ratio(ad_ratio, counts)
                 logger.info(f"Market Breadth fetched from NIFTY 50. A/D Ratio: {ad_ratio:.2f}")
     except Exception as e:
         logger.error(f"Market Breadth Scraper Exception: {e}")
@@ -192,6 +238,7 @@ async def macro_poller_loop(api_client):
                 
             logger.info(f"FII Net: {fii_net} Cr | DII Net: {dii_net} Cr")
             InstitutionalFlowTracker.save_state(fii_net, dii_net)
+            InstitutionalFlowTracker.save_history(flow_history(fii_data, dii_data))
             
         except Exception as e:
             logger.error(f"Error in macro_poller_loop: {e}")
