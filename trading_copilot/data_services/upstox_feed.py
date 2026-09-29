@@ -268,6 +268,8 @@ class Tick:
     greeks: dict | None
     bids: list
     asks: list
+    close_price: float | None = None   # LTPC "cp": the previous session's close
+    day_ohlc: dict | None = None       # marketOHLC's "1d" row: today's open/high/low
 
 
 def parse_tick(instrument_key: str, feed_data: dict, reverse_map: dict) -> "Tick | None":
@@ -282,12 +284,27 @@ def parse_tick(instrument_key: str, feed_data: dict, reverse_map: dict) -> "Tick
     incorrect "GIL makes this safe" comment (improved §4.10).
     """
     full = feed_data.get("fullFeed", {}) or {}
-    idx = feed_data.get("indexFF", {}) or {}
+    # FullFeed is a oneof: a stock arrives as fullFeed.marketFF, an index as
+    # fullFeed.indexFF. Reading indexFF at the top level dropped every index
+    # tick, so the NIFTY price never reached the app (F1, 2026-09-29).
+    idx = full.get("indexFF") or feed_data.get("indexFF") or {}
     mff = full.get("marketFF", {}) or {}
-    ltpc = mff.get("ltpc", idx.get("ltpc", {})) or {}
+    ltpc = mff.get("ltpc") or idx.get("ltpc") or feed_data.get("ltpc") or {}
     ltp = float(ltpc.get("ltp", 0) or 0)
     if ltp <= 0:
         return None
+    try:
+        cp = float(ltpc.get("cp") or 0) or None
+    except (TypeError, ValueError):
+        cp = None
+    day_ohlc = None
+    for row in ((mff.get("marketOHLC") or idx.get("marketOHLC") or {}).get("ohlc") or []):
+        if str(row.get("interval", "")).lower() == "1d":
+            try:
+                day_ohlc = {k: float(row[k]) for k in ("open", "high", "low")}
+            except (KeyError, TypeError, ValueError):
+                day_ohlc = None
+            break
 
     bids, asks = [], []
     level = full.get("marketLevel", mff.get("marketLevel", {})) or {}
@@ -304,7 +321,7 @@ def parse_tick(instrument_key: str, feed_data: dict, reverse_map: dict) -> "Tick
         volume=float(full.get("vtt", mff.get("vtt", 0)) or 0),
         oi=float(mff.get("oi", 0) or 0),
         greeks=feed_data.get("optionGreeks", full.get("optionGreeks")) or None,
-        bids=bids, asks=asks,
+        bids=bids, asks=asks, close_price=cp, day_ohlc=day_ohlc,
     )
 
 
@@ -561,6 +578,9 @@ def build_bars_response(df, n: int = 300) -> dict:
     that lets label_outcome see real bar highs/lows instead of the 60s LTP
     samples that were silently understating stop-hit rates.
     """
+    if isinstance(df, list):                     # the index's bars (RollingStateEngine.index_bars)
+        rows = df[-n:] if n > 0 else []
+        return {"bars": [{**r, "timestamp": str(r["timestamp"])} for r in rows]}
     if df is None or df.empty:
         return {"bars": []}
     tail = df.tail(n).copy()
@@ -577,6 +597,8 @@ async def get_bars(token: str, request: Request, n: int = 300):
     if eng is None:
         return {"bars": []}
     df = (eng.dfs.get(token) or {}).get("ltf_df")
+    if df is None and token in getattr(eng, "index_bars", {}):
+        df = list(eng.index_bars[token])
     return make_json_serializable(build_bars_response(df, n))
 
 def _clean_symbol(row: dict) -> str:

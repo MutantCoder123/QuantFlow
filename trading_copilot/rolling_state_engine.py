@@ -41,6 +41,8 @@ class RollingStateEngine:
 
         # token -> wall-clock time of its last tick, for staleness (A-12).
         self.last_tick_ts = {}
+        # Five-minute bars for the indices (they have no ltf_df), for /api/bars.
+        self.index_bars = {}
 
         # mtime-keyed caches for files that were being re-read from disk once
         # per symbol per 1.5s cycle (D-2).
@@ -217,7 +219,8 @@ class RollingStateEngine:
                 logger.error(f"Failed to reload institutional flow state: {e}")
         return self._flow_state or {"fii_net": 0, "dii_net": 0, "ad_ratio": 1.0}
 
-    def process_tick(self, token, timestamp_ms, price, volume, oi, greeks=None, bids=None, asks=None):
+    def process_tick(self, token, timestamp_ms, price, volume, oi, greeks=None, bids=None, asks=None,
+                     close_price=None, day_ohlc=None):
         """
         O(1) dictionary update. Called directly by WebSocket callback thread.
         """
@@ -269,10 +272,8 @@ class RollingStateEngine:
             
         # 2. Update Phantom Candle for Equities/Indices
         if token not in self.dfs:
-            if token == "NSE_INDEX|Nifty 50":
-                nifty_state = TerminalDashboard.active_states.get(token, {})
-                nifty_state["ltp"] = price
-                TerminalDashboard.active_states[token] = nifty_state
+            if token.startswith("NSE_INDEX|"):
+                self._index_tick(token, tick_ts, price, close_price, day_ohlc)
             return
             
         boundary_ts = tick_ts.floor('5min')
@@ -329,6 +330,32 @@ class RollingStateEngine:
             phantom['oi'] = oi
             phantom['microstructure'] = micro_state
 
+    INDEX_BARS_KEPT = 400
+
+    def _index_tick(self, token, tick_ts, price, close_price, day_ohlc):
+        """An index has no order book or volume: keep its price, previous close
+        and day range in the state (the Market tab's NIFTY), and its
+        five-minute bars for the intraday chart. Fields already in the state
+        (the derivatives worker's PCR) are kept."""
+        st = TerminalDashboard.active_states.get(token, {})
+        st["ltp"] = price
+        st["last_tick_ts"] = time.time()
+        if close_price:
+            st["prev_close"] = close_price
+        if day_ohlc:
+            st["day_open"], st["day_high"], st["day_low"] = day_ohlc["open"], day_ohlc["high"], day_ohlc["low"]
+        TerminalDashboard.active_states[token] = st
+
+        bars = self.index_bars.setdefault(token, [])
+        bucket = tick_ts.floor('5min')
+        if bars and bars[-1]["timestamp"] == bucket:
+            b = bars[-1]
+            b["high"], b["low"], b["close"] = max(b["high"], price), min(b["low"], price), price
+        else:
+            bars.append({"timestamp": bucket, "open": price, "high": price, "low": price,
+                         "close": price, "volume": 0.0})
+            del bars[:-self.INDEX_BARS_KEPT]
+
     async def ingest_loop(self):
         """The single writer. Drains tick_q and is the ONLY caller of
         process_tick, so phantom_candles / ltf_df are mutated from exactly
@@ -345,7 +372,8 @@ class RollingStateEngine:
                 d = tick if isinstance(tick, dict) else vars(tick)
                 self.process_tick(**{k: d[k] for k in
                                      ("token", "timestamp_ms", "price", "volume",
-                                      "oi", "greeks", "bids", "asks") if k in d})
+                                      "oi", "greeks", "bids", "asks",
+                                      "close_price", "day_ohlc") if k in d})
             except Exception as e:
                 logger.error(f"ingest_loop error: {e}", exc_info=True)
             finally:
