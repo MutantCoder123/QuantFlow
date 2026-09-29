@@ -1,0 +1,47 @@
+/* Discovery (dc- prefix). Built to the canvas's Discovery artboard. */
+
+.dc-page { gap: 40px; }
+.dc-head { align-items: flex-end; flex-wrap: wrap; }
+.dc-title { gap: 10px; }
+.dc-run { flex-shrink: 0; }
+.dc-run select { width: 200px; }
+.dc-steps { display: flex; gap: 22px; margin: 0; padding: 0; list-style: none; font-size: 14px; flex-wrap: wrap; }
+.dc-steps li { display: inline-flex; align-items: center; gap: 8px; color: var(--mute); }
+.dc-steps li::before { content: ""; width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--rule-strong); }
+.dc-steps li[data-state="done"] { color: var(--paper); }
+.dc-steps li[data-state="done"]::before { background: var(--jade); border-color: var(--jade); }
+.dc-steps li[data-state="now"] { color: var(--amber); }
+.dc-steps li[data-state="now"]::before { background: var(--amber); border-color: var(--amber); }
+
+.dc-split { align-items: start; }
+.dc-axis-y { position: absolute; top: 0; bottom: 24px; width: 1px; background: var(--rule-strong); }
+.dc-cut { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--rule-strong); }
+.dc-crowd { background: rgba(139, 150, 171, .28); }
+.dc-pick { border: 0; padding: 0; background: var(--jade); }
+.dc-pick[data-tone="loss"] { background: var(--coral); }
+.dc-pick[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--ink), 0 0 0 4.5px var(--paper); }
+.dc-scatter .qf-ptlabel[data-tone="profit"] { color: var(--jade); }
+.dc-scatter .qf-ptlabel[data-tone="loss"] { color: var(--coral); }
+
+.dc-read { gap: 18px; }
+.dc-read-fig { align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.dc-side { font-size: 18px; }
+.dc-read-body { padding-top: 14px; display: flex; flex-direction: column; gap: 14px; font-size: 15px; line-height: 1.5; }
+.dc-read-body p { margin: 0; }
+.dc-read-body .qf-eyebrow { display: block; margin-bottom: 2px; }
+.dc-news { line-height: 1.45; }
+
+.dc-sheet tbody tr { cursor: pointer; }
+.dc-sheet tbody tr:hover td { background: #121826; }
+.dc-cell { gap: 10px; }
+.dc-score { width: 140px; }
+.dc-rs { width: 110px; }
+.dc-foot { display: flex; flex-direction: column; gap: 8px; }
+.dc-foot p { margin: 0; }
+
+@media (max-width: 640px) {
+  .dc-run { width: 100%; }
+  .dc-run select { flex: 1; width: auto; }
+  .dc-score { width: 70px; }
+  .dc-rs { width: 60px; }
+}

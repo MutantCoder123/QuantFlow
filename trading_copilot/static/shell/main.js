@@ -25,6 +25,7 @@ const LABEL = Object.fromEntries(TABS.map((t) => [t.id, t.label]));
 const TAB_MODULES = {
   market: () => import('../market/index.js'),
   signals: () => import('../signals/index.js'),
+  discovery: () => import('../discovery/index.js'),
 };
 const OVERLAYS = {
   inspect: () => import('../inspector/index.js'),

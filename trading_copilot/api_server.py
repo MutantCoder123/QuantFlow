@@ -185,6 +185,19 @@ async def list_ai_models():
 @app.get("/api/discovery/status")
 async def discovery_status(): return await proxy_get(8001, "/api/discovery/status", timeout=5)
 
+
+@app.get("/api/discovery/view")
+async def discovery_view():
+    """The Discovery tab: the job's picks with their AI read, the whole scored
+    universe, the top-10 cut, and what the run did (views.discovery)."""
+    from views.discovery import view
+    body = await proxy_get(8001, "/api/discovery/status", timeout=5)
+    if not isinstance(body, dict) or "job" not in body:
+        return {"status": "error", "feed_down": True,
+                "message": (body or {}).get("message") or "The feed process is not reachable."}
+    syms = {str(v.get("symbol", "")).split("-")[0].upper() for v in _reload_watchlist().values()}
+    return {"status": "success", **view(body["job"], syms)}
+
 # /api/map-option-tokens was removed (A-11): it proxied to a route that only
 # ever existed on the dead Angel One smart_api_feed.py, never on the live
 # upstox_feed.py (port 8001) -- the call always errored.
