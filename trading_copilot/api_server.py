@@ -300,6 +300,23 @@ async def get_reliability(days: int = 60):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@app.get("/api/review")
+async def get_review(sessions: int = Query(20, ge=1, le=120), date: str | None = None):
+    """The Review tab (views.review): reliability with its 95% range, the
+    daily trend, the move after a signal, and where it works -- over the last
+    `sessions` sessions, or one session `date`."""
+    try:
+        from datetime import date as _date
+        from signal_ledger import SignalLedger
+        from views.review import review
+        if date:
+            _date.fromisoformat(date)                   # refuse a malformed date
+        body = await asyncio.to_thread(lambda: review(SignalLedger.load_all_signals(max(60, sessions * 3)), sessions, date))
+        return {"status": "success", **body}
+    except ValueError as e:
+        return {"status": "error", "message": f"Not a date: {date} ({e})"}
+
+
 @app.get("/api/session/review")
 async def get_session_review(date: str | None = None):
     """End-of-day review for one session: signals, outcomes at the primary

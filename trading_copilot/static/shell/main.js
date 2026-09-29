@@ -26,6 +26,7 @@ const TAB_MODULES = {
   market: () => import('../market/index.js'),
   signals: () => import('../signals/index.js'),
   discovery: () => import('../discovery/index.js'),
+  review: () => import('../review/index.js'),
 };
 const OVERLAYS = {
   inspect: () => import('../inspector/index.js'),

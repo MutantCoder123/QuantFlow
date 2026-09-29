@@ -1,0 +1,68 @@
+/* Review (rv- prefix). Built to the canvas's Review artboard. */
+
+.rv-page { gap: 48px; }
+.rv-head { align-items: flex-end; flex-wrap: wrap; }
+.rv-title { gap: 10px; }
+.rv-range { flex-wrap: wrap; }
+.rv-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 64px; align-items: start; }
+.rv-grid > div { min-width: 0; }
+.rv-rel, .rv-trend, .rv-hist { margin-left: 44px; }
+.rv-yl { left: -8px; transform: translate(-100%, -50%); }
+.rv-xt { transform: translateX(-50%); }
+.rv-xtitle { left: 0; right: 0; text-align: center; }
+.rv-mid { left: 50%; transform: translateX(-50%); }
+
+/* reliability */
+.rv-band { fill: rgba(140, 144, 248, .16); }
+.rv-curve { fill: none; stroke: var(--indigo-text); stroke-width: 2.25; stroke-linejoin: round; stroke-linecap: round; }
+.rv-coin { stroke: var(--mute); stroke-width: 1; stroke-dasharray: 3 5; }
+.rv-diag { stroke: var(--rule-strong); stroke-width: 1.25; }
+.rv-diag-label { color: var(--mute); }
+.rv-band-key { background: rgba(140, 144, 248, .18); width: 18px; height: 8px; }
+.rv-coin-key { display: inline-block; width: 18px; border-top: 1px dashed var(--mute); }
+.rv-pt { width: 11px; height: 11px; background: var(--ink); border: 2.5px solid var(--indigo-text); }
+.rv-pt[data-good="true"] { border-color: var(--jade); }
+.rv-pt-label { transform: translateX(-50%); color: var(--indigo-text); font-size: 12.5px; font-weight: 600; }
+.rv-pt-label[data-good="true"] { color: var(--jade); }
+.rv-none { left: 0; right: 0; text-align: center; color: var(--amber); white-space: normal; }
+.rv-strip-line { position: absolute; left: 0; right: 0; height: 1px; background: var(--rule); }
+.rv-count { position: absolute; width: 36px; border-radius: 3px 3px 0 0; background: var(--rule); transform: translateX(-50%); }
+.rv-count[data-thin="true"] { background: rgba(228, 174, 73, .55); }
+.rv-count-n { transform: translateX(-50%); }
+.rv-count-n[data-thin="true"] { color: var(--amber); }
+
+/* trend */
+.rv-line { fill: none; stroke: var(--paper); stroke-width: 2; stroke-linejoin: round; }
+.rv-dot { width: 8px; height: 8px; background: var(--mute); }
+.rv-dot[data-thin="true"] { background: var(--amber); }
+.rv-nbar { position: absolute; width: 14px; margin-left: -7px; border-radius: 2px; background: var(--rule); }
+.rv-line-key { display: inline-block; width: 18px; border-top: 2px solid var(--paper); }
+.rv-thin-key { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--amber); }
+
+/* histogram */
+.rv-hbar { position: absolute; border-radius: 3px 3px 0 0; background: rgba(238, 111, 106, .75); }
+.rv-hbar[data-right="true"] { background: rgba(69, 199, 154, .8); }
+.rv-zero { position: absolute; top: 0; bottom: 24px; width: 1px; background: var(--rule-strong); }
+.rv-median { position: absolute; top: 0; bottom: 24px; border-left: 1px dashed var(--paper); }
+.rv-sides { gap: 28px; }
+.rv-sides .qf-kpi { font-size: 32px; }
+
+/* where it works */
+.rv-panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 48px; }
+.rv-panel { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.rv-grow { display: grid; grid-template-columns: 124px minmax(0, 1fr) 76px; gap: 12px; align-items: center; font-size: 13.5px; }
+.rv-grow > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rv-gtrack { position: relative; height: 8px; border-radius: 4px; background: var(--raise); }
+.rv-gtrack i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: var(--jade); }
+.rv-gtrack i[data-tone="loss"] { background: var(--coral); }
+.rv-gtrack i[data-tone="amber"] { background: var(--amber); }
+.rv-gtrack b { position: absolute; left: 50%; top: -4px; bottom: -4px; width: 1px; background: var(--mute); }
+
+@media (max-width: 1100px) {
+  .rv-grid { grid-template-columns: minmax(0, 1fr); gap: 40px; }
+}
+@media (max-width: 640px) {
+  .rv-rel, .rv-trend, .rv-hist { margin-left: 36px; }
+  .rv-panels { grid-template-columns: minmax(0, 1fr); }
+  .rv-grow { grid-template-columns: 96px minmax(0, 1fr) 70px; }
+}
