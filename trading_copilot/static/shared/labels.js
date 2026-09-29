@@ -31,6 +31,21 @@ export function sentenceCase(code) {
 export const regimeLabel = (r) => (r ? sentenceCase(r) : 'Unknown');
 export const sideLabel = (s) => (s === 'LONG' ? 'Long' : s === 'SHORT' ? 'Short' : 'Unknown');
 
+// The AI judge's verdicts and directives (reasoning_engine execution_ticket).
+export const VERDICT = { CONFIRM: 'Confirm', ADJUST: 'Adjust', DEFER: 'Defer', ABORT: 'Reject' };
+export const DIRECTIVE = {
+  EXECUTE_LONG: 'Long', EXECUTE_SHORT: 'Short', PASS: 'Pass', CLOSE_EXISTING: 'Close the position',
+  REVERSE_POSITION: 'Reverse the position', NONE_NO_POSITION: 'Nothing to close',
+};
+export const verdictLabel = (v) => VERDICT[v] || sentenceCase(v);
+export const directiveLabel = (d) => DIRECTIVE[d] || sentenceCase(d);
+export function verdictTone(v) {
+  if (v === 'CONFIRM' || v === 'ADJUST') return 'ok';
+  if (v === 'ABORT') return 'bad';
+  return 'wait';
+}
+export const directiveTone = (d) => (d === 'EXECUTE_LONG' ? 'profit' : d === 'EXECUTE_SHORT' ? 'loss' : 'plain');
+
 export const SETTING = {
   capital: 'Capital',
   slippage_pct: 'Slippage per leg',

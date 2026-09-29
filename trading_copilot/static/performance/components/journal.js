@@ -4,10 +4,10 @@
 // API. Nothing here is estimated: a value the trade didn't record is shown
 // as unknown.
 
-import { html, render } from '../core/dom.js';
-import { DASH, dayMonth, duration, group, hm, inr, r, trim } from '../core/format.js';
-import { exitLabel, exitTone, regimeLabel, sideLabel } from '../core/labels.js';
-import { whenChanged } from '../core/store.js';
+import { html, render } from '../../shared/dom.js';
+import { DASH, dayMonth, duration, group, hm, inr, r, trim } from '../../shared/format.js';
+import { exitLabel, exitTone, regimeLabel, sideLabel } from '../../shared/labels.js';
+import { whenChanged } from '../../shared/store.js';
 
 const PAGE = 10;
 const COSTS = [['brokerage', 'Brokerage'], ['stt', 'STT'], ['exchange', 'Exchange'], ['sebi', 'SEBI'],

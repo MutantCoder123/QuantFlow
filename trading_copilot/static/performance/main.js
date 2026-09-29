@@ -1,19 +1,18 @@
 // Performance tab: entry point.
 //
-// Contract with templates/index.html -- the only coupling between the two:
-//   - <section id="tab-performance" class="hidden"> is the mount point.
-//   - index.html's dashboard socket re-broadcasts every message as a window
-//     event `qf:ws` ({detail: payload}); payload.paper is the live block.
-//   - switchTab(id) shows `tab-<id>` and emits `qf:tab` ({detail: id}).
-//   - Page globals this tab calls: switchTab (for the #performance deep
-//     link) and openJsonModal(symbol) (a blotter row opens its analysis).
+// Contract with the shell (static/shell/main.js) -- the only coupling:
+//   - <section id="tab-performance" class="hidden"> is the mount point; the
+//     shell shows it on #performance and emits `qf:tab` ({detail: 'performance'}).
+//   - The shell's socket re-broadcasts every /ws message as a window event
+//     `qf:ws` ({detail: payload}); payload.paper is the live block.
+//   - window.QF.actions.inspect(symbol) opens a stock (a blotter row).
 // Every figure is computed in Python (/api/paper/*). This code formats and
 // renders, nothing more. Components: mount(el, store, actions) ->
 // {update(state), destroy()}; each owns only its own element.
 
-import { api } from './core/api.js';
-import { connectLive } from './core/live.js';
-import { createStore } from './core/store.js';
+import { api } from '../shared/api.js';
+import { connectLive } from '../shared/live.js';
+import { createStore } from '../shared/store.js';
 import * as blotterC from './components/blotter.js';
 import * as diagnoseC from './components/diagnose/index.js';
 import * as legacyC from './components/legacy.js';
@@ -114,5 +113,4 @@ function mountTab() {
 }
 
 window.addEventListener('qf:tab', (e) => { if (e.detail === 'performance') mountTab(); });
-if (location.hash === '#performance' && typeof window.switchTab === 'function') window.switchTab('performance');
 if (visible()) mountTab();

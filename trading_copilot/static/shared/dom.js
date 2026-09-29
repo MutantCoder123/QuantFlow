@@ -1,4 +1,4 @@
-// Safe HTML for the Performance tab. Every value interpolated into html``
+// Safe HTML for every tab. Every value interpolated into html``
 // is escaped unless it is itself the result of html`` (or raw()). Symbols,
 // AI rationales and error text all come from outside the page, so nothing
 // reaches innerHTML unescaped.
@@ -31,6 +31,10 @@ export function html(strings, ...values) {
 }
 
 export const isSafe = (v) => v instanceof Safe;
+
+// html`` drops false (so `${cond && html`…`}` renders nothing); an ARIA
+// attribute needs the word. aria-expanded="${bool(open)}".
+export const bool = (v) => (v ? 'true' : 'false');
 
 // Replace el's content. Focus survives a re-render: an element carrying
 // data-key gets focus back if it (by key) had it before.

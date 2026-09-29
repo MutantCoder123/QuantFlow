@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { escape, html, isSafe, raw, render } from '../../trading_copilot/static/performance/core/dom.js';
+import { escape, html, isSafe, raw, render } from '../../trading_copilot/static/shared/dom.js';
 
 test('every interpolated value is escaped', () => {
   const evil = '<img src=x onerror="alert(1)">`\'&';

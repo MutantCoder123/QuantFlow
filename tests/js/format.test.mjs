@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DASH, MINUS, duration, group, hm, hms, inr, isoDay, notYet, pct, r, tone } from '../../trading_copilot/static/performance/core/format.js';
+import { DASH, MINUS, duration, group, hm, hms, inr, isoDay, notYet, pct, r, tone } from '../../trading_copilot/static/shared/format.js';
 
 const at = (h, m, s = 0) => Date.UTC(2026, 8, 28, h, m, s) / 1000 - 5.5 * 3600; // IST wall time
 

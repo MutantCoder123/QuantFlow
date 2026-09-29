@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createStore } from '../../trading_copilot/static/performance/core/store.js';
-import { connectLive } from '../../trading_copilot/static/performance/core/live.js';
-import { request } from '../../trading_copilot/static/performance/core/api.js';
+import { createStore } from '../../trading_copilot/static/shared/store.js';
+import { connectLive } from '../../trading_copilot/static/shared/live.js';
+import { request } from '../../trading_copilot/static/shared/api.js';
 
 test('store notifies with the changed keys, and only on change', () => {
   const s = createStore({ range: 'all', n: 1 });

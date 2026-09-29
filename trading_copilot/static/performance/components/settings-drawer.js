@@ -3,9 +3,9 @@
 // validates (the rules live in paper/settings.py); this form only parses
 // numbers and shows the server's words. Changes apply to new positions.
 
-import { html, render } from '../core/dom.js';
-import { inr, trim } from '../core/format.js';
-import { SETTING, settingValue } from '../core/labels.js';
+import { html, render } from '../../shared/dom.js';
+import { inr, trim } from '../../shared/format.js';
+import { SETTING, settingValue } from '../../shared/labels.js';
 
 export const FIELDS = [
   { key: 'capital', group: 'money', unit: '₹', prefix: true },

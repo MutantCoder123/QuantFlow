@@ -1,4 +1,4 @@
-// Number and time formatting for the Performance tab. Pure: no DOM, so it
+// Number and time formatting for every tab. Pure: no DOM, so it
 // runs under `node --test`. Unknown values render as an em dash, never as 0.
 
 export const MINUS = '−';

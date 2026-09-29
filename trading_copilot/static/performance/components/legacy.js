@@ -2,8 +2,8 @@
 // line, opening to a read-only table under a plain disclaimer. They are
 // never part of any figure on this page (the API keeps them separate).
 
-import { html, render } from '../core/dom.js';
-import { dayMonth, group, hm, inr } from '../core/format.js';
+import { html, render } from '../../shared/dom.js';
+import { dayMonth, group, hm, inr } from '../../shared/format.js';
 
 /** Pure: a legacy record -> a row. Unknown fields show as a dash. */
 export function legacyRow(t) {

@@ -7,7 +7,7 @@
 // ranked; counterfactual figures are labelled as such.
 
 import { inr, pct, plural, r, sentenceText } from './words.js';
-import { regimeLabel, sideLabel, exitLabel } from '../../core/labels.js';
+import { regimeLabel, sideLabel, exitLabel } from '../../../shared/labels.js';
 
 const val = (m) => (m && m.status === 'ok' ? m.value : null);
 const lower = (s) => s.charAt(0).toLowerCase() + s.slice(1);

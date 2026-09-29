@@ -1,0 +1,48 @@
+/* QuantFlow design tokens (Performance Design.md v3), app-wide.
+   The one place a colour, size, font or radius is defined; everything else
+   uses var(--…). Dark is the only theme: the desk works on ink. */
+
+:root {
+  color-scheme: dark;
+
+  --ink: #0D111A;          /* page ground */
+  --slate: #151B28;        /* raised plates: tables, drawers */
+  --raise: #1C2333;        /* active row, selected segment, code chips, hover */
+  --rule: #283247;         /* hairlines */
+  --rule-strong: #3A4661;  /* baselines, zero lines, the diagonal */
+  --paper: #E7ECF4;        /* primary text */
+  --mute: #8B96AB;         /* secondary text, axis ticks */
+  --jade: #45C79A;         /* up, profit, target, bullish */
+  --coral: #EE6F6A;        /* down, loss, stop, bearish, engine down */
+  --coral-ground: #241519; /* the engine-down banner */
+  --coral-edge: #5B2D31;
+  --amber: #E4AE49;        /* not enough data, stale, near a limit, AI pending */
+  --indigo: #6D72F6;       /* interactive fills and focus rings only */
+  --indigo-text: #8C90F8;  /* links and text buttons (4.5:1 on ink) */
+  --dii: #5E6A80;          /* the second series in a paired bar (DII beside FII) */
+
+  --jade-soft: rgba(69, 199, 154, .14);
+  --coral-soft: rgba(238, 111, 106, .14);
+  --amber-soft: rgba(228, 174, 73, .14);
+  --indigo-soft: rgba(109, 114, 246, .16);
+  --jade-edge: rgba(69, 199, 154, .45);
+  --coral-edge-soft: rgba(238, 111, 106, .45);
+  --amber-edge: rgba(228, 174, 73, .45);
+  --scrim: rgba(6, 8, 13, .66);
+
+  --t-axis: 11.5px; --t-small: 12.8px; --t-row: 14px; --t-body: 16px;
+  --t-h3: 20px; --t-h2: 25px; --t-lg: 31px; --t-xl: 39px; --t-hero: 49px;
+  --f-head: 'Outfit', system-ui, sans-serif;
+  --f-body: 'IBM Plex Sans', system-ui, sans-serif;
+  --f-code: 'JetBrains Mono', ui-monospace, monospace;
+  --f-figure: 'Doto', var(--f-head);   /* statement figures only */
+  --r-plate: 14px; --r-input: 8px; --r-pill: 999px;
+
+  --bar-h: 56px;           /* the app bar */
+  --bottom-h: 64px;        /* the phone tab bar */
+  --gutter: 40px;          /* page side padding */
+}
+
+@media (max-width: 640px) {
+  :root { --gutter: 16px; }
+}

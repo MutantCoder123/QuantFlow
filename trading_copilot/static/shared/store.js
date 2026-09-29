@@ -1,6 +1,6 @@
-// A tiny observable store: the tab's one source of truth for the range,
-// the live paper block and the fetched figures. Components subscribe and
-// re-render; they never read each other's DOM.
+// A tiny observable store: one source of truth for a part of the app (the
+// shell's live socket state, a tab's fetched figures). Components subscribe
+// and re-render; they never read each other's DOM.
 
 export function createStore(initial = {}) {
   let state = { ...initial };

@@ -2,9 +2,9 @@
 // hero. Figures are separate spans so each carries its own tone; below the
 // minimum sample the sentence says so instead of quoting a rate.
 
-import { html, render } from '../core/dom.js';
-import { hms, inr, isoDay, pct, weekdayDayMonth } from '../core/format.js';
-import { roll } from '../core/motion.js';
+import { html, render } from '../../shared/dom.js';
+import { hms, inr, isoDay, pct, weekdayDayMonth } from '../../shared/format.js';
+import { roll } from '../../shared/motion.js';
 
 const PHRASE = { today: 'today', '5d': 'over the last 5 days', '1m': 'over the last 30 days', all: 'since paper trading began' };
 

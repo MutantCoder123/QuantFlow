@@ -1,8 +1,8 @@
 // The figures line: the secondary numbers as one quiet line of prose, each
 // with its sample size. Below its minimum a figure is amber and says so.
 
-import { html, render } from '../core/dom.js';
-import { inr, notYet, num, pct, plural, r } from '../core/format.js';
+import { html, render } from '../../shared/dom.js';
+import { inr, notYet, num, pct, plural, r } from '../../shared/format.js';
 
 const UNDEFINED = {
   profit_factor: 'no losing trade yet',

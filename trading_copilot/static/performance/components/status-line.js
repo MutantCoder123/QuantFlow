@@ -2,8 +2,8 @@
 // range, and Pause. Engine health is said in words; a stopped engine also
 // gets the page's only boxed alert, saying what is frozen and what to do.
 
-import { html, render } from '../core/dom.js';
-import { duration, hm } from '../core/format.js';
+import { html, render } from '../../shared/dom.js';
+import { duration, hm } from '../../shared/format.js';
 
 export const RANGES = [
   ['today', 'Today'], ['5d', '5 days'], ['1m', '30 days'], ['all', 'All'],

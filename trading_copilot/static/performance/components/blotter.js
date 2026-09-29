@@ -3,9 +3,9 @@
 // price. Rows come from the socket's paper block, so they move at 2 Hz.
 // Clicking a row opens the page's existing analysis modal for the symbol.
 
-import { html, render } from '../core/dom.js';
-import { MINUS, duration, group, hm, inr, r } from '../core/format.js';
-import { sideLabel } from '../core/labels.js';
+import { html, render } from '../../shared/dom.js';
+import { MINUS, duration, group, hm, inr, r } from '../../shared/format.js';
+import { sideLabel } from '../../shared/labels.js';
 
 const WARN_BEFORE_MIN = 10;          // the time cell turns amber this long before the launch check
 
@@ -64,7 +64,8 @@ export function blotterFrame(live) {
 
 export function mount(el) {
   const open = (row) => {
-    if (row && typeof globalThis.openJsonModal === 'function') globalThis.openJsonModal(row.dataset.symbol);
+    const inspect = globalThis.QF && globalThis.QF.actions && globalThis.QF.actions.inspect;
+    if (row && inspect) inspect(row.dataset.symbol);
   };
   el.addEventListener('click', (e) => open(e.target.closest('[data-symbol]')));
   el.addEventListener('keydown', (e) => {

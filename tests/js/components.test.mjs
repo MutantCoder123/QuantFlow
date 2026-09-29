@@ -5,9 +5,9 @@ import { figures } from '../../trading_copilot/static/performance/components/fig
 import { blotterFrame, blotterRow } from '../../trading_copilot/static/performance/components/blotter.js';
 import { excursionBar, exitWhy, filterOptions, filterTrades, journalRow, story } from '../../trading_copilot/static/performance/components/journal.js';
 import { errorText, parseForm } from '../../trading_copilot/static/performance/components/settings-drawer.js';
-import { whenChanged } from '../../trading_copilot/static/performance/core/store.js';
-import { MINUS, inr, trim } from '../../trading_copilot/static/performance/core/format.js';
-import { settingValue } from '../../trading_copilot/static/performance/core/labels.js';
+import { whenChanged } from '../../trading_copilot/static/shared/store.js';
+import { MINUS, inr, trim } from '../../trading_copilot/static/shared/format.js';
+import { settingValue } from '../../trading_copilot/static/shared/labels.js';
 
 // IST wall time -> epoch seconds
 const at = (day, h, m) => Date.UTC(2026, 8, day, h, m) / 1000 - 19800;

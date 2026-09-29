@@ -2,10 +2,10 @@
 // answer on the right -- one chart, a finding written from the data, and
 // the config keys it points to. On phones the list becomes a native select.
 
-import { html, render } from '../../core/dom.js';
-import { r } from '../../core/format.js';
-import { whenChanged } from '../../core/store.js';
-import { dot, f1, hline, linear, vline } from '../../charts/svg.js';
+import { html, render } from '../../../shared/dom.js';
+import { r } from '../../../shared/format.js';
+import { whenChanged } from '../../../shared/store.js';
+import { dot, f1, hline, linear, vline } from '../../../shared/charts/svg.js';
 import { QUESTIONS, answer } from './questions.js';
 
 const KEY = 'qf.performance.question';

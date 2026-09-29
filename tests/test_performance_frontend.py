@@ -15,7 +15,8 @@ client = TestClient(api_server.app)
 
 
 @pytest.mark.parametrize("path", ["/static/performance/main.js", "/static/performance/performance.css",
-                                  "/static/performance/core/format.js",
+                                  "/static/shared/format.js", "/static/shared/tokens.css",
+                                  "/static/shared/base.css", "/static/shell/main.js",
                                   "/static/performance/components/statement.js"])
 def test_tab_files_are_served(path):
     r = client.get(path)
@@ -28,15 +29,23 @@ def test_static_serves_nothing_outside_its_directory():
     assert client.get("/static/%2e%2e/api_server.py").status_code == 404
 
 
+STATIC = Path(__file__).resolve().parents[1] / "trading_copilot" / "static"
+
+
 def test_index_carries_the_hooks_and_only_the_hooks():
     page = client.get("/").text
     assert '<section id="tab-performance" class="hidden"' in page
-    assert 'id="tab-btn-performance"' in page
+    assert '<script type="module" src="/static/shell/main.js"></script>' in page
     assert '<script type="module" src="/static/performance/main.js"></script>' in page
-    assert 'href="/static/performance/performance.css"' in page
-    assert "window.dispatchEvent(new CustomEvent('qf:ws', { detail: payload }));" in page
-    assert "window.dispatchEvent(new CustomEvent('qf:tab', { detail: tabId }));" in page
+    for css in ("shared/tokens.css", "shared/base.css", "performance/performance.css"):
+        assert f'href="/static/{css}"' in page
     assert "IBM+Plex+Sans" in page and "Doto" in page
+    # the shell owns the socket and the tab switch; the page no longer does
+    assert "new WebSocket" not in page and "function switchTab" not in page
+    socket = (STATIC / "shell" / "socket.js").read_text(encoding="utf-8")
+    assert "new CustomEvent('qf:ws', { detail: payload })" in socket
+    shell = (STATIC / "shell" / "main.js").read_text(encoding="utf-8")
+    assert "new CustomEvent('qf:tab', { detail: tab })" in shell
     # the tab's markup and logic live in /static, not here
     body = page.split('<section id="tab-performance"', 1)[1].split("</section>", 1)[0]
     assert re.fullmatch(r'\s*class="hidden" aria-label="Performance">\s*', body)

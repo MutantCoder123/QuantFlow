@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { QUESTIONS, answer, toBars } from '../../trading_copilot/static/performance/components/diagnose/questions.js';
 import { scatterGeometry } from '../../trading_copilot/static/performance/components/diagnose/index.js';
 import { legacyRow } from '../../trading_copilot/static/performance/components/legacy.js';
-import { MINUS } from '../../trading_copilot/static/performance/core/format.js';
+import { MINUS } from '../../trading_copilot/static/shared/format.js';
 
 const ok = (value, n, min_n = 10) => ({ value, n, min_n, status: 'ok' });
 const short = (n, min_n = 10) => ({ value: null, n, min_n, status: 'insufficient' });

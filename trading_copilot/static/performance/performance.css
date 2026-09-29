@@ -1,39 +1,17 @@
-/* Performance tab. Everything is scoped under #tab-performance so nothing
-   leaks into the Tailwind page, or back. Tokens follow Design.md v3 (the
-   Claude Design mockups, 2026-09-28). */
+/* Performance tab. Scoped under #tab-performance; the tokens (colours, type,
+   radii) come from /static/shared/tokens.css on :root, as for every tab.
+   Built to Design.md v3 (the Claude Design mockups, 2026-09-28). */
 
 #tab-performance {
-  --ink: #0D111A;          /* page ground */
-  --slate: #151B28;        /* raised plates */
-  --raise: #1C2333;        /* active row, selected segment, code chips */
-  --rule: #283247;         /* hairlines */
-  --rule-strong: #3A4661;  /* baselines, zero lines */
-  --paper: #E7ECF4;        /* primary text */
-  --mute: #8B96AB;         /* secondary text */
-  --jade: #45C79A;         /* profit, target */
-  --coral: #EE6F6A;        /* loss, stop, drawdown */
-  --coral-ground: #241519; /* the engine-down banner */
-  --coral-edge: #5B2D31;
-  --amber: #E4AE49;        /* not enough data yet, stale, near a limit */
-  --indigo: #6D72F6;       /* interactive fills and focus rings */
-  --indigo-text: #8C90F8;  /* interactive text (clears 4.5:1 on ink) */
-
-  --t-small: 12.8px; --t-body: 16px; --t-h3: 20px; --t-h2: 25px; --t-lg: 31px; --t-xl: 39px; --t-hero: 49px;
-  --f-head: 'Outfit', system-ui, sans-serif;
-  --f-body: 'IBM Plex Sans', system-ui, sans-serif;
-  --f-code: 'JetBrains Mono', ui-monospace, monospace;
-  --f-figure: 'Doto', var(--f-head);   /* the statement's figures only */
-  --r-plate: 14px; --r-input: 8px; --r-pill: 999px;
-
   background: var(--ink);
   color: var(--paper);
   font-family: var(--f-body);
   font-size: var(--t-body);
   line-height: 1.5;
   font-variant-numeric: tabular-nums;
-  border: 1px solid var(--rule);
-  border-radius: 20px;
-  padding: 28px 48px 56px;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 32px var(--gutter) 64px;
 }
 #tab-performance:not(.hidden) { display: flex; flex-direction: column; gap: 44px; }
 #tab-performance *, #tab-performance *::before, #tab-performance *::after { box-sizing: border-box; }
@@ -341,7 +319,7 @@
 
 /* ---------------------------------------------------------- narrow screens */
 @media (max-width: 640px) {
-  #tab-performance { padding: 18px 16px 40px; border-radius: 14px; }
+  #tab-performance { padding: 18px var(--gutter) 40px; }
   #tab-performance:not(.hidden) { gap: 32px; }
   /* title and the actions share the first row; status lines, then the range, below */
   #tab-performance .pf-status { gap: 6px 12px; }

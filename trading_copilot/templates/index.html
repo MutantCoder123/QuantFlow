@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AlgoTrade Live Diagnostic Dashboard</title>
+    <title>QuantFlow</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts: Outfit & JetBrains Mono -->
@@ -13,10 +13,17 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&family=Doto:wght@900&display=swap"
         rel="stylesheet">
+    <!-- The app shell and the shared design system (static/shared, static/shell) -->
+    <link rel="stylesheet" href="/static/shared/tokens.css">
+    <link rel="stylesheet" href="/static/shared/base.css">
     <!-- Performance tab (static/performance/, ES modules, no build step) -->
     <link rel="stylesheet" href="/static/performance/performance.css">
     <style>
-        body {
+        /* The tabs not yet rebuilt keep their old Tailwind markup inside the new shell. */
+        .qf-legacy {
+            max-width: 90rem;
+            margin: 0 auto;
+            padding: 24px var(--gutter) 48px;
             font-family: 'Outfit', sans-serif;
         }
 
@@ -26,91 +33,15 @@
     </style>
 </head>
 
-<body
-    class="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 min-h-screen text-slate-100 flex flex-col relative">
-    <!-- Navbar / Header -->
-    <header
-        class="border-b border-slate-800/80 bg-slate-950/55 backdrop-blur-md sticky top-0 z-40 px-6 py-4 flex items-center justify-between">
-        <div class="flex items-center gap-8">
-            <div class="flex items-center gap-3">
-                <div
-                    class="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
-                            d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
-                    </svg>
-                </div>
-                <div>
-                    <h1
-                        class="text-xl font-bold tracking-tight bg-gradient-to-r from-indigo-200 via-white to-violet-200 bg-clip-text text-transparent">
-                        AlgoTrade System</h1>
-                    <p class="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Phase 4.3 Visual
-                        Diagnostics</p>
-                </div>
-            </div>
-
-            <!-- Navigation Tabs -->
-            <nav
-                class="hidden md:flex items-center gap-1 bg-slate-900/80 p-1 rounded-lg border border-slate-700/50 shadow-inner">
-                <button onclick="switchTab('dashboard')" id="tab-btn-dashboard"
-                    class="px-4 py-1.5 text-xs font-bold rounded-md bg-slate-800 text-white shadow transition-all border border-slate-700/50">Live
-                    Dashboard</button>
-                <button onclick="switchTab('screener')" id="tab-btn-screener"
-                    class="px-4 py-1.5 text-xs font-bold rounded-md text-slate-400 hover:text-slate-200 transition-all border border-transparent">Market
-                    Discovery</button>
-                <button onclick="switchTab('live-action')" id="tab-btn-live-action"
-                    class="px-4 py-1.5 text-xs font-bold rounded-md text-slate-400 hover:text-slate-200 transition-all border border-transparent">Live
-                    Action</button>
-                <button onclick="switchTab('performance')" id="tab-btn-performance"
-                    class="px-4 py-1.5 text-xs font-bold rounded-md text-slate-400 hover:text-slate-200 transition-all border border-transparent">Performance</button>
-            </nav>
-        </div>
-        <div class="flex items-center gap-4">
-            <!-- Phase 9: Notification Bell -->
-            <div class="relative cursor-pointer" onclick="toggleAlertTray()">
-                <div
-                    class="w-10 h-10 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center hover:bg-slate-800 transition-colors shadow-lg">
-                    <svg class="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9">
-                        </path>
-                    </svg>
-                </div>
-                <div id="alert-badge"
-                    class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-rose-500 text-[10px] font-bold flex items-center justify-center text-white border-2 border-slate-950 hidden shadow-[0_0_8px_#f43f5e]">
-                    0</div>
-
-                <!-- Alert Tray Dropdown -->
-                <div id="alert-tray"
-                    class="absolute top-12 right-0 w-80 bg-slate-900 border border-slate-700 shadow-2xl rounded-lg hidden flex-col z-50 overflow-hidden cursor-default"
-                    onclick="event.stopPropagation()">
-                    <div class="px-4 py-3 border-b border-slate-800 bg-slate-800/40 flex justify-between items-center">
-                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-300">System Alerts</h4>
-                        <button onclick="toggleAlertTray()" class="text-slate-500 hover:text-slate-300"><svg
-                                class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M6 18L18 6M6 6l12 12"></path>
-                            </svg></button>
-                    </div>
-                    <div id="alert-tray-body" class="max-h-96 overflow-y-auto p-2 flex flex-col gap-2">
-                        <div class="text-center text-xs text-slate-500 p-4">No alerts right now.</div>
-                    </div>
-                </div>
-            </div>
-            <!-- Connection Status -->
-            <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/80 border border-slate-800">
-                <span id="status-dot" class="w-2.5 h-2.5 rounded-full bg-yellow-500 shadow-[0_0_8px_#eab308]"></span>
-                <span id="status-text" class="text-xs font-semibold text-slate-300">Connecting...</span>
-            </div>
-        </div>
-    </header>
-    <!-- Stale-feed banner (A-12): shown only when a LIVE symbol has not ticked in >15s -->
-    <div id="stale-banner" class="hidden bg-amber-600 text-black font-bold p-2 text-center"></div>
+<body class="qf-app">
+    <!-- The shell (static/shell/main.js) renders the bar, the banner and the phone tab bar. -->
+    <header id="app-bar" class="qf-bar"></header>
+    <div id="feed-banner" class="qf-feed-banner" role="alert" hidden></div>
     <!-- Main Container -->
-    <main class="flex-1 max-w-[90rem] w-full mx-auto p-6 space-y-6">
+    <main id="main" class="qf-main">
 
         <!-- DASHBOARD TAB -->
-        <div id="tab-dashboard" class="block space-y-6">
+        <div id="tab-market" class="qf-legacy space-y-6">
             <!-- Section: Macro Weather -->
             <section class="space-y-3">
                 <div class="flex items-center justify-between">
@@ -349,6 +280,9 @@
                 </div>
             </section>
 
+        </div> <!-- End of tab-market -->
+        <!-- REVIEW TAB (the old dashboard panels, until Phase 6 rebuilds them) -->
+        <div id="tab-review" class="hidden qf-legacy space-y-6">
             <!-- RELIABILITY VIEW (Task 4.4) -->
             <section class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
                 <div class="flex items-center justify-between mb-3">
@@ -380,23 +314,6 @@
                 </div>
             </section>
 
-            <!-- CLUSTER EXPOSURE VIEW (Task 5.3) -->
-            <section class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
-                <div class="flex items-center justify-between mb-3">
-                    <div>
-                        <h2 class="text-base font-bold text-white">Cluster Exposure</h2>
-                        <p class="text-xs text-slate-500">Open risk per cluster against max_cluster_risk_pct limits. Red ≥90%.</p>
-                    </div>
-                    <button onclick="loadExposure()"
-                        class="text-xs px-2 py-1 rounded border border-slate-700 text-slate-300 hover:bg-slate-800">Refresh</button>
-                </div>
-                <div id="exposure-status" class="text-xs text-slate-500 mb-2">Not loaded.</div>
-                <div id="exposure-message" class="hidden mb-3 px-2 py-1 rounded text-[11px] font-bold"></div>
-                <div id="exposure-container" class="space-y-2">
-                    <div class="text-center text-xs text-slate-600">Loading…</div>
-                </div>
-            </section>
-
             <!-- SESSION REVIEW (Task 5.6) -->
             <section class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
                 <div class="flex items-center justify-between mb-3">
@@ -418,9 +335,9 @@
                 <div id="review-groups" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
             </section>
 
-        </div> <!-- End of tab-dashboard -->
-        <!-- LIVE ACTION TAB -->
-        <div id="tab-live-action" class="hidden space-y-6">
+        </div>
+        <!-- SIGNALS TAB (was Live Action) -->
+        <div id="tab-signals" class="hidden qf-legacy space-y-6">
             <div class="flex items-center justify-between mb-4">
                 <div>
                     <h2 class="text-xl font-bold text-white flex items-center gap-2">
@@ -465,12 +382,29 @@
                     class="hidden px-4 py-2 text-xs font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors">
                 </button>
             </div>
+            <!-- CLUSTER EXPOSURE VIEW (Task 5.3) -->
+            <section class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <h2 class="text-base font-bold text-white">Cluster Exposure</h2>
+                        <p class="text-xs text-slate-500">Open risk per cluster against max_cluster_risk_pct limits. Red ≥90%.</p>
+                    </div>
+                    <button onclick="loadExposure()"
+                        class="text-xs px-2 py-1 rounded border border-slate-700 text-slate-300 hover:bg-slate-800">Refresh</button>
+                </div>
+                <div id="exposure-status" class="text-xs text-slate-500 mb-2">Not loaded.</div>
+                <div id="exposure-message" class="hidden mb-3 px-2 py-1 rounded text-[11px] font-bold"></div>
+                <div id="exposure-container" class="space-y-2">
+                    <div class="text-center text-xs text-slate-600">Loading…</div>
+                </div>
+            </section>
+
         </div>
         <!-- DISCOVERY TAB -->
         <!-- PERFORMANCE TAB: rendered by /static/performance/main.js -->
         <section id="tab-performance" class="hidden" aria-label="Performance"></section>
 
-        <div id="tab-screener" class="hidden space-y-6">
+        <div id="tab-discovery" class="hidden qf-legacy space-y-6">
             <div class="flex items-center justify-between">
                 <div>
                     <h2 class="text-xl font-bold text-white flex items-center gap-2">
@@ -530,10 +464,6 @@
             </div>
         </div>
     </main>
-    <!-- Footer -->
-    <footer class="border-t border-slate-900 bg-slate-950 py-4 px-6 text-center text-xs text-slate-600">
-        AlgoTrade Multi-Tenant Quantitative System &copy; 2026. All rights reserved.
-    </footer>
     <!-- LLM JSON Inspection Modal -->
     <div id="llm-modal"
         class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 transition-opacity duration-200">
@@ -713,32 +643,14 @@
     </div>
     <!-- WebSocket Logic -->
     <script>
-        const SERVER_IP = '192.168.29.123:8000';
-        const isLocalFile = window.location.protocol === 'file:';
-        const wsHost = isLocalFile ? SERVER_IP : window.location.host;
-        const apiHost = isLocalFile ? SERVER_IP : window.location.host;
-
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-        const wsUri = `ws://${wsHost}/ws`;
-        const apiBase = isLocalFile ? `http://${apiHost}` : '';
-        let socket;
-        // Global Cache for the Modal
+        // The shell (static/shell/socket.js) owns the /ws connection and
+        // re-broadcasts each message as `qf:ws`; the old panels still on this
+        // page read it here until their replacements ship.
+        const apiBase = '';
         window.latestGlobalState = {};
-        function connect() {
-            socket = new WebSocket(wsUri);
-            const statusDot = document.getElementById('status-dot');
-            const statusText = document.getElementById('status-text');
-            socket.onopen = () => {
-                statusDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]';
-                statusText.innerText = 'Connected Live';
-                statusText.className = 'text-xs font-semibold text-emerald-400';
-            };
-            socket.onmessage = (event) => {
-                const payload = JSON.parse(event.data);
-                window.dispatchEvent(new CustomEvent('qf:ws', { detail: payload }));
+        function onLivePayload(payload) {
                 updateMacroWeather(payload.macro_state);
                 updateMarketMatrix(payload.global_state);
-                updateStaleBanner(payload.global_state);
                 // 4. Update Market Breadth
                 if (payload.macro_state && payload.macro_state.ad_ratio !== undefined) {
                     const adRatio = parseFloat(payload.macro_state.ad_ratio);
@@ -799,19 +711,8 @@
                     }
                 }
 
-                // 6. Update AI Intraday Playbook
-            };
-            socket.onclose = () => {
-                statusDot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_#f43f5e] animate-pulse';
-                statusText.innerText = 'Reconnecting...';
-                statusText.className = 'text-xs font-semibold text-rose-400';
-                setTimeout(connect, 3000);
-            };
-            socket.onerror = (err) => {
-                console.error('WebSocket error: ', err);
-                socket.close();
-            };
         }
+        window.addEventListener('qf:ws', (e) => onLivePayload(e.detail));
         function updateMacroWeather(macro) {
             if (!macro) return;
 
@@ -1087,17 +988,6 @@
             }
         }
 
-        function updateStaleBanner(globalState) {
-            const banner = document.getElementById('stale-banner');
-            if (!banner) return;
-            const stale = Object.values(globalState || {}).filter(
-                s => s && s.market_state === 'LIVE' && (s.data_age_s || 0) > 15);
-            banner.classList.toggle('hidden', stale.length === 0);
-            if (stale.length) {
-                banner.textContent =
-                    `⚠ FEED STALE — ${stale.length} symbol(s) have not ticked in >15s`;
-            }
-        }
         function updateMarketMatrix(globalState) {
             const tableBody = document.getElementById('matrix-body');
 
@@ -1701,91 +1591,6 @@
                 }
             }
         }
-        // --- Phase 9: Asynchronous Alerting Matrix ---
-        function toggleAlertTray() {
-            const tray = document.getElementById('alert-tray');
-            tray.classList.toggle('hidden');
-            if (!tray.classList.contains('hidden')) {
-                fetchAlertHistory();
-            }
-        }
-        async function fetchUnreadCount() {
-            try {
-                const res = await fetch(`${apiBase}/api/alerts/unread`);
-                const data = await res.json();
-                const badge = document.getElementById('alert-badge');
-                if (data.count > 0) {
-                    badge.innerText = data.count > 99 ? '99+' : data.count;
-                    badge.classList.remove('hidden');
-                } else {
-                    badge.classList.add('hidden');
-                }
-            } catch (e) { console.error("Poll unread alerts error", e); }
-        }
-        async function fetchAlertHistory() {
-            try {
-                const res = await fetch(`${apiBase}/api/alerts/history`);
-                const data = await res.json();
-                const trayBody = document.getElementById('alert-tray-body');
-                trayBody.innerHTML = '';
-
-                if (!data.alerts || data.alerts.length === 0) {
-                    trayBody.innerHTML = `<div class="text-center text-xs text-slate-500 p-4">No alerts right now.</div>`;
-                    return;
-                }
-
-                data.alerts.forEach(alert => {
-                    const isUnread = !alert.read;
-                    const dot = isUnread ? `<div class="w-2 h-2 rounded-full bg-rose-500 mt-1"></div>` : '';
-                    const timeStr = new Date(alert.timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-                    const el = document.createElement('div');
-                    el.className = `p-3 rounded-md cursor-pointer transition-colors border ${isUnread ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : 'bg-slate-900/50 border-transparent hover:bg-slate-800'}`;
-                    el.onclick = () => openAlertModal(alert.id, alert.symbol);
-                    el.innerHTML = `
-                        <div class="flex justify-between items-start">
-                            <div class="flex gap-2">
-                                ${dot}
-                                <div>
-                                    <h5 class="text-xs font-bold ${alert.verdict.includes('Buy') ? 'text-emerald-400' : 'text-rose-400'}">${alert.symbol}</h5>
-                                    <p class="text-[10px] text-slate-300 mt-1">${alert.verdict} <span class="text-slate-500">(Score: ${alert.score})</span></p>
-                                </div>
-                            </div>
-                            <span class="text-[9px] text-slate-500 whitespace-nowrap">${timeStr}</span>
-                        </div>
-                    `;
-                    trayBody.appendChild(el);
-                });
-            } catch (e) { console.error("Fetch alert history error", e); }
-        }
-        async function openAlertModal(alertId, symbol) {
-            document.getElementById('alert-tray').classList.add('hidden');
-            try {
-                // Mark as read
-                await fetch(`${apiBase}/api/alerts/mark-read/${alertId}`, { method: 'POST' });
-                fetchUnreadCount(); // update badge
-
-                // Lookup token from global state if we can
-                let token = null;
-                for (const t in window.latestGlobalState) {
-                    const p = window.latestGlobalState[t];
-                    if (p.symbol === symbol || (p.symbol && p.symbol.split('-')[0] === symbol)) {
-                        token = t; break;
-                    }
-                }
-
-                if (token) {
-                    openJsonModal(token); // This will fetch the latest report too!
-                } else {
-                    alert("Could not locate active stream for symbol: " + symbol);
-                }
-            } catch (e) { console.error("Open alert error", e); }
-        }
-        // Start Alert Poller
-        setInterval(fetchUnreadCount, 10000);
-        setTimeout(fetchUnreadCount, 1000);
-        // Initialize WebSocket connection
-        connect();
     </script>
     <!-- Ledger Execution Modal -->
     <div id="ledger-modal"
@@ -2215,61 +2020,12 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
             renderWatchlist();
         }
         let activeWatchlistStream = null;
-        function switchTab(tabId) {
-            try {
-                const tabDashboard = document.getElementById('tab-dashboard');
-                const tabDiscovery = document.getElementById('tab-screener');
-                const tabLiveAction = document.getElementById('tab-live-action');
-                const btnDashboard = document.getElementById('tab-btn-dashboard');
-                const btnDiscovery = document.getElementById('tab-btn-screener');
-                const btnLiveAction = document.getElementById('tab-btn-live-action');
-                const tabPerformance = document.getElementById('tab-performance');
-                const btnPerformance = document.getElementById('tab-btn-performance');
-                if (tabPerformance) { tabPerformance.classList.add('hidden'); tabPerformance.classList.remove('block'); }
-                if (btnPerformance) btnPerformance.className = "px-4 py-1.5 text-xs font-bold rounded-md text-slate-400 hover:text-slate-200 transition-all border border-transparent";
-                if (tabDashboard) {
-                    tabDashboard.classList.add('hidden');
-                    tabDashboard.classList.remove('block');
-                }
-                if (tabDiscovery) {
-                    tabDiscovery.classList.add('hidden');
-                    tabDiscovery.classList.remove('block');
-                }
-                if (tabLiveAction) {
-                    tabLiveAction.classList.add('hidden');
-                    tabLiveAction.classList.remove('block');
-                }
-                if (btnDashboard) {
-                    btnDashboard.className = "px-4 py-1.5 text-xs font-bold rounded-md text-slate-400 hover:text-slate-200 transition-all border border-transparent";
-                }
-                if (btnDiscovery) {
-                    btnDiscovery.className = "px-4 py-1.5 text-xs font-bold rounded-md text-slate-400 hover:text-slate-200 transition-all border border-transparent";
-                }
-                if (btnLiveAction) {
-                    btnLiveAction.className = "px-4 py-1.5 text-xs font-bold rounded-md text-slate-400 hover:text-slate-200 transition-all border border-transparent";
-                }
-
-                const targetTab = document.getElementById(`tab-${tabId}`);
-                if (targetTab) {
-                    targetTab.classList.remove('hidden');
-                    targetTab.classList.add('block');
-                }
-
-                const targetBtn = document.getElementById(`tab-btn-${tabId}`);
-                if (targetBtn) {
-                    targetBtn.className = "px-4 py-1.5 text-xs font-bold rounded-md bg-slate-800 text-white shadow transition-all border border-slate-700/50";
-                }
-                window.dispatchEvent(new CustomEvent('qf:tab', { detail: tabId }));
-                // Polling control
-                if (tabId === 'live-action') {
-                    if (typeof startLiveActionPolling === 'function') startLiveActionPolling();
-                } else {
-                    if (typeof stopLiveActionPolling === 'function') stopLiveActionPolling();
-                }
-            } catch (err) {
-                console.error("Error in switchTab: ", err);
-            }
-        }
+        // The shell shows and hides the tabs; the old Live Action cards poll
+        // only while Signals is on screen.
+        window.addEventListener('qf:tab', (e) => {
+            if (e.detail === 'signals') startLiveActionPolling();
+            else stopLiveActionPolling();
+        });
         function fmtNum(v, d) {
             return (typeof v === 'number' && isFinite(v)) ? v.toFixed(d) : 'n/a';
         }
@@ -2832,7 +2588,7 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
             if (window.liveActionPollInterval) clearInterval(window.liveActionPollInterval);
         }
         async function pollLiveActionCards() {
-            if (document.getElementById('tab-live-action').classList.contains('hidden')) return;
+            if (document.getElementById('tab-signals').classList.contains('hidden')) return;
             try {
                 const res = await fetch(`${apiBase}/api/reasoning/all_reports`);
                 const data = await res.json();
@@ -3256,6 +3012,11 @@ Output NOTHING except a raw, valid JSON object that can be directly passed to \`
         });
 
     </script>
+    <!-- Overlays open over the current tab (#inspect/SAIL, #settings) -->
+    <div id="overlay-inspect"></div>
+    <div id="overlay-settings"></div>
+    <nav id="bottom-bar" class="qf-bottom" aria-label="Main"></nav>
+    <script type="module" src="/static/shell/main.js"></script>
     <script type="module" src="/static/performance/main.js"></script>
 </body>
 

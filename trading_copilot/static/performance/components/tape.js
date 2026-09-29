@@ -4,11 +4,11 @@
 // The time axis runs over trading time only (each session day is 09:15 to
 // 15:30), so nights and weekends don't stretch the curve.
 
-import { html, render } from '../core/dom.js';
-import { MINUS, dayMonth, hm, inr, istDay, istMinutes, r as fmtR, trim } from '../core/format.js';
-import { SETTING, exitLabel, settingValue, sideLabel } from '../core/labels.js';
-import { f1, hline, linear, stepPath, vline } from '../charts/svg.js';
-import { whenChanged } from '../core/store.js';
+import { html, render } from '../../shared/dom.js';
+import { MINUS, dayMonth, hm, inr, istDay, istMinutes, r as fmtR, trim } from '../../shared/format.js';
+import { SETTING, exitLabel, settingValue, sideLabel } from '../../shared/labels.js';
+import { f1, hline, linear, stepPath, vline } from '../../shared/charts/svg.js';
+import { whenChanged } from '../../shared/store.js';
 
 const OPEN_MIN = 555;        // 09:15
 const SESSION_MIN = 375;     // to 15:30
