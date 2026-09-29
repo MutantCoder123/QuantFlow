@@ -661,6 +661,31 @@ async def get_latest_report(symbol: str):
     is_active = ReasoningEngine.llm_enabled.get(norm, False)
     return {"status": "success", "report": report, "is_active": is_active}
 
+def _state_for(symbol: str):
+    """(instrument key, live state) for a bare symbol, or (None, None)."""
+    want = ReasoningEngine._normalize_symbol(symbol).upper()
+    for key, st in list(local_active_states.items()):
+        if ReasoningEngine._normalize_symbol(key).upper() == want:
+            return key, st
+    return None, None
+
+
+@app.get("/api/stock/{symbol}/bars")
+async def stock_bars(symbol: str, n: int = 90):
+    """Today's 5-minute bars for the Inspector's chart, with the session
+    VWAP per bar, and the levels drawn over them (views.stock)."""
+    from views.stock import levels, session_bars
+    key, st = _state_for(symbol)
+    if key is None:
+        return {"status": "error", "message": f"{symbol} is not on the live watchlist."}
+    from urllib.parse import quote
+    raw = await proxy_get(8001, f"/api/bars?token={quote(key)}&n={max(1, min(int(n), 400))}", timeout=5)
+    if raw.get("status") == "error":
+        return raw
+    return {"status": "success", "symbol": ReasoningEngine._normalize_symbol(key),
+            **session_bars(raw.get("bars") or []), "levels": levels(st)}
+
+
 class NewsInstantRequest(BaseModel): model: str = DEFAULT_MODEL
 class NewsStartRequest(BaseModel): interval: int = 120; model: str = DEFAULT_MODEL
 

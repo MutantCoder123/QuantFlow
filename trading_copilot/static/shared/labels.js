@@ -46,6 +46,55 @@ export function verdictTone(v) {
 }
 export const directiveTone = (d) => (d === 'EXECUTE_LONG' ? 'profit' : d === 'EXECUTE_SHORT' ? 'loss' : 'plain');
 
+// Why the math or a gate stopped an idea (math_rejection, Risk_Rejection,
+// paper REJECT reasons, core/risk.py). Codes carrying a value (STALE_DATA_20s,
+// ENTRY_CUTOFF_1345, CLUSTER_LIMIT_POWER_CAPGOODS, REGIME_DAMPENED_LUNCH_CHOP)
+// are read by their prefix.
+const REJECTION = {
+  NEUTRAL_CONVICTION: 'No clear direction',
+  INSUFFICIENT_REWARD_RISK: 'Reward too small for the risk',
+  NO_GEOMETRY: 'No entry, stop and target',
+  NO_FRESH_PRICE: 'No fresh price',
+  PRICE_BEYOND_GEOMETRY: 'Price already past the plan',
+  NO_ADV: 'No liquidity figure',
+  ALREADY_OPEN: 'Already open',
+  MANUAL_POSITION_HELD: 'You hold it manually',
+  AFTER_ENTRY_CUTOFF: 'After the entry cutoff',
+  ENGINE_PAUSED: 'Paper engine paused',
+  NOT_AN_ENTRY: 'Not an entry',
+  DEGENERATE_STOP: 'Stop at the entry',
+  DAILY_LOSS_LIMIT: 'Daily loss limit',
+  SIZE_ROUNDS_TO_ZERO: 'Rounds to zero shares',
+  OPEN_VALUE_LIMIT: 'Open positions at their cap',
+  SIZING_ERROR: 'Sizing failed',
+  UNKNOWN: 'Unknown reason',
+};
+export function rejectionLabel(code) {
+  if (!code) return '';
+  const c = String(code);
+  if (REJECTION[c]) return REJECTION[c];
+  let m = c.match(/^STALE_DATA_(\d+)s$/);
+  if (m) return `Price ${m[1]} s old`;
+  m = c.match(/^ENTRY_CUTOFF_(\d{2})(\d{2})$/);
+  if (m) return `After the ${m[1]}:${m[2]} entry cutoff`;
+  m = c.match(/^CLUSTER_LIMIT_(.+)$/);
+  if (m) return `Sector limit (${sentenceCase(m[1]).toLowerCase()})`;
+  m = c.match(/^REGIME_DAMPENED_(.+)$/);
+  if (m) return `Held back in ${sentenceCase(m[1]).toLowerCase()}`;
+  return sentenceCase(c);
+}
+
+// latest_reports' Status_Tag: where the idea is with the AI.
+const STATUS = {
+  LLM_ANALYZED: ['AI reviewed', 'ok'],
+  PENDING_LLM: ['AI reviewing', 'wait'],
+  STABILIZING: ['Settling', 'wait'],
+  RANK_GATED: ['Below the top-5 cut', 'off'],
+  'REQUIRED LLM ANALYZE': ['AI review off', 'off'],
+};
+export const statusLabel = (tag) => (STATUS[tag] ? STATUS[tag][0] : '');
+export const statusTone = (tag) => (STATUS[tag] ? STATUS[tag][1] : 'off');
+
 export const SETTING = {
   capital: 'Capital',
   slippage_pct: 'Slippage per leg',

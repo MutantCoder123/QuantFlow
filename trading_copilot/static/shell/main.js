@@ -14,18 +14,22 @@ import { createStore } from '../shared/store.js';
 import { connectSocket } from './socket.js';
 import { DEFAULT_TAB, TABS, hashForInspect, hashForSettings, hashForTab, parseHash, tabFromOld } from './router.js';
 import * as appBar from './app-bar.js';
+import * as prompt from '../shared/prompt.js';
+import { syncAll } from '../shared/positions.js';
 
 const SECTIONS = Object.fromEntries(TABS.map((t) => [t.id, `tab-${t.id}`]));
 const LABEL = Object.fromEntries(TABS.map((t) => [t.id, t.label]));
 
 // A tab listed here is rendered by its module; the others are still the old markup.
 const TAB_MODULES = {};
-const OVERLAYS = {};
+const OVERLAYS = {
+  inspect: () => import('../inspector/index.js'),
+};
 
 const first = parseHash(location.hash);
 const store = createStore({
   tab: first.kind === 'tab' ? first.tab : DEFAULT_TAB,
-  inspect: null, settings: null,
+  inspect: null, inspectOpts: null, settings: null,
   now: Date.now() / 1000, live: null, liveAt: null, connected: null, alertsUnread: 0,
 });
 connectSocket(store);
@@ -36,10 +40,13 @@ let lastTab = null;        // the tab under an overlay, to return to on close
 const actions = {
   store,
   go(tab) { location.hash = hashForTab(tab); },
-  inspect(symbol) {
+  /** Open a stock in the Inspector; opts {tab: 'now'|'ai'|'news'|'raw', log: true} pick where it opens. */
+  inspect(symbol, opts = null) {
     if (!symbol) return;
-    if (OVERLAYS.inspect || !globalThis.openJsonModal) location.hash = hashForInspect(symbol);
-    else globalThis.openJsonModal(symbol);          // until the Inspector ships (Phase 2)
+    const sym = String(symbol).split('|').pop().split('-')[0].toUpperCase();
+    store.set({ inspectOpts: opts ? { ...opts, at: Date.now() } : null });
+    if (store.get().inspect === sym) return;        // already open: the options above re-aim it
+    location.hash = hashForInspect(sym);
   },
   openSettings(section) { location.hash = hashForSettings(section); },
   /** Close whatever overlay is open and return to the tab beneath it. */
@@ -113,7 +120,9 @@ store.subscribe((s, changed) => {
 setInterval(() => store.set({ now: Date.now() / 1000 }), 1000);
 
 // ------------------------------------------------------------- globals
-window.QF = { store, actions };
+window.QF = { store, actions, prompt };
+prompt.loadPrompt();        // migrates a stored prompt once, as the old page did at load
+syncAll();                  // the server forgets manual positions on restart; resend them
 // The old page's tab switch, for anything that still calls it.
 window.switchTab = (id) => actions.go(tabFromOld(id));
 

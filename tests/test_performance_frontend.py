@@ -128,13 +128,16 @@ def test_the_market_matrix_placeholder_is_always_removable():
     assert '<tr id="loading-row">' in empty_branch
 
 
-def test_the_page_prompt_names_no_5_year_fields_the_payload_lacks():
+def test_the_prompt_names_no_5_year_fields_the_payload_lacks():
     """The manual-analysis prompt told the model to weigh a 5-year POC and a
     5-year alpha that the payload never carries (2026-09-29). Block 3 is the
-    20-day structural block; the 5-year data is a future goal (dev-notes)."""
-    src = (Path(__file__).resolve().parents[1] / "trading_copilot" / "templates" / "index.html").read_text(encoding="utf-8")
-    start = src.index("const DEFAULT_SYSTEM_PROMPT = `")
+    20-day structural block; the 5-year data is a future goal (dev-notes).
+    The prompt now lives in shared/prompt.js, not the page."""
+    src = (STATIC / "shared" / "prompt.js").read_text(encoding="utf-8")
+    start = src.index("export const DEFAULT_PROMPT = `")
     prompt = src[start:src.index("`;", start)]
     for gone in ("structural_liquidity", "regime_confluence", "5-year", "_5y"):
         assert gone not in prompt
     assert "3_local_structural_edge_20d" in prompt
+    page = client.get("/").text
+    assert "DEFAULT_SYSTEM_PROMPT" not in page
