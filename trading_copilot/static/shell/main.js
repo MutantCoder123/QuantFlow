@@ -21,7 +21,9 @@ const SECTIONS = Object.fromEntries(TABS.map((t) => [t.id, `tab-${t.id}`]));
 const LABEL = Object.fromEntries(TABS.map((t) => [t.id, t.label]));
 
 // A tab listed here is rendered by its module; the others are still the old markup.
-const TAB_MODULES = {};
+const TAB_MODULES = {
+  market: () => import('../market/index.js'),
+};
 const OVERLAYS = {
   inspect: () => import('../inspector/index.js'),
 };

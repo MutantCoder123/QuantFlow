@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="/static/shared/tokens.css">
     <link rel="stylesheet" href="/static/shared/base.css">
     <link rel="stylesheet" href="/static/inspector/inspector.css">
+    <link rel="stylesheet" href="/static/market/market.css">
     <!-- Performance tab (static/performance/, ES modules, no build step) -->
     <link rel="stylesheet" href="/static/performance/performance.css">
     <style>
@@ -42,120 +43,18 @@
     <main id="main" class="qf-main">
 
         <!-- DASHBOARD TAB -->
-        <div id="tab-market" class="qf-legacy space-y-6">
-            <!-- Section: Macro Weather -->
-            <section class="space-y-3">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-4">
-                        <h2
-                            class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z">
-                                </path>
-                            </svg>
-                            Macro Weather Monitor
-                        </h2>
+        <!-- MARKET TAB: rendered by /static/market/index.js, which prepends its page here.
+             Below it, until the Settings sheet ships, the old prompt, watchlist and news controls. -->
+        <section id="tab-market" aria-label="Market">
+            <div class="qf-legacy space-y-4" id="market-legacy">
+                <div class="flex items-center gap-4">
                         <button id="btn-settings"
                             class="bg-slate-700 hover:bg-slate-600 text-white text-[10px] uppercase font-bold py-1 px-3 rounded shadow transition-colors border border-slate-500/30">⚙️
                             Prompt Settings</button>
                         <button id="btn-edit-watchlist" onclick="openWatchlistModal()"
                             class="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] uppercase font-bold py-1 px-3 rounded shadow transition-colors border border-emerald-400/30">📋
                             Edit Watchlist</button>
-                    </div>
-                    <span id="macro-date" class="text-xs text-slate-500 font-mono-custom">Date: N/A</span>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-                    <!-- Card 1: Put Call Ratio -->
-                    <div
-                        class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 backdrop-blur-sm flex flex-col justify-between shadow-md">
-                        <div class="flex justify-between items-start">
-                            <span class="text-xs font-semibold text-slate-400">Put-Call Ratio (PCR)</span>
-                            <span id="pcr-badge"
-                                class="px-2 py-0.5 text-[10px] font-bold rounded bg-slate-800 text-slate-400 border border-slate-700">Neutral</span>
-                        </div>
-                        <div class="mt-2 flex items-baseline gap-2">
-                            <span id="pcr-val" class="text-3xl font-extrabold font-mono-custom text-white">1.0000</span>
-                            <span class="text-[10px] text-slate-500">Nifty 50</span>
-                        </div>
-                    </div>
-                    <!-- Card 2: FII Net Flow -->
-                    <div
-                        class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 backdrop-blur-sm flex flex-col justify-between shadow-md">
-                        <div class="flex justify-between items-start">
-                            <span class="text-xs font-semibold text-slate-400">FII Cash Net Flow</span>
-                            <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z">
-                                </path>
-                            </svg>
-                        </div>
-                        <div class="mt-2">
-                            <span id="fii-val" class="text-2xl font-bold font-mono-custom text-slate-300">₹0 Cr</span>
-                            <p class="text-[10px] text-slate-500 mt-0.5">NSE Cash Market Net</p>
-                        </div>
-                    </div>
-                    <!-- Card 3: DII Net Flow -->
-                    <div
-                        class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 backdrop-blur-sm flex flex-col justify-between shadow-md">
-                        <div class="flex justify-between items-start">
-                            <span class="text-xs font-semibold text-slate-400">DII Cash Net Flow</span>
-                            <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
-                                </path>
-                            </svg>
-                        </div>
-                        <div class="mt-2">
-                            <span id="dii-val" class="text-2xl font-bold font-mono-custom text-slate-300">₹0 Cr</span>
-                            <p class="text-[10px] text-slate-500 mt-0.5">Domestic Cash Net</p>
-                        </div>
-                    </div>
-                    <!-- Card 4: Net Market Direction -->
-                    <div
-                        class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 backdrop-blur-sm flex flex-col justify-between shadow-md">
-                        <div class="flex justify-between items-start">
-                            <span class="text-xs font-semibold text-slate-400">Net Inst Flow</span>
-                            <span class="w-2 h-2 rounded-full bg-slate-600"></span>
-                        </div>
-                        <div class="mt-2">
-                            <span id="net-direction" class="text-sm font-semibold text-slate-300">Net Flow: ₹0.00 Cr
-                                (Neutral)</span>
-                            <p class="text-[10px] text-slate-500 mt-1.5">Combined FII + DII Cash</p>
-                        </div>
-                    </div>
-                    <!-- Card 5: Market Breadth -->
-                    <div
-                        class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 backdrop-blur-sm flex flex-col justify-between shadow-md">
-                        <div class="flex justify-between items-start">
-                            <span class="text-xs font-semibold text-slate-400">Market Breadth</span>
-                            <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
-                            </svg>
-                        </div>
-                        <div class="mt-2">
-                            <span id="breadth-val" class="text-2xl font-bold font-mono-custom text-slate-300">--</span>
-                            <!-- Task 5.6: the subtitle names the real source. It said
-                                 "NSE A/D Ratio" while showing a watchlist-only proxy. -->
-                            <p id="breadth-source" class="text-[10px] text-slate-500 mt-0.5">A/D Ratio</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-            <!-- Global Market Context Full Width Card -->
-            <div class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 backdrop-blur-sm shadow-md mb-6">
-                <div class="flex items-center gap-3 mb-2">
-                    <span class="text-xs font-semibold text-slate-400">Global Market Context (AI Summarized)</span>
-                    <span id="macro-sentiment-badge"
-                        class="px-2 py-0.5 text-[10px] font-bold rounded bg-slate-800 text-slate-400 border border-slate-700">Waiting
-                        for data...</span>
-                    <span id="macro-time" class="text-[10px] text-slate-500"></span>
-                </div>
-                <p id="macro-summary" class="text-sm text-slate-300 leading-relaxed italic">
-                    The macro engine is currently fetching and compiling the latest global market conditions...
-                </p>
-            </div>
             <!-- Section: News Engine Control Panel -->
             <section class="bg-slate-900 border border-slate-700 rounded-lg p-4 shadow-lg mb-6">
                 <h4 class="text-sm font-bold text-slate-300 mb-3 uppercase tracking-wider flex items-center gap-2">
@@ -206,82 +105,8 @@
                     </div>
                 </div>
             </section>
-            <!-- Section: Live Market Matrix -->
-            <section class="space-y-3">
-                <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
-                        </path>
-                    </svg>
-                    Real-Time Market Matrix
-                </h2>
-                <div
-                    class="bg-slate-900/60 border border-slate-800/80 rounded-2xl overflow-hidden backdrop-blur-md shadow-xl">
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-slate-800/50">
-                            <thead class="bg-slate-950/80">
-                                <tr>
-                                    <th scope="col"
-                                        class="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">
-                                        Ticker</th>
-                                    <th scope="col"
-                                        class="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">
-                                        LTP</th>
-                                    <th scope="col"
-                                        class="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">
-                                        Imbalance (OBI)</th>
-                                    <th scope="col"
-                                        class="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">
-                                        Delta (CVD)</th>
-                                    <th scope="col"
-                                        class="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">
-                                        POC %</th>
-                                    <th scope="col"
-                                        class="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">
-                                        RSI (14)</th>
-                                    <th scope="col"
-                                        class="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">
-                                        PCR</th>
-                                    <th scope="col"
-                                        class="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">
-                                        IVR</th>
-                                    <th scope="col"
-                                        class="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">
-                                        Max Pain</th>
-                                    <th scope="col"
-                                        class="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">
-                                        RS</th>
-                                    <th scope="col"
-                                        class="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">
-                                        Matrix</th>
-                                    <th scope="col"
-                                        class="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">
-                                        Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="matrix-body" class="divide-y divide-slate-800/40">
-                                <!-- Loading / Empty state -->
-                                <tr id="loading-row">
-                                    <td colspan="12" class="px-6 py-16 text-center text-slate-500">
-                                        <svg class="mx-auto h-8 w-8 animate-spin text-indigo-500 mb-3" fill="none"
-                                            viewBox="0 0 24 24">
-                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
-                                                stroke-width="4"></circle>
-                                            <path class="opacity-75" fill="currentColor"
-                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-                                            </path>
-                                        </svg>
-                                        Connecting to real-time streams...
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-        </div> <!-- End of tab-market -->
+            </div>
+        </section>
         <!-- REVIEW TAB (the old dashboard panels, until Phase 6 rebuilds them) -->
         <div id="tab-review" class="hidden qf-legacy space-y-6">
             <!-- RELIABILITY VIEW (Task 4.4) -->
@@ -472,112 +297,11 @@
         // page read it here until their replacements ship.
         const apiBase = '';
         window.latestGlobalState = {};
+        // The old Live Action cards (Signals, until Phase 4) read the latest stock states.
         function onLivePayload(payload) {
-                updateMacroWeather(payload.macro_state);
-                updateMarketMatrix(payload.global_state);
-                // 4. Update Market Breadth
-                if (payload.macro_state && payload.macro_state.ad_ratio !== undefined) {
-                    const adRatio = parseFloat(payload.macro_state.ad_ratio);
-                    const breadthElem = document.getElementById('breadth-val');
-                    breadthElem.innerText = adRatio.toFixed(2);
-                    breadthElem.className = adRatio >= 1.0 ? 'text-2xl font-bold font-mono-custom text-emerald-400' : 'text-2xl font-bold font-mono-custom text-rose-400';
-                    // A proxy must never be shown under an NSE-wide label (Task 5.6).
-                    const srcElem = document.getElementById('breadth-source');
-                    if (srcElem) {
-                        const real = payload.macro_state.ad_ratio_source === 'NIFTY_50';
-                        srcElem.innerText = real ? 'NIFTY 50 A/D Ratio' : 'Watchlist A/D (proxy)';
-                        srcElem.className = real
-                            ? 'text-[10px] text-slate-500 mt-0.5'
-                            : 'text-[10px] text-amber-500/80 mt-0.5';
-                        srcElem.title = real
-                            ? 'Advances/declines across the NIFTY 50, from NSE allIndices.'
-                            : 'NSE-wide breadth unavailable or stale — showing advances/declines over the active watchlist only.';
-                    }
-                }
-
-                // 5. Update Global Market Context -- render truthfully, never fabricate.
-                // Previously a hardcoded BULLISH narrative filled this panel whenever the
-                // real context was absent (news_feed not running, GEMINI_API_KEY missing,
-                // or simply the first ~30 minutes of a session before the macro news loop
-                // completes its first cycle) -- stamped with the current timestamp, making
-                // it indistinguishable from a genuine Gemini-generated macro read.
-                {
-                    const ctx = payload.global_market_context;
-                    const badge = document.getElementById('macro-sentiment-badge');
-                    const summary = document.getElementById('macro-summary');
-                    const timeElem = document.getElementById('macro-time');
-
-                    if (!ctx) {
-                        if (summary) summary.textContent =
-                            'Macro context unavailable — news_feed (:8003) has not reported yet.';
-                        if (badge) {
-                            badge.textContent = 'UNAVAILABLE';
-                            badge.className = 'px-2 py-0.5 text-[10px] font-bold rounded border ' +
-                                              'bg-slate-800 text-slate-500 border-slate-700';
-                        }
-                        if (timeElem) timeElem.textContent = '';
-                    } else {
-                        if (summary) summary.textContent = ctx.summary || 'No summary available.';
-                        if (badge) badge.textContent = ctx.sentiment || 'NEUTRAL';
-                        if (ctx.timestamp && timeElem) {
-                            timeElem.textContent = 'Updated: ' +
-                                new Date(ctx.timestamp * 1000).toLocaleTimeString();
-                        }
-                        let bgClass = 'bg-slate-800', textClass = 'text-slate-400', borderClass = 'border-slate-700';
-                        if (ctx.sentiment === 'BULLISH') {
-                            bgClass = 'bg-emerald-500/20'; textClass = 'text-emerald-400'; borderClass = 'border-emerald-500/30';
-                        } else if (ctx.sentiment === 'BEARISH') {
-                            bgClass = 'bg-rose-500/20'; textClass = 'text-rose-400'; borderClass = 'border-rose-500/30';
-                        } else if (ctx.sentiment === 'MIXED') {
-                            bgClass = 'bg-purple-500/20'; textClass = 'text-purple-400'; borderClass = 'border-purple-500/30';
-                        }
-                        if (badge) badge.className = `px-2 py-0.5 text-[10px] font-bold rounded border ${bgClass} ${textClass} ${borderClass}`;
-                    }
-                }
-
+            window.latestGlobalState = (payload && payload.global_state) || {};
         }
         window.addEventListener('qf:ws', (e) => onLivePayload(e.detail));
-        function updateMacroWeather(macro) {
-            if (!macro) return;
-
-            // 1. Update PCR
-            const pcrVal = parseFloat(macro.pcr || 1.0);
-            document.getElementById('pcr-val').innerText = pcrVal.toFixed(4);
-            const pcrBadge = document.getElementById('pcr-badge');
-            if (pcrVal > 1.3) {
-                pcrBadge.className = 'px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
-                pcrBadge.innerText = 'Bullish';
-            } else if (pcrVal < 0.7) {
-                pcrBadge.className = 'px-2 py-0.5 text-[10px] font-bold rounded bg-rose-500/20 text-rose-400 border border-rose-500/30';
-                pcrBadge.innerText = 'Bearish';
-            } else {
-                pcrBadge.className = 'px-2 py-0.5 text-[10px] font-bold rounded bg-slate-800 text-slate-400 border border-slate-700';
-                pcrBadge.innerText = 'Neutral';
-            }
-            // 2. Update FII/DII
-            const fiiNet = parseFloat(macro.fii_net || 0);
-            const diiNet = parseFloat(macro.dii_net || 0);
-            const netTotal = fiiNet + diiNet;
-            const dateStr = macro.date || 'N/A';
-            document.getElementById('fii-val').innerText = `₹${fiiNet.toLocaleString('en-IN')} Cr`;
-            document.getElementById('fii-val').className = fiiNet >= 0 ? 'text-2xl font-bold font-mono-custom text-emerald-400' : 'text-2xl font-bold font-mono-custom text-rose-400';
-            document.getElementById('dii-val').innerText = `₹${diiNet.toLocaleString('en-IN')} Cr`;
-            document.getElementById('dii-val').className = diiNet >= 0 ? 'text-2xl font-bold font-mono-custom text-emerald-400' : 'text-2xl font-bold font-mono-custom text-rose-400';
-            // 3. Update Net Total
-            const netDir = document.getElementById('net-direction');
-            if (netTotal > 0) {
-                netDir.className = 'text-sm font-semibold text-emerald-400';
-                netDir.innerText = `Net Flow: +₹${netTotal.toFixed(2)} Cr (Net Buyer)`;
-            } else if (netTotal < 0) {
-                netDir.className = 'text-sm font-semibold text-rose-400';
-                netDir.innerText = `Net Flow: -₹${Math.abs(netTotal).toFixed(2)} Cr (Net Seller)`;
-            } else {
-                netDir.className = 'text-sm font-semibold text-slate-400';
-                netDir.innerText = `Net Flow: ₹0.00 Cr (Neutral)`;
-            }
-
-            document.getElementById('macro-date').innerText = `Date: ${dateStr}`;
-        }
         // Task 4.4: reliability view. Renders the realised win rate per
         // |composite| decile against the diagonal a calibrated score would sit
         // on, and says plainly when the curve is flat (= no predictive power).
@@ -812,199 +536,6 @@
             }
         }
 
-        function updateMarketMatrix(globalState) {
-            const tableBody = document.getElementById('matrix-body');
-
-            if (!globalState || Object.keys(globalState).length === 0) {
-                // Same id as the initial row, so the first real update removes
-                // it. Without it, an empty frame (e.g. a feed restart) left the
-                // spinner above the live rows for good.
-                tableBody.innerHTML = `
-                    <tr id="loading-row">
-                        <td colspan="12" class="px-6 py-16 text-center text-slate-500">
-                            <svg class="mx-auto h-8 w-8 animate-spin text-emerald-500 mb-3" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Connected! Waiting for market data ticks...
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-
-            // Cache the state globally for the modal
-            window.latestGlobalState = globalState;
-            // True DOM Diffing: Do NOT clear tableBody.innerHTML
-            // Target and destroy the initial loading row if it exists
-            const loadingRow = document.getElementById('loading-row');
-            if (loadingRow) loadingRow.remove();
-            const tokens = Object.keys(globalState).sort();
-
-            tokens.forEach(token => {
-                const payload = globalState[token];
-                const symbol = payload.symbol || token.split('|').pop();
-                const ltp = parseFloat(payload.ltp || 0).toFixed(2);
-
-                // --- 1. OBI Visual Gauge Logic ---
-                const rawObi = parseFloat(payload.obi || 0);
-                const obiPct = Math.min(100, Math.abs(rawObi) * 100);
-                let obiBarHTML = '';
-                if (rawObi > 0) {
-                    obiBarHTML = `
-                        <div class="relative w-full h-1.5 bg-slate-800 rounded-full overflow-hidden flex items-center justify-center mt-1">
-                            <div class="absolute w-px h-full bg-slate-600 z-10"></div>
-                            <div class="absolute left-1/2 h-full bg-emerald-500 rounded-r shadow-[0_0_5px_#10b981]" style="width: ${obiPct / 2}%"></div>
-                        </div>
-                        <div class="text-[10px] text-emerald-400 text-center mt-0.5">${rawObi.toFixed(4)}</div>
-                    `;
-                } else if (rawObi < 0) {
-                    obiBarHTML = `
-                        <div class="relative w-full h-1.5 bg-slate-800 rounded-full overflow-hidden flex items-center justify-center mt-1">
-                            <div class="absolute w-px h-full bg-slate-600 z-10"></div>
-                            <div class="absolute right-1/2 h-full bg-rose-500 rounded-l shadow-[0_0_5px_#f43f5e]" style="width: ${obiPct / 2}%"></div>
-                        </div>
-                        <div class="text-[10px] text-rose-400 text-center mt-0.5">${rawObi.toFixed(4)}</div>
-                    `;
-                } else {
-                    obiBarHTML = `
-                        <div class="relative w-full h-1.5 bg-slate-800 rounded-full overflow-hidden flex items-center justify-center mt-1">
-                            <div class="absolute w-px h-full bg-slate-600 z-10"></div>
-                        </div>
-                        <div class="text-[10px] text-slate-500 text-center mt-0.5">0.0000</div>
-                    `;
-                }
-                // --- 2. CVD Pill Badge ---
-                const cvd = parseInt(payload.cvd || 0);
-                let cvdBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700">${cvd.toLocaleString()}</span>`;
-                if (cvd > 0) {
-                    cvdBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">${cvd.toLocaleString()}</span>`;
-                } else if (cvd < -10000) {
-                    cvdBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/50 animate-pulse">${cvd.toLocaleString()}</span>`;
-                } else if (cvd < 0) {
-                    cvdBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/30">${cvd.toLocaleString()}</span>`;
-                }
-                // --- 3. POC Pill Badge ---
-                const rawPocDist = parseFloat(payload.distance_to_poc_pct || 0);
-                let pocBadge = `<span class="text-slate-300 text-xs">${rawPocDist.toFixed(3)}%</span>`;
-                if (Math.abs(rawPocDist) < 0.1) {
-                    pocBadge = `<span class="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-[0_0_8px_rgba(6,182,212,0.2)]">${rawPocDist.toFixed(3)}%</span>`;
-                }
-                // --- 4. RSI Progress Bar ---
-                const rawRsi = parseFloat(payload.rsi_5m || 50);
-                const rsiPct = Math.max(0, Math.min(100, rawRsi));
-                let rsiColor = 'bg-slate-500';
-                let rsiTextColor = 'text-slate-300';
-                if (rawRsi > 70) {
-                    rsiColor = 'bg-emerald-500 shadow-[0_0_8px_#10b981]';
-                    rsiTextColor = 'text-emerald-400 font-bold';
-                } else if (rawRsi < 30) {
-                    rsiColor = 'bg-rose-500 shadow-[0_0_8px_#f43f5e]';
-                    rsiTextColor = 'text-rose-400 font-bold';
-                }
-                const rsiBarHTML = `
-                    <div class="flex flex-col gap-1.5 items-end w-full px-2">
-                        <span class="text-[11px] font-mono-custom ${rsiTextColor}">${rawRsi.toFixed(2)}</span>
-                        <div class="w-full h-1.5 bg-slate-800/80 rounded-full overflow-hidden">
-                            <div class="h-full rounded-full ${rsiColor} transition-all duration-300" style="width: ${rsiPct}%"></div>
-                        </div>
-                    </div>
-                `;
-                // --- 5. Candlestick Matrix Logic ---
-                const cdls = payload.candlesticks || {};
-                let activeCdl = "None";
-                const validCdls = Object.keys(cdls).filter(k => k !== "active_patterns" && cdls[k] !== null);
-                if (validCdls.length > 0) {
-                    activeCdl = validCdls[validCdls.length - 1].replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                }
-
-                let cdlBadge = '<span class="text-slate-500 text-[11px] font-medium">None</span>';
-                if (activeCdl !== "None") {
-                    const cdlLower = activeCdl.toLowerCase();
-                    const isBullish = cdlLower.includes('bullish') || (cdlLower.includes('hammer') || cdlLower.includes('morning')) && !cdlLower.includes('evening') && !cdlLower.includes('shooting');
-                    const isBearish = cdlLower.includes('bearish') || cdlLower.includes('shooting') || cdlLower.includes('evening');
-
-                    if (isBullish) {
-                        cdlBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] uppercase font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-[0_0_8px_rgba(16,185,129,0.05)]">${activeCdl}</span>`;
-                    } else if (isBearish) {
-                        cdlBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] uppercase font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 shadow-[0_0_8px_rgba(244,63,94,0.05)]">${activeCdl}</span>`;
-                    } else {
-                        cdlBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] uppercase font-bold bg-slate-800 text-slate-300 border border-slate-700">${activeCdl}</span>`;
-                    }
-                }
-                // --- Action Button ---
-                const actionBtn = `
-                    <div class="flex flex-col gap-1.5">
-                        <button onclick="openPositionModal('${token}')" class="px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded bg-emerald-600/20 text-emerald-300 hover:bg-emerald-500/40 hover:text-white transition-colors border border-emerald-500/30 shadow">📝 Pos</button>
-                        <button onclick="openJsonModal('${token}')" class="px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded bg-indigo-600/20 text-indigo-300 hover:bg-indigo-500/40 hover:text-white transition-colors border border-indigo-500/30 shadow">🤖 Analyze</button>
-                    </div>
-                `;
-                // --- Phase 5.2: Derivatives ---
-                const stockPcr = parseFloat(payload.stock_pcr || 1.0);
-                const maxPain = payload.max_pain_price ? parseFloat(payload.max_pain_price).toFixed(2) : "N/A";
-
-                let pcrClass = 'text-slate-300';
-                if (stockPcr > 1.2) pcrClass = 'text-emerald-400 font-bold';
-                else if (stockPcr < 0.8) pcrClass = 'text-rose-400 font-bold';
-
-                const pcrBadge = `<span class="${pcrClass}">${stockPcr.toFixed(2)}</span>`;
-                const maxPainBadge = `<span class="text-cyan-400 font-bold font-mono-custom bg-cyan-950/30 px-2 py-0.5 rounded border border-cyan-500/20">${maxPain}</span>`;
-                // --- Phase 6: Statistical Alpha ---
-                const ivr = parseFloat(payload.ivr || 0.0).toFixed(2);
-                let ivrClass = 'text-slate-300';
-                if (ivr < 20) ivrClass = 'text-emerald-400 font-bold'; // Low IV
-                else if (ivr > 80) ivrClass = 'text-rose-400 font-bold'; // High IV
-                const ivrBadge = `<span class="${ivrClass}">${ivr}</span>`;
-                const compRS = parseFloat(payload.comparative_rs || 0.0).toFixed(2);
-                let rsClass = 'text-slate-300';
-                if (compRS > 0) rsClass = 'text-emerald-400 font-bold';
-                else if (compRS < 0) rsClass = 'text-rose-400 font-bold';
-                const rsBadge = `<span class="${rsClass}">${compRS}</span>`;
-                // Render Row using True DOM Diffing
-                let existingRow = document.getElementById(`row-${token}`);
-                if (existingRow) {
-                    existingRow.cells[0].innerHTML = `
-                        <span>${symbol}</span>
-                        <span class="text-[10px] text-slate-500 font-normal">Token #${token}</span>
-                    `;
-                    existingRow.cells[1].innerText = ltp;
-                    existingRow.cells[2].innerHTML = `<div class="px-2">${obiBarHTML}</div>`;
-                    existingRow.cells[3].innerHTML = cvdBadge;
-                    existingRow.cells[4].innerHTML = pocBadge;
-                    existingRow.cells[5].innerHTML = rsiBarHTML;
-                    existingRow.cells[6].innerHTML = pcrBadge;
-                    existingRow.cells[7].innerHTML = ivrBadge;
-                    existingRow.cells[8].innerHTML = maxPainBadge;
-                    existingRow.cells[9].innerHTML = rsBadge;
-                    existingRow.cells[10].innerHTML = cdlBadge;
-                    existingRow.cells[11].innerHTML = actionBtn;
-                } else {
-                    const tr = document.createElement('tr');
-                    tr.id = `row-${token}`;
-                    tr.className = 'border-b border-slate-800/40 hover:bg-slate-800/25 transition-colors duration-150';
-                    tr.innerHTML = `
-                        <td class="px-5 py-4 whitespace-nowrap text-sm font-semibold text-indigo-400 flex flex-col">
-                            <span>${symbol}</span>
-                            <span class="text-[10px] text-slate-500 font-normal">Token #${token}</span>
-                        </td>
-                        <td class="px-5 py-4 whitespace-nowrap text-sm font-mono-custom text-white text-right font-medium">${ltp}</td>
-                        <td class="px-5 py-4 whitespace-nowrap align-middle w-32">
-                            <div class="px-2">${obiBarHTML}</div>
-                        </td>
-                        <td class="px-5 py-4 whitespace-nowrap text-right align-middle font-mono-custom">${cvdBadge}</td>
-                        <td class="px-5 py-4 whitespace-nowrap text-right align-middle font-mono-custom">${pocBadge}</td>
-                        <td class="px-5 py-4 whitespace-nowrap align-middle w-32">${rsiBarHTML}</td>
-                        <td class="px-5 py-4 whitespace-nowrap text-center align-middle font-mono-custom">${pcrBadge}</td>
-                        <td class="px-5 py-4 whitespace-nowrap text-center align-middle font-mono-custom">${ivrBadge}</td>
-                        <td class="px-5 py-4 whitespace-nowrap text-center align-middle">${maxPainBadge}</td>
-                        <td class="px-5 py-4 whitespace-nowrap text-center align-middle font-mono-custom">${rsBadge}</td>
-                        <td class="px-5 py-4 whitespace-nowrap text-center align-middle">${cdlBadge}</td>
-                        <td class="px-5 py-4 whitespace-nowrap text-center align-middle">${actionBtn}</td>
-                    `;
-                    tableBody.appendChild(tr);
-                }
-            });
-        }
         // The Inspector (static/inspector) replaced the AI, position and ledger
         // modals. The old tabs' buttons open it through these two names.
         function openJsonModal(symbol) { if (window.QF) window.QF.actions.inspect(symbol); }

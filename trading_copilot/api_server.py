@@ -68,6 +68,7 @@ local_stock_derivatives_state = {}
 local_fii_dii_state = {}
 local_catalyst_cache = {}
 local_macro_context = None
+local_news_state = {}
 
 async def poll_upstox():
     global local_active_states, watchlist
@@ -106,8 +107,9 @@ async def poll_news():
                     if resp.status == 200:
                         data = await resp.json()
                         local_catalyst_cache = data.get("catalyst_cache", {})
-                        global local_macro_context
+                        global local_macro_context, local_news_state
                         local_macro_context = data.get("macro_context")
+                        local_news_state = {k: v for k, v in data.items() if k not in ("catalyst_cache", "macro_context")}
                         TerminalDashboard.catalyst_cache = local_catalyst_cache
             except: pass
             await asyncio.sleep(0.5)
@@ -664,6 +666,8 @@ async def get_latest_report(symbol: str):
 def _state_for(symbol: str):
     """(instrument key, live state) for a bare symbol, or (None, None)."""
     want = ReasoningEngine._normalize_symbol(symbol).upper()
+    if want in ("NIFTY", "NIFTY50", "NIFTY 50"):
+        return (NIFTY_KEY, local_active_states.get(NIFTY_KEY) or {})
     for key, st in list(local_active_states.items()):
         if ReasoningEngine._normalize_symbol(key).upper() == want:
             return key, st
@@ -684,6 +688,115 @@ async def stock_bars(symbol: str, n: int = 90):
         return raw
     return {"status": "success", "symbol": ReasoningEngine._normalize_symbol(key),
             **session_bars(raw.get("bars") or []), "levels": levels(st)}
+
+
+# ---- Market tab (views.market) --------------------------------------------
+NIFTY_KEY = "NSE_INDEX|Nifty 50"
+_nifty_daily_cache = {"mtime": None, "rows": []}
+
+
+def _nifty_daily() -> list:
+    """[{date, close}] from data/NIFTY50_1D.parquet, re-read only when it changes."""
+    from paths import DATA_DIR
+    path = DATA_DIR / "NIFTY50_1D.parquet"
+    try:
+        m = path.stat().st_mtime
+    except FileNotFoundError:
+        return []
+    if m != _nifty_daily_cache["mtime"]:
+        import pandas as pd
+        df = pd.read_parquet(path, columns=["Date", "Close"]).sort_values("Date")
+        _nifty_daily_cache.update(mtime=m, rows=[{"date": d.strftime("%Y-%m-%d"), "close": float(c)}
+                                                 for d, c in zip(df["Date"], df["Close"])])
+    return _nifty_daily_cache["rows"]
+
+
+def _watchlist_ad() -> float:
+    """Advances / declines over the watchlist -- the proxy when NSE breadth is stale."""
+    advances = declines = 0
+    for k, v in local_active_states.items():
+        if "Nifty 50" in k:
+            continue
+        ltp = v.get("ltp", 0)
+        pc = v.get("prev_close", ltp)
+        if ltp > pc: advances += 1
+        elif ltp < pc: declines += 1
+    return advances / declines if declines > 0 else (advances if advances > 0 else 1.0)
+
+
+def _engine_states() -> dict:
+    """{symbol: engine state in words} for every stock the engine has something to say about."""
+    from views.signals import engine_state, parse_report
+    paper = {p["symbol"]: p for p in (_paper_live_block().get("open") or [])}
+    out = {}
+    syms = set(ReasoningEngine.latest_reports) | set(paper) | set(ReasoningEngine.user_positions)
+    for sym in syms:
+        manual = ReasoningEngine.user_positions.get(sym)
+        if isinstance(manual, dict) and manual.get("source") == "paper":
+            manual = None
+        st = engine_state(parse_report(ReasoningEngine.latest_reports.get(sym)), paper.get(sym), manual)
+        if st:
+            out[sym] = st
+    return out
+
+
+@app.get("/api/market/summary")
+async def market_summary():
+    """Everything on the Market tab that is not a per-tick number: the index,
+    breadth, flows, the AI's global read, sectors, the order-book quadrant,
+    each stock's engine state, and the news wire."""
+    import time as _time
+    from views import market as M
+    rows = M.stocks(local_active_states)
+    daily = _nifty_daily()
+    ad, src = select_ad_ratio(local_fii_dii_state, _watchlist_ad())
+    try:
+        from core.risk import load_clusters
+        clusters = load_clusters()
+    except Exception:
+        clusters = {}
+    return {"status": "success", "as_of": _time.time(),
+            "nifty": M.nifty(local_active_states.get(NIFTY_KEY), daily[-1] if daily else None, _time.time()),
+            "breadth": M.breadth(local_fii_dii_state, ad, src),
+            "flows": M.flows(local_fii_dii_state),
+            "context": M.context(local_macro_context),
+            "sectors": M.sectors(rows, clusters),
+            "quadrant": M.quadrant(rows),
+            "engine": _engine_states(),
+            "wire": M.wire(local_catalyst_cache, {r["symbol"].upper() for r in rows}),
+            "news": M.news_status(local_news_state),
+            "symbols": [r["symbol"] for r in rows]}
+
+
+_sparks_cache = {"at": 0.0, "body": None}
+
+
+@app.get("/api/market/sparks")
+async def market_sparks():
+    """Today's closes per stock, for the board's sparklines (cached 60 s)."""
+    import time as _time
+    from urllib.parse import quote
+    from views.market import sparks
+    if _sparks_cache["body"] and _time.time() - _sparks_cache["at"] < 60:
+        return _sparks_cache["body"]
+    keys = [k for k in list(local_active_states) if not k.startswith("NSE_INDEX|")]
+    results = await asyncio.gather(*[proxy_get(8001, f"/api/bars?token={quote(k)}&n=80", timeout=5) for k in keys])
+    body = {"status": "success",
+            "sparks": sparks({ReasoningEngine._normalize_symbol(k): (r or {}).get("bars") or [] for k, r in zip(keys, results)})}
+    _sparks_cache.update(at=_time.time(), body=body)
+    return body
+
+
+@app.get("/api/market/index-history")
+async def market_index_history(rng: str = Query("1M", alias="range")):
+    """NIFTY 50 daily closes for the phone's 1W / 1M / 1Y / 5Y control."""
+    from datetime import datetime as _dt
+    from zoneinfo import ZoneInfo
+    from views.market import index_history
+    try:
+        return {"status": "success", **index_history(_nifty_daily(), rng, _dt.now(ZoneInfo("Asia/Kolkata")).date())}
+    except ValueError as e:
+        return {"status": "error", "message": str(e)}
 
 
 class NewsInstantRequest(BaseModel): model: str = DEFAULT_MODEL
@@ -831,17 +944,7 @@ async def websocket_endpoint(websocket: WebSocket):
             dii_net = local_fii_dii_state.get('dii_net', 0)
             date_str = local_fii_dii_state.get('date', local_macro_state.get('date', 'N/A'))
             
-            # Dynamically calculate Market Breadth (A/D Ratio) from the active watchlist
-            advances = 0
-            declines = 0
-            for k, v in local_active_states.items():
-                if "Nifty 50" in k: continue
-                ltp = v.get("ltp", 0)
-                pc = v.get("prev_close", ltp)
-                if ltp > pc: advances += 1
-                elif ltp < pc: declines += 1
-                
-            dynamic_ad = advances / declines if declines > 0 else (advances if advances > 0 else 1.0)
+            dynamic_ad = _watchlist_ad()
             ad_ratio, ad_ratio_source = select_ad_ratio(local_fii_dii_state, dynamic_ad)
             enriched_states = {}
             for instrument_key, payload in local_active_states.items():
@@ -852,6 +955,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 from pipeline_guard import is_market_open
                 payload_copy["market_state"] = "LIVE" if is_market_open() else "CLOSED"
                 payload_copy["symbol"] = symbol
+                from views.market import change_pct
+                payload_copy["change_pct"] = change_pct(payload.get("ltp"), payload.get("prev_close"))
                 
                 # Fetch catalyst from News feed state
                 if symbol in local_catalyst_cache:

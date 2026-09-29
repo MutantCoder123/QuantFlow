@@ -118,14 +118,14 @@ def test_equity_lists_session_days_and_the_starting_equity(tmp_path, monkeypatch
     assert empty["session_days"] == [] and empty["start_equity"] == 1_000_000
 
 
-def test_the_market_matrix_placeholder_is_always_removable():
-    """An empty frame (feed restart) redrew the "Waiting for market data" row
-    without its id; the next real update removes only #loading-row, so the
-    spinner stayed above the live rows for good (2026-09-29)."""
-    src = (Path(__file__).resolve().parents[1] / "trading_copilot" / "templates" / "index.html").read_text(encoding="utf-8")
-    fn = src[src.index("function updateMarketMatrix"):]
-    empty_branch = fn[:fn.index("return;")]
-    assert '<tr id="loading-row">' in empty_branch
+def test_the_market_board_has_no_spinner_row_to_get_stuck():
+    """The old matrix drew a "Waiting for market data" spinner row that could
+    stay above the live rows for good (2026-09-29). The Market tab's board has
+    no placeholder row: it says "Waiting for prices" in its footer instead."""
+    page = client.get("/").text
+    assert "loading-row" not in page and "matrix-body" not in page
+    board = (STATIC / "market" / "index.js").read_text(encoding="utf-8")
+    assert "Waiting for prices" in board and "spin" not in board
 
 
 def test_the_prompt_names_no_5_year_fields_the_payload_lacks():
