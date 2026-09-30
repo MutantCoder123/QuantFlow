@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 IST = ZoneInfo("Asia/Kolkata")
 
 ENTRY_ACTIONS = {"EXECUTE_LONG": "LONG", "EXECUTE_SHORT": "SHORT"}
+BAR_SECONDS = 300          # /api/bars serves five-minute bars, stamped at their start
 EXIT_ACTIONS = {"CLOSE_EXISTING": "LLM_CLOSE", "REVERSE_POSITION": "LLM_REVERSE"}
 
 
@@ -43,8 +44,15 @@ def _hm(s: str) -> tuple[int, int]:
 class PaperBroker:
     def __init__(self, store: EventStore, settings, costs_cfg: dict,
                  clock=time.time, mirror=None, entry_cutoff: str = "13:45",
-                 square_off: str = "15:20", config_version: int | None = None):
+                 square_off: str = "15:20", config_version: int | None = None,
+                 trail: list | tuple = (), reversal_cooldown_min: float = 0.0):
         self.store = store
+        # [(trigger_R, lock_R), ...]: once the best move reaches trigger_R the
+        # stop moves to entry + lock_R (never back). policy horizon.trail.
+        self.trail = sorted((float(a), float(b)) for a, b in (trail or ()))
+        # after a losing close, no entry the other way on that symbol for this
+        # many minutes. policy horizon.reversal_cooldown_min.
+        self.reversal_cooldown_s = float(reversal_cooldown_min or 0.0) * 60.0
         # the decision-policy version in force, stamped on every OPEN so
         # performance can be compared across tuning changes
         self.config_version = config_version
@@ -180,6 +188,8 @@ class PaperBroker:
             return self._reject(s, "ALREADY_OPEN")
         if s.get("manual_position"):
             return self._reject(s, "MANUAL_POSITION_HELD")
+        if self._flipping(s["symbol"], side):
+            return self._reject(s, "REVERSAL_COOLDOWN")
 
         opts = self.settings.options()
         try:
@@ -229,7 +239,34 @@ class PaperBroker:
         self._mirror_set(pos)
         return ev
 
+    def _flipping(self, symbol: str, side: str) -> bool:
+        """A losing close on `symbol` the other way, within the cooldown.
+        2026-09-29: SCI and ADANIENT were each stopped out one way and taken
+        the other way ~28 minutes later; both second trades stopped too."""
+        if self.reversal_cooldown_s <= 0:
+            return False
+        since = self._now() - self.reversal_cooldown_s
+        return any(t["symbol"] == symbol and t["side"] != side and t["net"] < 0
+                   and t["closed_ts"] >= since for t in self.closed)
+
     # ------------------------------------------------------------------- exit
+    def _stop_now(self, p: dict) -> float:
+        """The stop in force: the trailed one once it has moved."""
+        return float(p.get("trail_stop") or p["stop"])
+
+    def _raise_trail(self, p: dict, best_r: float, at: float) -> None:
+        """Move the stop up the trail for a best move of `best_r`. `at` is when
+        the move was seen; bars that start before it cannot hit the new stop,
+        since inside one bar the high and the low are not ordered."""
+        lock = max((lk for trig, lk in self.trail if best_r >= trig), default=None)
+        if lock is None:
+            return
+        rps = abs(p["entry_price"] - p["stop"])
+        level = p["entry_price"] + (lock if p["side"] == "LONG" else -lock) * rps
+        better = level > self._stop_now(p) if p["side"] == "LONG" else level < self._stop_now(p)
+        if better:
+            p["trail_stop"], p["trail_ts"] = level, at
+
     def _r(self, p: dict, price: float) -> float:
         rps = abs(p["entry_price"] - p["stop"])
         if rps <= 0:
@@ -278,33 +315,50 @@ class PaperBroker:
         p["last"], p["last_mark_ts"] = px, self._now()
         r = self._r(p, px)
         p["mae_r"], p["mfe_r"] = min(p.get("mae_r", 0.0), r), max(p.get("mfe_r", 0.0), r)
+        self._raise_trail(p, p["mfe_r"], self._now())
+
+    def _stop_reason(self, p: dict) -> str:
+        return "TRAIL_STOP" if p.get("trail_stop") else "STOP"
 
     def check_touches(self, symbol: str, bars: list[Bar] | None, ltp=None) -> dict | None:
         """Stop/target against bars since the last check (intrabar touches
-        between 10 s loop ticks count). No bars: fall back to LTP, flagged."""
+        between 10 s loop ticks count), bar by bar so a trail raised by one
+        bar only applies to bars after it. Then the live price against a
+        trailed stop. No bars: fall back to LTP, flagged."""
         p = self.position_for(symbol)
         if p is None:
             return None
         if bars:
-            fresh = [b for b in bars if b.ts >= p.get("last_bar_ts", p["ts"])]
+            fresh = sorted((b for b in bars if b.ts >= p.get("last_bar_ts", p["ts"])), key=lambda b: b.ts)
             for b in fresh:
+                in_force = self._stop_now(p) if b.ts >= p.get("trail_ts", 0.0) else p["stop"]
+                hit = first_touch(p["side"], in_force, p["target"], [b])
+                if hit is not None:
+                    reason, price, _ = hit
+                    if reason == "STOP" and in_force != p["stop"]:
+                        reason = "TRAIL_STOP"
+                    return self._close(p, price, reason, market=False, touch_check="bars")
                 for px in (b.high, b.low):
                     r = self._r(p, float(px))
                     p["mae_r"], p["mfe_r"] = min(p["mae_r"], r), max(p["mfe_r"], r)
-            hit = first_touch(p["side"], p["stop"], p["target"], fresh)
-            if fresh:
-                p["last_bar_ts"] = max(b.ts for b in fresh)
-            check = "bars"
-        elif ltp:
+                self._raise_trail(p, p["mfe_r"], b.ts + BAR_SECONDS)
+                p["last_bar_ts"] = b.ts
+            if ltp and p.get("trail_stop"):
+                px = float(ltp)
+                crossed = px <= p["trail_stop"] if p["side"] == "LONG" else px >= p["trail_stop"]
+                if crossed:
+                    worse = min(px, p["trail_stop"]) if p["side"] == "LONG" else max(px, p["trail_stop"])
+                    return self._close(p, worse, "TRAIL_STOP", market=False, touch_check="ltp")
+            return None
+        if ltp:
             px = float(ltp)
-            hit = first_touch(p["side"], p["stop"], p["target"], [Bar(self._now(), px, px, px, px)])
-            check = "ltp_only"
-        else:
-            return None
-        if hit is None:
-            return None
-        reason, price, _ = hit
-        return self._close(p, price, reason, market=False, touch_check=check)
+            hit = first_touch(p["side"], self._stop_now(p), p["target"], [Bar(self._now(), px, px, px, px)])
+            if hit is None:
+                return None
+            reason, price, _ = hit
+            return self._close(p, price, self._stop_reason(p) if reason == "STOP" else reason,
+                               market=False, touch_check="ltp_only")
+        return None
 
     # Path A rules paper does not act on. STOP_PROXIMITY closes anything
     # within a fixed 0.5 % of its stop -- a stand-in for "the stop is about to
@@ -361,7 +415,8 @@ class PaperBroker:
             "equity": cap + realized_total + unreal, "open_risk": self.open_risk(),
             "open_count": len(self.open),
             "marks": {pid: {"last": p.get("last"), "mae_r": p.get("mae_r"), "mfe_r": p.get("mfe_r"),
-                            "ts": p.get("last_mark_ts")} for pid, p in self.open.items()},
+                            "ts": p.get("last_mark_ts"), "trail_stop": p.get("trail_stop"),
+                            "trail_ts": p.get("trail_ts")} for pid, p in self.open.items()},
         })
 
     # --------------------------------------------------------------- settings
@@ -384,7 +439,7 @@ class PaperBroker:
             "failed_at": self.failed_at,
             "error_count": self.error_count, "as_of": self._now(),
             "open": [{k: p.get(k) for k in ("pos_id", "symbol", "side", "qty", "entry_price", "last",
-                                            "stop", "target", "risk_amount", "mae_r", "mfe_r", "ts",
+                                            "stop", "trail_stop", "target", "risk_amount", "mae_r", "mfe_r", "ts",
                                             "last_mark_ts")}
                      | {"unrealized": pnl(p["side"], p["entry_price"], p.get("last", p["entry_price"]), p["qty"]),
                         "r_now": self._r(p, p.get("last", p["entry_price"]))}

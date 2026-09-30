@@ -41,6 +41,6 @@ class PolicyConfig:
 def load_policy(path: Path | None = None) -> PolicyConfig:
     if path is None:
         from paths import CONFIG_DIR
-        path = CONFIG_DIR / "policy_v1.yaml"
+        path = CONFIG_DIR / "policy_v2.yaml"
     with open(path, "r", encoding="utf-8") as f:
         return PolicyConfig.from_dict(yaml.safe_load(f))

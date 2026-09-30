@@ -1,0 +1,110 @@
+# QuantFlow decision policy v2: v1 with four changes, from the evidence of
+# the first live paper session (2026-09-29). Every other value is v1's.
+#
+#   horizon.square_off_ist  15:20 -> 15:10. F&O stocks stop continuous
+#       trading at 15:15 (closing auction): on 2026-09-29 23 of the 27 names
+#       stopped ticking at 15:15, the 4 non-F&O ones did not, and 6 of 7
+#       square-offs closed on a price 5 minutes old.
+#   horizon.entry_cutoff_ist  13:45 -> 13:40, so a trade still gets its
+#       full 90-minute primary horizon before the earlier square-off.
+#   horizon.trail (new). Replayed tick by tick over that day's 18 trades,
+#       breakeven at 1.5R then +1R locked at 2.5R turned MCX's -1,515
+#       (up 2.6R, closed -0.3R) into +4,645 and cut no winner short; a
+#       breakeven at 1R stopped out two winners. One day: watch it in Review.
+#   horizon.reversal_cooldown_min (new). SCI and ADANIENT were each stopped
+#       out one way and taken the other way ~28 minutes later; both stopped
+#       again (-6,662). A same-way re-entry 50 minutes after a stop
+#       (OLAELEC, +18,441) is untouched.
+#
+# v1's header follows.
+#
+# QuantFlow decision policy v1.
+#
+# Every threshold here is transcribed from the constant already live in code
+# (source line noted per entry, verified by direct read before transcription)
+# -- this is a refactor extracting hardcoded values into one auditable,
+# versioned place, NOT a retune. Any future change of a value belongs in a
+# new policy_v2.yaml after replay evidence justifies it (see Phase 4).
+#
+# One entry is a documented exception: whale_slope_gate_adv_frac is a NEW,
+# ADV-normalised value that does not yet correspond to any code path -- it
+# replaces the unnormalised `abs(whale_cvd_slope) > 50` magic number at
+# semantic_tagger.py:67, but that call site is not wired to read from this
+# config yet (out of scope for Task 2.1, which only builds the loader).
+# Wiring it is a documented future step, not a silent behaviour change.
+
+version: 2
+
+semantic:
+  vol_z_shock: 2.5              # semantic_tagger.py:82
+  vol_z_elevated: 1.0           # semantic_tagger.py:84
+  vol_z_suppressed: -1.0        # semantic_tagger.py:86
+  obi_extreme: 0.60             # semantic_tagger.py:92,96
+  obi_moderate: 0.20            # semantic_tagger.py:94,98
+  vwap_band_elevated: 0.75      # semantic_tagger.py:57,61
+  vwap_band_extreme: 1.50       # semantic_tagger.py:55,59
+  whale_slope_gate_adv_frac: 0.002   # NOT YET WIRED -- see header note
+  flow_vwap_gate_atr_frac: 0.4  # semantic_tagger.py:67
+  iv_pct_extreme: 90            # semantic_tagger.py:120
+  iv_pct_elevated: 75           # semantic_tagger.py:122
+  iv_pct_compressed: 25         # semantic_tagger.py:124
+  gravity_imminent_atr: 0.3     # semantic_tagger.py:135
+  gravity_escape_atr: 2.0       # semantic_tagger.py:137
+  pcr_pct_high: 80              # semantic_tagger.py:146
+  pcr_pct_low: 20               # semantic_tagger.py:148
+  proximity_test_atr: 0.5       # semantic_tagger.py:188
+  proximity_approach_atr: 1.0   # semantic_tagger.py:190
+  alpha_strong: 2.0             # semantic_tagger.py:194
+  alpha_moderate: 0.5           # semantic_tagger.py:196
+
+regime:
+  memory_len: 12                # regime_manager.py:9
+  hysteresis_agreement: 2       # regime_manager.py (2 of last 3)
+  hysteresis_window: 3
+
+conviction:
+  bias_threshold: 0.15          # conviction_scorer.py:151,153,163,164
+  micro_divisor: 5.0            # conviction_scorer.py:95
+  deriv_divisor: 3.0            # conviction_scorer.py:110
+  struct_divisor: 3.0           # conviction_scorer.py:136
+  volume_shock_multiplier: 1.5  # conviction_scorer.py:93
+  whipsaw_flip_limit: 3         # conviction_scorer.py:159
+  whipsaw_penalty: 0.5          # conviction_scorer.py:160
+  min_reward_atr15: 1.5         # conviction_scorer.py:237
+  min_reward_risk: 1.5          # Task 4.2 -- the admission gate while UNCALIBRATED
+                                # (no measured probability => no statistical edge)
+  entry_offset_atr5: 0.2        # conviction_scorer.py:241,256
+  slippage_atr5: 0.1            # conviction_scorer.py:262,263
+  atr_mult_by_iv_regime:        # conviction_scorer.py:223-226
+    EXTREME_EXPANSION: 1.00
+    ELEVATED_VOLATILITY: 0.75
+    PREMIUM_COMPRESSION: 0.30
+    DEFAULT: 0.50
+  weights:                      # conviction_scorer.py:8-13
+    TREND_EXPANSION:         {micro: 0.45, struct: 0.15, deriv: 0.15, cat: 0.25}
+    VOLATILITY_EXPANSION:    {micro: 0.50, struct: 0.30, deriv: 0.10, cat: 0.10}
+    RANGE_BOUND_CHOP:        {micro: 0.20, struct: 0.30, deriv: 0.40, cat: 0.10}
+    PRE_BREAKOUT_SQUEEZE:    {micro: 0.30, struct: 0.40, deriv: 0.20, cat: 0.10}
+    MEAN_REVERSION_IMMINENT: {micro: 0.40, struct: 0.20, deriv: 0.30, cat: 0.10}
+    DEFAULT:                 {micro: 0.40, struct: 0.25, deriv: 0.20, cat: 0.15}
+
+gates:
+  min_stat_edge: 0.05           # conviction_scorer.py:274; intraday_gatekeeper.py:182
+  stop_proximity_pct: 0.5       # intraday_gatekeeper.py:92
+  failure_to_launch_min: 45     # intraday_gatekeeper.py
+  stagnation_min: 60            # intraday_gatekeeper.py -- aligned to 2/3 of the 90m primary (Task 3.4)
+  stagnation_drift_pct: 0.2     # intraday_gatekeeper.py
+  whale_flip_adv_frac: 0.03     # intraday_gatekeeper.py:112 (Task 0.9)
+  regime_dampening:             # intraday_gatekeeper.py:173-179
+    LUNCH_CHOP_HIGH_VOL: 0.85
+    LUNCH_CHOP_NORMAL: 0.65
+    RANGE_BOUND_CHOP: 0.6
+    TRANSITIONAL_DRIFT: 0.7
+
+horizon:                        # Task 3.4 makes these authoritative
+  primary_minutes: 90
+  entry_cutoff_ist: "13:40"        # v2: 90 min before the 15:10 square-off
+  square_off_ist: "15:10"          # v2: F&O continuous trading ends 15:15
+  trail: [[1.5, 0.0], [2.5, 1.0]]  # v2: [best R reached, stop moved to entry + this R]
+  reversal_cooldown_min: 60        # v2: no entry the other way within 60 min of a losing close
+  measure_at_minutes: [30, 90]

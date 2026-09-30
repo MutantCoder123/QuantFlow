@@ -105,5 +105,6 @@ def rebuild(events: list[dict]) -> State:
             s.equity.append(e)
             for pid, m in (e.get("marks") or {}).items():
                 if pid in s.open:
-                    s.open[pid].update({k: m[k] for k in ("last", "mae_r", "mfe_r") if k in m})
+                    s.open[pid].update({k: m[k] for k in ("last", "mae_r", "mfe_r", "trail_stop", "trail_ts")
+                                        if m.get(k) is not None})
     return s

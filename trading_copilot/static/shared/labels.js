@@ -4,6 +4,7 @@
 export const EXIT = {
   TARGET: 'Target',
   STOP: 'Stop',
+  TRAIL_STOP: 'Trailed stop',
   GATEKEEPER_STOP_PROXIMITY: 'Stop proximity',
   GATEKEEPER_WHALE_FLIP: 'Whale flip',
   GATEKEEPER_UNSPECIFIED: 'Gatekeeper exit',
@@ -67,6 +68,7 @@ const REJECTION = {
   SIZE_ROUNDS_TO_ZERO: 'Rounds to zero shares',
   OPEN_VALUE_LIMIT: 'Open positions at their cap',
   SIZE_TOO_SMALL: 'Too small to be worth the charges',
+  REVERSAL_COOLDOWN: 'Just stopped out the other way',
   SIZING_ERROR: 'Sizing failed',
   UNKNOWN: 'Unknown reason',
 };

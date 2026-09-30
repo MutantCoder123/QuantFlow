@@ -36,7 +36,9 @@ def init(mirror: dict) -> PaperBroker | None:
                               mirror=mirror,
                               entry_cutoff=horizon.get("entry_cutoff_ist", "13:45"),
                               square_off=horizon.get("square_off_ist", "15:20"),
-                              config_version=policy.version)
+                              config_version=policy.version,
+                              trail=horizon.get("trail") or (),
+                              reversal_cooldown_min=horizon.get("reversal_cooldown_min", 0))
         stale = _broker.recover()
         logger.info(f"Paper engine ready: {len(_broker.open)} open, {len(_broker.closed)} closed"
                     + (f", {stale} stale position(s) closed" if stale else ""))

@@ -2,6 +2,16 @@ import time
 import datetime
 from typing import Dict, Any, Optional
 
+def _square_off_hm() -> tuple:
+    """(hour, minute) of the policy's square-off; 15:20 if it cannot be read."""
+    try:
+        from core.policy_config import load_policy
+        h, m = str(load_policy().horizon.get("square_off_ist", "15:20")).split(":")
+        return int(h), int(m)
+    except Exception:
+        return 15, 20
+
+
 class IntradayGatekeeper:
     """
     A stateless, deterministic mathematical sieve that processes streaming market data.
@@ -44,8 +54,9 @@ class IntradayGatekeeper:
             return {"Action": "Wait", "Priority_Score": 0, "Confidence_Score": 0,
                     "llm_authorized": False, "math_rejection": f"STALE_DATA_{int(age)}s"}
 
-        # 2. TIME OVERRIDE
-        # If local machine time >= 15:15 IST (Auto-Square off time for intraday)
+        # 2. TIME OVERRIDE: close everything at the policy's square-off time
+        # (horizon.square_off_ist; 15:10 in v2, before F&O continuous
+        # trading ends at 15:15).
         current_time_utc = datetime.datetime.utcnow()
         ist_offset = datetime.timedelta(hours=5, minutes=30)
         current_time_ist = current_time_utc + ist_offset
@@ -53,7 +64,7 @@ class IntradayGatekeeper:
         position = user_context.get("position", {}) if user_context else {}
         
         current_decimal = current_time_ist.hour + current_time_ist.minute / 60.0
-        if current_decimal >= 15.333:  # 15:20 IST
+        if (current_time_ist.hour, current_time_ist.minute) >= _square_off_hm():
             # Force override
             res = cls._create_response("Close", priority=10, confidence=10, llm_auth=False)
             res["Exit_Rule"] = "SQUARE_OFF"
