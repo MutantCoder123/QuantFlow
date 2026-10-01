@@ -43,6 +43,7 @@ IST = ZoneInfo("Asia/Kolkata")
 DASHBOARD = "http://127.0.0.1:8000/"
 EOD_BACKFILL_AFTER = dt.time(15, 45)
 EOD_STAMP = APP / "data" / ".last_eod_backfill"
+STEP_POLL_S = 5            # how often a running step checks whether to stop
 
 # name, script, port it listens on (None: no port), started after this port is up
 SERVICES = [
@@ -201,7 +202,38 @@ def checks() -> bool:
         ok = False
     ok = check_token() and ok
     ok = check_llm() and ok
+    check_power()
     return ok
+
+
+def on_battery() -> tuple[bool, int | None]:
+    """(running on battery, charge %). (False, None) where it cannot be read."""
+    if os.name != "nt":
+        return False, None
+    try:
+        import ctypes
+
+        class SPS(ctypes.Structure):
+            _fields_ = [("ACLineStatus", ctypes.c_ubyte), ("BatteryFlag", ctypes.c_ubyte),
+                        ("BatteryLifePercent", ctypes.c_ubyte), ("SystemStatusFlag", ctypes.c_ubyte),
+                        ("BatteryLifeTime", ctypes.c_ulong), ("BatteryFullLifeTime", ctypes.c_ulong)]
+        s = SPS()
+        if not ctypes.windll.kernel32.GetSystemPowerStatus(ctypes.byref(s)):
+            return False, None
+        pct = None if s.BatteryLifePercent == 255 else int(s.BatteryLifePercent)
+        return s.ACLineStatus == 0, pct
+    except Exception:
+        return False, None
+
+
+def check_power() -> None:
+    """A warning, never a refusal. On 2026-09-30 the laptop ran unplugged
+    from 44 % and powered off at 10:30 with four positions open; they went
+    unmanaged for 2 h 20 min."""
+    batt, pct = on_battery()
+    if batt:
+        say("power", f"WARNING: on battery ({pct}%). Plug in: if the machine powers off, "
+                     "open paper positions go unmanaged until it is back.")
 
 
 # -- history -------------------------------------------------------------------
@@ -209,23 +241,41 @@ def child_env() -> dict:
     return {**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUNBUFFERED": "1"}
 
 
-def run_step(name: str, args: list[str], timeout: float) -> bool:
-    """Run a one-off script to completion, logging to logs/run/<name>.log."""
+def run_step(name: str, args: list[str], timeout: float, stop_when=None) -> bool:
+    """Run a one-off script to completion, logging to logs/run/<name>.log.
+    `stop_when()` true ends it early (checked every few seconds)."""
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     log = LOG_DIR / f"{name}.log"
     started = time.monotonic()
     with open(log, "a", encoding="utf-8") as fh:
         fh.write(f"\n===== {now_ist():%Y-%m-%d %H:%M:%S} {' '.join(args)}\n")
         fh.flush()
-        try:
-            rc = subprocess.run([str(VENV_PY), "-u", *args], cwd=ROOT, env=child_env(),
-                                stdout=fh, stderr=subprocess.STDOUT, timeout=timeout).returncode
-        except subprocess.TimeoutExpired:
-            say(name, f"timed out after {timeout:.0f} s; see {log.relative_to(ROOT)}")
-            return False
+        proc = subprocess.Popen([str(VENV_PY), "-u", *args], cwd=ROOT, env=child_env(),
+                                stdout=fh, stderr=subprocess.STDOUT)
+        while True:
+            try:
+                rc = proc.wait(timeout=STEP_POLL_S)
+                break
+            except subprocess.TimeoutExpired:
+                pass
+            if time.monotonic() - started > timeout:
+                proc.kill()
+                say(name, f"timed out after {timeout:.0f} s; see {_shown(log)}")
+                return False
+            if stop_when is not None and stop_when():
+                proc.terminate()
+                say(name, "stopped for market hours; it carries on from here after 15:45")
+                return False
     took = time.monotonic() - started
-    say(name, f"{'done' if rc == 0 else 'FAILED'} in {took:.0f} s" + ("" if rc == 0 else f"; see {log.relative_to(ROOT)}"))
+    say(name, f"{'done' if rc == 0 else 'FAILED'} in {took:.0f} s" + ("" if rc == 0 else f"; see {_shown(log)}"))
     return rc == 0
+
+
+def _shown(path: Path) -> str:
+    try:
+        return str(path.relative_to(ROOT))
+    except ValueError:
+        return str(path)
 
 
 def backfill(full: bool) -> bool:
@@ -235,7 +285,10 @@ def backfill(full: bool) -> bool:
     after_close = t.weekday() < 5 and t.time() >= EOD_BACKFILL_AFTER
     args = ["trading_copilot/scripts/master_bootstrap.py"] + ([] if full else ["--prices-only"])
     say("history", "catching up daily prices and options history..." if full else "catching up daily prices...")
-    ok = run_step("backfill" if full else "prices", args, timeout=6 * 3600 if full else 300)
+    # The full backfill runs behind the services; it must not still be
+    # spending the Upstox rate limit when the session opens.
+    ok = run_step("backfill" if full else "prices", args, timeout=6 * 3600 if full else 300,
+                  stop_when=market_hours if full else None)
     if ok:
         ok = run_step("baselines", ["trading_copilot/scripts/macro_bootstrap.py"], timeout=900)
     if ok and full and after_close:
@@ -329,12 +382,20 @@ def supervise(services: list[Service], history: bool, full_now: bool = False):
         webbrowser.open(DASHBOARD)
     say("run", "all services started. Ctrl+C stops everything. Logs: logs/run/")
     eod: threading.Thread | None = None
-    if full_now and not eod_done_today():
+    # At every launch outside market hours, even if today's EOD run is done:
+    # stocks added since then have no options history yet, and the backfill
+    # only fetches what is missing.
+    if full_now:
         say("history", "catching up options history in the background (logs/run/backfill.log)")
         eod = threading.Thread(target=backfill, args=(True,), daemon=True)
         eod.start()
+    was_on_battery = on_battery()[0]
     while True:
         time.sleep(5)
+        batt, pct = on_battery()
+        if batt and not was_on_battery:
+            say("power", f"WARNING: unplugged ({pct}%). Plug in before the battery runs out.")
+        was_on_battery = batt
         for s in services:
             if s.alive():
                 continue

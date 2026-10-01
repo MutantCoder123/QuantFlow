@@ -76,3 +76,49 @@ def test_the_services_never_wait_for_the_options_history(monkeypatch, clock, ful
     monkeypatch.setattr(sys, "argv", ["run.py"])
     run.main()
     assert order == [("backfill", False), ("services",), ("supervise", full_now)]
+
+
+def test_a_step_is_stopped_when_it_should_stop(monkeypatch):
+    """The background options backfill must not run into the session."""
+    monkeypatch.setattr(run, "STEP_POLL_S", 0.05)
+    started = run.time.monotonic()
+    ok = run.run_step("slow", ["-c", "import time; time.sleep(30)"], timeout=60, stop_when=lambda: True)
+    assert not ok and run.time.monotonic() - started < 10
+
+
+def test_a_step_that_finishes_reports_its_result():
+    assert run.run_step("quick", ["-c", "pass"], timeout=60)
+    assert not run.run_step("bad", ["-c", "raise SystemExit(3)"], timeout=60)
+
+
+def test_the_full_backfill_stops_at_market_hours(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(run, "run_step", lambda name, args, timeout, stop_when=None: seen.update(
+        {name: stop_when}) or False)
+    run.backfill(full=True)
+    run.backfill(full=False)
+    assert seen["backfill"] is run.market_hours and seen["prices"] is None
+
+
+def test_every_launch_outside_hours_catches_up_even_after_the_eod_run(monkeypatch, tmp_path):
+    """2026-09-29 23:33: the 18:40 EOD stamp skipped the stocks added since."""
+    monkeypatch.setattr(run, "EOD_STAMP", tmp_path / ".last_eod_backfill")
+    monkeypatch.setattr(run, "eod_done_today", lambda: True)
+    monkeypatch.setattr(run, "wait_port", lambda port, s: False)
+    started = []
+
+    class T:
+        def __init__(self, target, args, daemon):
+            started.append(args)
+
+        def start(self):
+            pass
+
+        def is_alive(self):
+            return True
+
+    monkeypatch.setattr(run.threading, "Thread", T)
+    monkeypatch.setattr(run.time, "sleep", lambda s: (_ for _ in ()).throw(KeyboardInterrupt))
+    with pytest.raises(KeyboardInterrupt):
+        run.supervise([], history=True, full_now=True)
+    assert started == [(True,)]
