@@ -121,8 +121,10 @@ def test_a_winning_close_does_not_hold_back_the_other_way(tmp_path):
 
 # -- the policy ------------------------------------------------------------------------
 def test_policy_v2_squares_off_before_the_fno_closing_auction():
-    h = load_policy().horizon
-    assert load_policy().version == 2
+    from paths import CONFIG_DIR
+    v2 = load_policy(CONFIG_DIR / "policy_v2.yaml")
+    assert v2.version == 2 and v2.horizon["square_off_ist"] == "15:10"
+    h = load_policy().horizon                                  # the live policy keeps v2's exits
     assert h["square_off_ist"] == "15:10" and h["entry_cutoff_ist"] == "13:40"
     assert h["trail"] == TRAIL and h["reversal_cooldown_min"] == 60
     from intraday_gatekeeper import _square_off_hm

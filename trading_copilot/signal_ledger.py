@@ -5,6 +5,7 @@ import asyncio
 import logging
 import pandas as pd
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from paths import SIGNALS_DIR
 from journal.outcome_labeller import label_outcome
@@ -159,12 +160,17 @@ class SignalLedger:
         rather than resolving against no data.
         """
         import aiohttp
+        # From today's open: the feed fills any hole (a restart, a machine
+        # that slept) from the exchange's candles, so an outcome is not
+        # labelled on a day with the outage cut out of it.
+        now = datetime.now(ZoneInfo("Asia/Kolkata"))
+        since = now.replace(hour=9, minute=15, second=0, microsecond=0).timestamp()
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
                     "http://127.0.0.1:8001/api/bars",
-                    params={"token": token, "n": n},
-                    timeout=aiohttp.ClientTimeout(total=3),
+                    params={"token": token, "n": n, "since": since},
+                    timeout=aiohttp.ClientTimeout(total=12),
                 ) as resp:
                     data = await resp.json()
         except Exception as e:

@@ -18,6 +18,10 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+# data_age_s for a token with no tick since this process started: older than
+# any stale limit, so every freshness check refuses it.
+NEVER_TICKED_AGE_S = 86400.0
+
 class RollingStateEngine:
     live_options_state = {}
     daily_metrics_cache = {}
@@ -599,8 +603,13 @@ class RollingStateEngine:
 
         # Seconds since this token last ticked. The gatekeeper and the UI
         # both key off this so a frozen feed can't be acted on (A-12).
+        # A token that has not ticked since this process started is NOT
+        # fresh: its state is hydrated from yesterday's cache. Reading it as
+        # age 0 let ADANIPORTS -- dropped from the watchlist, never streamed
+        # -- be shorted on 2026-09-30 at the previous close, 1.5 % below the
+        # real open, and "managed" on that frozen price all day.
         _last = getattr(self, 'last_tick_ts', {}).get(token, 0)
-        final_payload['data_age_s'] = round(time.time() - _last, 1) if _last else 0.0
+        final_payload['data_age_s'] = round(time.time() - _last, 1) if _last else NEVER_TICKED_AGE_S
 
         # Fixes A-5: MTFFeatureExtractor was defined but never called, so
         # fractal_alignment/volatility_state/elasticity_risk/kinetic_divergence

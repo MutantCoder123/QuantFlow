@@ -45,8 +45,11 @@ class PaperBroker:
     def __init__(self, store: EventStore, settings, costs_cfg: dict,
                  clock=time.time, mirror=None, entry_cutoff: str = "13:45",
                  square_off: str = "15:20", config_version: int | None = None,
-                 trail: list | tuple = (), reversal_cooldown_min: float = 0.0):
+                 trail: list | tuple = (), reversal_cooldown_min: float = 0.0,
+                 entry_start: str | None = None):
         self.store = store
+        # no new position before this IST time (policy horizon.entry_start_ist)
+        self.entry_start = _hm(entry_start) if entry_start else None
         # [(trigger_R, lock_R), ...]: once the best move reaches trigger_R the
         # stop moves to entry + lock_R (never back). policy horizon.trail.
         self.trail = sorted((float(a), float(b)) for a, b in (trail or ()))
@@ -107,7 +110,17 @@ class PaperBroker:
         return sum(t["net"] for t in self.closed if ist_date(t["closed_ts"]) == today)
 
     def realized_loss_today(self) -> float:
-        return max(0.0, -self.realized_today())
+        """The deepest the day's realised P&L has been, as a positive loss.
+        Latched: a later win does not bring it back. On 2026-09-30 the loss
+        limit tripped at -25,149, a target at 12:55 lifted the day to
+        -18,589, the gate reopened, and four more trades lost 4,602."""
+        today = ist_date(self._now())
+        running, worst = 0.0, 0.0
+        for t in sorted((t for t in self.closed if ist_date(t["closed_ts"]) == today),
+                        key=lambda t: t["closed_ts"]):
+            running += t["net"]
+            worst = min(worst, running)
+        return -worst
 
     def open_risk(self) -> float:
         return sum(p["risk_amount"] for p in self.open.values())
@@ -184,6 +197,8 @@ class PaperBroker:
             return self._reject(s, "ENGINE_PAUSED")
         if self._past(self.entry_cutoff):
             return self._reject(s, "AFTER_ENTRY_CUTOFF")
+        if self.entry_start and not self._past(self.entry_start):
+            return self._reject(s, "BEFORE_ENTRY_START")
         if self.position_for(s["symbol"]):
             return self._reject(s, "ALREADY_OPEN")
         if s.get("manual_position"):

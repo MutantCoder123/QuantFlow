@@ -38,7 +38,7 @@ async def test_a_full_hands_off_session_reconciles(tmp_path, monkeypatch):
     def ltp_of(sym):
         return prices.get(sym), RAW[sym]["token"]
 
-    async def fetch_bars(token):
+    async def fetch_bars(token, since=None):
         return bars.get(token)
 
     # 09:30 long SAIL, 09:45 short IDEA

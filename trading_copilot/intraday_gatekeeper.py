@@ -183,6 +183,23 @@ class IntradayGatekeeper:
             res["math_rejection"] = f"ENTRY_CUTOFF_{cutoff.replace(':', '')}"
             return res
 
+        # ENTRY START (policy v3): no new trade in the opening range, where
+        # the stops the geometry sets sit inside the opening swings. Over the
+        # first two paper sessions the 14 trades opened 09:15-09:45 lost
+        # -34,049 with 2 winners; everything after made +62,633.
+        start = None
+        try:
+            from core.policy_config import load_policy
+            start = load_policy().horizon.get("entry_start_ist")
+        except Exception:
+            start = None
+        if start:
+            sh, sm = (int(x) for x in str(start).split(":"))
+            if (current_time_ist.hour, current_time_ist.minute) < (sh, sm):
+                res = cls._create_response("Wait", priority=0, confidence=0, llm_auth=False)
+                res["math_rejection"] = f"ENTRY_START_{str(start).replace(':', '')}"
+                return res
+
         # Read ConvictionScorer output directly
         setup_rejected = math_setup.get("setup_rejected", True)
         composite_score = abs(math_setup.get("composite_score", 0.0))

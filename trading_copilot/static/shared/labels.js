@@ -61,6 +61,7 @@ const REJECTION = {
   ALREADY_OPEN: 'Already open',
   MANUAL_POSITION_HELD: 'You hold it manually',
   AFTER_ENTRY_CUTOFF: 'After the entry cutoff',
+  BEFORE_ENTRY_START: 'Opening range: no entries yet',
   ENGINE_PAUSED: 'Paper engine paused',
   NOT_AN_ENTRY: 'Not an entry',
   DEGENERATE_STOP: 'Stop at the entry',
@@ -80,6 +81,8 @@ export function rejectionLabel(code) {
   if (m) return `Price ${m[1]} s old`;
   m = c.match(/^ENTRY_CUTOFF_(\d{2})(\d{2})$/);
   if (m) return `After the ${m[1]}:${m[2]} entry cutoff`;
+  m = c.match(/^ENTRY_START_(\d{2})(\d{2})$/);
+  if (m) return `Before the ${m[1]}:${m[2]} entry start`;
   m = c.match(/^CLUSTER_LIMIT_(.+)$/);
   if (m) return `Sector limit (${sentenceCase(m[1]).toLowerCase()})`;
   m = c.match(/^REGIME_DAMPENED_(.+)$/);

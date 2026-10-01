@@ -5,7 +5,7 @@ import time
 import asyncio
 import logging
 import urllib.parse
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from pathlib import Path
 
@@ -589,17 +589,102 @@ def build_bars_response(df, n: int = 300) -> dict:
     return {"bars": tail[cols].to_dict(orient="records")}
 
 
+BAR_S = 300
+GAP_S = 600          # a hole this long after `since` means the feed was not running
+_IST = timezone(timedelta(hours=5, minutes=30))
+
+
+def _bar_epoch(stamp) -> float:
+    """A bar's start as epoch seconds; naive stamps are IST, as in ltf_df."""
+    t = datetime.fromisoformat(str(stamp))
+    return (t if t.tzinfo else t.replace(tzinfo=_IST)).timestamp()
+
+
+def exchange_bars(candles: list, since: float, bar_s: int = BAR_S) -> list:
+    """Upstox 1-minute candles ([iso_ts, o, h, l, c, vol, ...], any order)
+    -> bars of `bar_s` from `since` on, stamped naive IST at their start like
+    ltf_df. Pure."""
+    buckets: dict = {}
+    for c in sorted(candles, key=lambda c: _bar_epoch(c[0])):
+        ep = _bar_epoch(c[0])
+        if ep + 60 <= since:
+            continue
+        start = ep - (ep + 19800) % bar_s                      # bucket on the IST clock
+        o, h, l, cl, v = (float(x) for x in c[1:6])
+        b = buckets.get(start)
+        if b is None:
+            buckets[start] = {"open": o, "high": h, "low": l, "close": cl, "volume": v}
+        else:
+            b["high"], b["low"], b["close"] = max(b["high"], h), min(b["low"], l), cl
+            b["volume"] += v
+    return [{"timestamp": datetime.fromtimestamp(s, _IST).strftime("%Y-%m-%d %H:%M:%S"), **buckets[s]}
+            for s in sorted(buckets)]
+
+
+def has_gap(live: list, since: float) -> bool:
+    """True when the feed's bars from `since` on have a hole: they do not
+    reach back to it, or two of them are a missing bar or more apart."""
+    after = sorted(_bar_epoch(b["timestamp"]) for b in live if _bar_epoch(b["timestamp"]) + BAR_S > since)
+    if not after or after[0] - since >= GAP_S:
+        return True
+    return any(b - a >= GAP_S for a, b in zip(after, after[1:]))
+
+
+def merge_gap(live: list, exchange: list, since: float) -> list:
+    """Live bars where the feed has them; the exchange's bars wherever it
+    does not (the holes from `since` on). Time order. Pure."""
+    have = {_bar_epoch(b["timestamp"]) for b in live}
+    fill = [b for b in exchange if _bar_epoch(b["timestamp"]) not in have]
+    return sorted(list(live) + fill, key=lambda b: _bar_epoch(b["timestamp"]))
+
+
+_candle_cache: dict = {}
+
+
+async def _exchange_candles(state, instrument_key: str) -> list:
+    """Today's 1-minute candles from Upstox, cached for a minute."""
+    import aiohttp
+    hit = _candle_cache.get(instrument_key)
+    if hit and time.time() - hit[0] < 60:
+        return hit[1]
+    token = getattr(getattr(getattr(state, "upstox_api_client", None), "configuration", None), "access_token", None)
+    if not token:
+        return []
+    url = f"https://api.upstox.com/v3/historical-candle/intraday/{instrument_key}/minutes/1"
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
+                                   timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                body = await resp.json()
+        candles = (body.get("data") or {}).get("candles") or []
+    except Exception as e:
+        logger.warning(f"exchange candles for {instrument_key} unavailable: {e}")
+        return []
+    _candle_cache[instrument_key] = (time.time(), candles)
+    return candles
+
+
 @app.get("/api/bars")
-async def get_bars(token: str, request: Request, n: int = 300):
+async def get_bars(token: str, request: Request, n: int = 300, since: float = 0.0):
     """Recent LTF bars for one token — used by SignalLedger's outcome
-    resolver to label outcomes against real bar highs/lows (C-3b)."""
+    resolver to label outcomes against real bar highs/lows (C-3b).
+
+    `since` (epoch s): the caller needs every bar from then on. When the feed
+    was not running for part of that span (a restart, a machine that slept),
+    the hole is filled from the exchange's own 1-minute candles -- on
+    2026-09-30 four paper stops were hit during a 2 h 20 min outage and none
+    was seen."""
     eng = getattr(request.app.state, "rolling_engine", None)
     if eng is None:
         return {"bars": []}
     df = (eng.dfs.get(token) or {}).get("ltf_df")
     if df is None and token in getattr(eng, "index_bars", {}):
         df = list(eng.index_bars[token])
-    return make_json_serializable(build_bars_response(df, n))
+    out = build_bars_response(df, n)
+    if since > 0 and "|" in token and has_gap(out["bars"], since):
+        candles = await _exchange_candles(request.app.state, token)
+        out = {"bars": merge_gap(out["bars"], exchange_bars(candles, since), since)}
+    return make_json_serializable(out)
 
 def _clean_symbol(row: dict) -> str:
     """One identity for a stock, whatever token or suffix a row carries.

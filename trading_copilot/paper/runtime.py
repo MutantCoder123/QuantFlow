@@ -38,7 +38,8 @@ def init(mirror: dict) -> PaperBroker | None:
                               square_off=horizon.get("square_off_ist", "15:20"),
                               config_version=policy.version,
                               trail=horizon.get("trail") or (),
-                              reversal_cooldown_min=horizon.get("reversal_cooldown_min", 0))
+                              reversal_cooldown_min=horizon.get("reversal_cooldown_min", 0),
+                              entry_start=horizon.get("entry_start_ist"))
         stale = _broker.recover()
         logger.info(f"Paper engine ready: {len(_broker.open)} open, {len(_broker.closed)} closed"
                     + (f", {stale} stale position(s) closed" if stale else ""))
@@ -119,12 +120,17 @@ def on_gatekeeper(symbol: str, res: dict, ltp):
     return _guard(_do)
 
 
-async def _fetch_bars(token: str, n: int = 30) -> list[Bar] | None:
+async def _fetch_bars(token: str, since: float | None = None, n: int = 30) -> list[Bar] | None:
+    """Bars from the feed. `since`: the feed fills any hole back to then
+    (a restart, a machine that slept) from the exchange's candles."""
     import aiohttp
+    params = {"token": token, "n": n}
+    if since:
+        params["since"] = since
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get("http://127.0.0.1:8001/api/bars", params={"token": token, "n": n},
-                                   timeout=aiohttp.ClientTimeout(total=3)) as resp:
+            async with session.get("http://127.0.0.1:8001/api/bars", params=params,
+                                   timeout=aiohttp.ClientTimeout(total=12)) as resp:
                 data = await resp.json()
     except Exception:
         return None
@@ -200,7 +206,7 @@ async def tick(ltp_of, fetch_bars=None, last_snap: float = 0.0) -> float:
             if ltp:
                 b.mark(p["symbol"], ltp)
             tok = token or p.get("token")
-            bars = await fetch_bars(tok) if tok else None
+            bars = await fetch_bars(tok, since=p.get("last_bar_ts", p["ts"])) if tok else None
             b.check_touches(p["symbol"], bars, ltp=ltp)
         b.square_off_all(lambda s: ltp_of(s)[0])
         try:

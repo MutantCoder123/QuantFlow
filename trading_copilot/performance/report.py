@@ -26,8 +26,8 @@ SEGMENTS = {
     "regime_side": ["gates.regime_dampening", "conviction.bias_threshold"],
     "symbol": ["watchlist_policy.core", "watchlist_policy.min_adv_crore"],
     "cluster": ["risk.max_cluster_risk_pct", "watchlist_policy.cluster_cap"],
-    "hour": ["horizon.entry_cutoff_ist", "gates.failure_to_launch_min"],
-    "session_phase": ["horizon.entry_cutoff_ist", "gates.regime_dampening"],
+    "hour": ["horizon.entry_start_ist", "horizon.entry_cutoff_ist", "gates.failure_to_launch_min"],
+    "session_phase": ["horizon.entry_start_ist", "horizon.entry_cutoff_ist", "gates.regime_dampening"],
     "score_bucket": ["gates.min_stat_edge", "conviction.bias_threshold"],
     "verdict": ["paper.judge_model"],
 }
@@ -159,7 +159,7 @@ def stops_and_costs(diag: dict, head: dict) -> dict:
     gb = _ok(e["avg_given_back_r"])
     if gb is not None and gb >= 0.5:
         items.append(_item(f"The average trade gave back {gb:.2f} R from its best point before closing.",
-                           e["avg_given_back_r"]["n"], ["conviction.min_reward_risk", "gates.stop_proximity_pct"]))
+                           e["avg_given_back_r"]["n"], ["horizon.trail", "conviction.min_reward_risk"]))
     drag = _ok(head["cost_drag_pct"])
     if drag is not None and drag >= 25:
         items.append(_item(f"Costs took {drag:.1f}% of the gross winnings.", head["cost_drag_pct"]["n"],
