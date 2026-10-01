@@ -13,31 +13,13 @@ class ConvictionScorer:
             "DEFAULT": {"w_micro": 0.40, "w_struct": 0.25, "w_deriv": 0.20, "w_cat": 0.15}
         }
         
-        base = base_weights.get(regime, base_weights["DEFAULT"])
-        
-        try:
-            from performance_analyzer import PerformanceAnalyzer
-            feedback = PerformanceAnalyzer.get_feedback_payload(last_n_days=14)
-            if not feedback or feedback.get("total_signals", 0) < 30:
-                return base
-            
-            regime_stats = feedback.get("regime_accuracy", {}).get(regime)
-            if not regime_stats or regime_stats.get("total_resolved", 0) < 10:
-                return base
-            
-            win_rate = regime_stats["win_rate_30m"] / 100.0
-            scale = 0.8 + (win_rate - 0.4) * (0.4 / 0.3)
-            scale = max(0.7, min(1.3, scale))
-            
-            adjusted = dict(base)
-            dominant_key = max(base, key=base.get)
-            adjusted[dominant_key] = base[dominant_key] * scale
-            
-            total = sum(adjusted.values())
-            return {k: round(v / total, 3) for k, v in adjusted.items()}
-            
-        except Exception:
-            return base
+        # Fixed weights. These used to be rescaled live from the last 14 days'
+        # win rates (dominant component x0.7..1.3): an unversioned self-tune
+        # that no config_version recorded, that learned from the outcome
+        # ledger while it was mislabelled (2026-09-29, F6), and that turned on
+        # at 66 signals. Weights change only through a new policy version,
+        # fitted and validated offline (scripts/fit_score.py recommends).
+        return dict(base_weights.get(regime, base_weights["DEFAULT"]))
 
     def _normalized_weights(self, regime: str, catalyst_live: bool = False) -> dict:
         """Renormalise the component weights over the LIVE components only
