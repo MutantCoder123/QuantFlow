@@ -203,6 +203,8 @@ class PaperBroker:
             return self._reject(s, "ALREADY_OPEN")
         if s.get("manual_position"):
             return self._reject(s, "MANUAL_POSITION_HELD")
+        if s.get("data_missing"):
+            return self._reject(s, "DATA_INCOMPLETE")    # core.data_readiness: never trade on partial data
         if self._flipping(s["symbol"], side):
             return self._reject(s, "REVERSAL_COOLDOWN")
 
@@ -332,6 +334,21 @@ class PaperBroker:
         p["mae_r"], p["mfe_r"] = min(p.get("mae_r", 0.0), r), max(p.get("mfe_r", 0.0), r)
         self._raise_trail(p, p["mfe_r"], self._now())
 
+    def _live_touch(self, p: dict, px: float) -> dict | None:
+        """Stop or target against the live price. A stop fills at the stop or
+        at the price if it is already past it (the worse of the two); a
+        target fills at the target, as a resting limit order would."""
+        if px <= 0:
+            return None
+        long = p["side"] == "LONG"
+        stop = self._stop_now(p)
+        if (px <= stop) if long else (px >= stop):
+            fill = min(px, stop) if long else max(px, stop)
+            return self._close(p, fill, self._stop_reason(p), market=False, touch_check="ltp")
+        if (px >= p["target"]) if long else (px <= p["target"]):
+            return self._close(p, float(p["target"]), "TARGET", market=False, touch_check="ltp")
+        return None
+
     def _stop_reason(self, p: dict) -> str:
         return "TRAIL_STOP" if p.get("trail_stop") else "STOP"
 
@@ -358,12 +375,12 @@ class PaperBroker:
                     p["mae_r"], p["mfe_r"] = min(p["mae_r"], r), max(p["mfe_r"], r)
                 self._raise_trail(p, p["mfe_r"], b.ts + BAR_SECONDS)
                 p["last_bar_ts"] = b.ts
-            if ltp and p.get("trail_stop"):
-                px = float(ltp)
-                crossed = px <= p["trail_stop"] if p["side"] == "LONG" else px >= p["trail_stop"]
-                if crossed:
-                    worse = min(px, p["trail_stop"]) if p["side"] == "LONG" else max(px, p["trail_stop"])
-                    return self._close(p, worse, "TRAIL_STOP", market=False, touch_check="ltp")
+            # The live price, between bars. Bars come from the feed only once
+            # each 5-minute bar completes, so on bars alone a crossed target
+            # or stop was acted on 38-307 s late (2026-09-29..10-01: every
+            # target exit landed on a 5-minute boundary).
+            if ltp:
+                return self._live_touch(p, float(ltp))
             return None
         if ltp:
             px = float(ltp)

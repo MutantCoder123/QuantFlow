@@ -61,10 +61,16 @@ export function statement(metrics, live, now) {
 
   const tone = net > 0 ? 'profit' : net < 0 ? 'loss' : 'plain';
   if (n < minRates) {
+    // Early: say what the trades so far suggest, with the range, rather than nothing.
+    const wr = (metrics.early || {}).win_rate;
+    const known = (v) => typeof v === 'number' && Number.isFinite(v);
+    const read = wr && known(wr.low) && known(wr.high)
+      ? [T(' Early read: the win rate is likely '), F(`${pct(wr.low, { dp: 0 })} to ${pct(wr.high, { dp: 0 })}`, 'amber'),
+        T(`; it firms up toward ${minRates} trades.`)]
+      : [T(' The first firm reading comes at '), F(String(minRates), 'amber'), T(' trades.')];
     return {
       meta,
-      segs: [F(String(n)), T(` ${n === 1 ? 'trade' : 'trades'} closed ${phrase}. Too few to call a win rate; the first reading comes at `),
-        F(String(minRates), 'amber'), T('.')],
+      segs: [F(String(n)), T(` ${n === 1 ? 'trade' : 'trades'} closed ${phrase}.`), ...read],
       sub: `Net ${inr(net)} so far, after ${inr(costs, { signed: false })} costs.${openSentence}`,
     };
   }

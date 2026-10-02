@@ -150,3 +150,13 @@ test('the stored prompt migrates off the 5-year block and keeps other edits', ()
   assert.ok(!out.includes('5-year'));
   assert.ok(isDefault(`  ${DEFAULT_PROMPT}\n`));
 });
+
+test('news that is measured but not counted shows its reading, not "no input"', () => {
+  const w = waterfall({ composite_score: 0.58, contributions: { micro: { contribution: 0.28 }, struct: { contribution: 0.29 },
+    deriv: { contribution: 0 }, catalyst: { contribution: 0, raw: 0.4, counted: false, dead: false } } });
+  assert.equal(w.rows[3].text, 'reads +0.40 · not counted');
+  assert.equal(w.rows[3].tone, 'amber');
+  assert.equal(w.rows[3].shadow, true);
+  const counted = waterfall({ composite_score: 0.1, contributions: { catalyst: { contribution: -0.05, raw: -0.5, counted: true } } });
+  assert.equal(counted.rows[0].text, '−0.05');
+});

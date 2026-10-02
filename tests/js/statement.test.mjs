@@ -34,10 +34,13 @@ test('a losing range says Down, in coral', () => {
   assert.equal(s.segs.find((g) => g.fig).tone, 'loss');
 });
 
-test('below the minimum it refuses to call a rate', () => {
-  const s = statement(metrics({ n: 4, net: 1840, costs: 310, name: 'today' }), live(1, 798), NOW);
-  assert.equal(text(s), '4 trades closed today. Too few to call a win rate; the first reading comes at 20.');
+test('below the minimum it gives the early read with its range, not a firm rate', () => {
+  const m = metrics({ n: 4, net: 1840, costs: 310, name: 'today' });
+  const s = statement({ ...m, early: { win_rate: { value: 50, low: 18.9, high: 81.1, n: 4 } } }, live(1, 798), NOW);
+  assert.equal(text(s), '4 trades closed today. Early read: the win rate is likely 19% to 81%; it firms up toward 20 trades.');
   assert.equal(s.segs.at(-2).tone, 'amber');
+  const bare = statement(m, live(1, 798), NOW);          // no estimate available: says when it firms up
+  assert.equal(text(bare), '4 trades closed today. The first firm reading comes at 20 trades.');
   assert.equal(s.sub, 'Net +₹1,840 so far, after ₹310 costs. 1 trade is open, +₹798 unrealised.');
   assert.equal(s.meta, 'Today, Mon 28 Sep · updated 14:06:12 IST');
 });

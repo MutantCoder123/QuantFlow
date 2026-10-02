@@ -128,7 +128,8 @@ def test_a_win_after_the_limit_does_not_reopen_it(tmp_path):
 # -- policy v3 ----------------------------------------------------------------------
 def test_policy_v3_starts_entries_at_0945():
     from core.policy_config import load_policy
-    p = load_policy()
+    from paths import CONFIG_DIR
+    p = load_policy(CONFIG_DIR / "policy_v3.yaml")                # v4 is the default now; v3 kept as is
     assert p.version == 3 and p.horizon["entry_start_ist"] == "09:45"
     assert p.horizon["square_off_ist"] == "15:10"                         # v2's values kept
 

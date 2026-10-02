@@ -152,9 +152,14 @@ export function waterfall(math) {
     const v = known(p.c.contribution) ? p.c.contribution : 0;
     const a = sums[i];
     const b = sums[i + 1];
+    // Measured but not counted (the news reading until a policy turns it on):
+    // show what it reads, and say it is not in the score.
+    const shadow = !p.c.dead && p.c.counted === false && known(p.c.raw);
+    const signed = (x) => `${x < 0 ? MINUS : '+'}${Math.abs(x).toFixed(2)}`;
     return {
-      name: PART[p.key], value: v, text: p.c.dead ? 'no input' : `${v < 0 ? MINUS : '+'}${Math.abs(v).toFixed(2)}`,
-      tone: p.c.dead ? 'amber' : v < 0 ? 'loss' : 'profit', dead: !!p.c.dead,
+      name: PART[p.key], value: v,
+      text: p.c.dead ? 'no input' : shadow ? `reads ${signed(p.c.raw)} · not counted` : signed(v),
+      tone: p.c.dead || shadow ? 'amber' : v < 0 ? 'loss' : 'profit', dead: !!p.c.dead, shadow,
       left: at(Math.min(a, b)), width: Math.max(0.6, Math.abs(at(b) - at(a))),
       signals: p.c.firing_signals || [],
     };

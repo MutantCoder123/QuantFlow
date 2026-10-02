@@ -142,3 +142,23 @@ def test_yesterdays_losses_do_not_trip_todays_breaker(tmp_path):
     clock.t = ist(10, 0, day=28)
     assert b.realized_loss_today() == 0
     assert b.on_signal(sig(signal_id="S2"))["type"] == "OPEN"
+
+
+# -- the live price between bars (2026-10-01: targets were taken 38-307 s late,
+#    always on a 5-minute boundary, because only completed bars were checked) --
+def test_a_target_crossed_on_the_live_price_closes_now_at_the_target(tmp_path):
+    b, _, _ = opened(tmp_path)
+    old_bar = [bar(ist(10, 0), 100, 101, 99.5)]                          # nothing new in the bars yet
+    ev = b.check_touches("SAIL", old_bar, ltp=104.6)
+    assert ev["reason"] == "TARGET" and ev["exit_price"] == 104.0 and ev["touch_check"] == "ltp"
+
+
+def test_a_stop_crossed_on_the_live_price_closes_now_at_the_worse_price(tmp_path):
+    b, _, _ = opened(tmp_path)
+    ev = b.check_touches("SAIL", [bar(ist(10, 0), 100, 101, 99.5)], ltp=97.6)
+    assert ev["reason"] == "STOP" and ev["exit_price"] == 97.6
+
+
+def test_a_live_price_inside_the_range_keeps_the_position(tmp_path):
+    b, _, _ = opened(tmp_path)
+    assert b.check_touches("SAIL", [bar(ist(10, 0), 100, 101, 99.5)], ltp=102.0) is None

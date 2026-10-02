@@ -48,7 +48,7 @@ def notes(job: dict) -> list:
     if job.get("state") != "done":
         return out
     if not job.get("watchlist_written"):
-        out.append("No selection was made, so the watchlist is unchanged.")
+        out.append("The watchlist is unchanged. Add the picks you want from the list.")
     elif job.get("apply_error"):
         out.append(f"The watchlist was updated, but the live update failed ({_short(job['apply_error'])}); "
                    "new picks start at the next restart.")

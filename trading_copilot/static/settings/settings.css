@@ -3,7 +3,10 @@
 .st-drawer { width: min(820px, 100vw); }
 .st-head { flex-direction: row; align-items: center; justify-content: space-between; }
 .st-head h2 { margin: 0; font: 500 var(--t-h2)/1.2 var(--f-head); }
-.st-body { display: grid; grid-template-columns: 200px minmax(0, 1fr); flex: 1; min-height: 0; }
+/* The row must be bounded too: an implicit `auto` row grows to fit the
+   panel, so a long watchlist ran off the screen instead of scrolling. */
+.st-body { display: grid; grid-template-columns: 200px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr);
+  flex: 1; min-height: 0; }
 .st-nav { border-right: 1px solid var(--rule); padding: 16px 12px; display: flex; flex-direction: column; gap: 2px; }
 .st-nav a { padding: 10px 12px; border-radius: var(--r-input); color: var(--mute); text-decoration: none; }
 .st-nav a:hover { color: var(--paper); }
@@ -18,7 +21,9 @@
 .st-result { display: flex; justify-content: space-between; width: 100%; padding: 10px 12px; border: 0; border-radius: 6px;
   background: transparent; text-align: left; }
 .st-result:hover, .st-result:focus-visible { background: var(--raise); }
-.st-list { border-radius: var(--r-input); }
+/* Never squeezed: as a shrinking flex item with the plate's overflow:hidden,
+   the list was cut to fit the panel and the rows below the cut were lost. */
+.st-list { border-radius: var(--r-input); flex-shrink: 0; }
 .st-list .qf-table td { height: 40px; }
 .st-foot { margin-top: auto; border-top: 1px solid var(--rule); padding-top: 16px; display: flex; align-items: center;
   justify-content: flex-end; gap: 12px; flex-wrap: wrap; }

@@ -37,6 +37,7 @@ REJECT_TUNES = {
     "SIZE_TOO_SMALL": ["risk.min_trade_risk_frac", "risk.max_open_value_x", "risk.max_cluster_risk_pct"],
     "AFTER_ENTRY_CUTOFF": ["horizon.entry_cutoff_ist"],
     "BEFORE_ENTRY_START": ["horizon.entry_start_ist"],
+    "DATA_INCOMPLETE": [],
     "PRICE_BEYOND_GEOMETRY": ["paper.fill.slippage_pct"],
     "NO_FRESH_PRICE": ["paper.stale_price_seconds"],
 }

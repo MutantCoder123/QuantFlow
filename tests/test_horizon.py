@@ -6,6 +6,7 @@ import pytest
 from freezegun import freeze_time
 
 from intraday_gatekeeper import IntradayGatekeeper as G
+from test_data_readiness import COMPLETE as READY
 
 _AUTHORISED_SETUP = {
     "math_setup": {"setup_rejected": False, "composite_score": 0.5,
@@ -32,6 +33,6 @@ def test_no_entry_after_the_cutoff():
 
 def test_entry_still_allowed_before_the_cutoff():
     with freeze_time("2026-09-09 11:00:00+05:30"):
-        res = G.evaluate(_AUTHORISED_SETUP, {}, {}, ltp=100.0)
+        res = G.evaluate(_AUTHORISED_SETUP, READY, {}, ltp=100.0)
     assert res["llm_authorized"] is True
     assert "ENTRY_CUTOFF" not in res.get("math_rejection", "")

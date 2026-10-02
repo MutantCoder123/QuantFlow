@@ -7,6 +7,8 @@ reached -- this test fails unless the wiring itself works.
 """
 import json
 
+from test_data_readiness import COMPLETE as READY   # a stock whose data is complete
+
 import pytest
 
 import discovery_analysis
@@ -42,7 +44,7 @@ def wired(tmp_path, monkeypatch):
     monkeypatch.setattr(paper_rt, "_broker", b)
     monkeypatch.setattr(TerminalDashboard, "active_states", {"2963": {
         "symbol": "SAIL", "token": "2963", "ltp": 100.0, "data_age_s": 1.0,
-        "adv_shares": 5_000_000.0, "whale_cvd_ema_1h": 0.0}})
+        "whale_cvd_ema_1h": 0.0, **dict(READY, adv_shares=5_000_000.0)}})
     monkeypatch.setattr(SignalLedger, "record_signal", classmethod(lambda cls, **kw: "SIG-TEST-1"))
     monkeypatch.setattr(ReasoningEngine, "_write_arm_record", classmethod(lambda cls, *a, **k: None))
     reply = {"text": _ticket("EXECUTE_LONG")}

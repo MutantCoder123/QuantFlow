@@ -62,6 +62,7 @@ const REJECTION = {
   MANUAL_POSITION_HELD: 'You hold it manually',
   AFTER_ENTRY_CUTOFF: 'After the entry cutoff',
   BEFORE_ENTRY_START: 'Opening range: no entries yet',
+  DATA_INCOMPLETE: 'Data not complete yet',
   ENGINE_PAUSED: 'Paper engine paused',
   NOT_AN_ENTRY: 'Not an entry',
   DEGENERATE_STOP: 'Stop at the entry',

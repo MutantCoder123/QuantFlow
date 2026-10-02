@@ -84,7 +84,7 @@ def test_catalyst_is_marked_dead_not_a_fabricated_zero_score():
     cat = out["contributions"]["catalyst"]
     assert cat["raw"] is None
     assert cat["dead"] is True
-    assert cat["marker"] == "⚠ no catalyst input (see C-1)"
+    assert cat["marker"] == "no rated news for this stock"
     assert cat["contribution"] == pytest.approx(0.0)
 
 

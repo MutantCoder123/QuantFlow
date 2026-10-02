@@ -216,3 +216,22 @@ test('a mark a moment "ahead" of the page clock reads as fresh, not unknown', ()
   assert.equal(r.lastAmber, false);
   assert.equal(r.priceNote, '');
 });
+
+test('below the minimum the figures show the early estimate and range, marked early', () => {
+  const ins = (n) => ({ value: null, n, min_n: 20, status: 'insufficient' });
+  const m = { min_n: { rates: 20 }, headline: { win_rate: ins(9), profit_factor: ins(9), expectancy_r: ins(9),
+      costs: { value: 3000, n: 9, status: 'ok' }, cost_drag_pct: ins(9) },
+    risk_adjusted: {}, early: { level: 0.9,
+      win_rate: { value: 45.45, low: 22.24, high: 69.65, n: 9 },
+      profit_factor: { value: 2, low: 0.5, high: 6.33, n: 9 },
+      expectancy_r: { value: 0.56, low: -0.69, high: 1.8, n: 9 },
+      p_edge: { value: 78.5, low: null, high: null, n: 9 } } };
+  const f = figures(m);
+  assert.equal(f[0].value, 'about 45.5% (likely 22.2% to 69.7%)');
+  assert.equal(f[0].n, '9 trades, early · 90% range');
+  assert.equal(f[0].amber, true);
+  assert.equal(f[1].value, 'about 2.00 (likely 0.50 to 6.33)');
+  const edge = f.find((x) => x.label === 'Chance the edge is real');
+  assert.equal(edge.value, '78.5%');
+  assert.equal(edge.amber, true);
+});

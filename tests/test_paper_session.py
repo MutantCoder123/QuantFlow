@@ -13,6 +13,8 @@ from paper.broker import PaperBroker
 from paper.fills import Bar
 from test_paper_broker_open import Mirror, ist, make
 
+from test_data_readiness import COMPLETE as READY   # every stock here has complete data
+
 RAW = {
     "SAIL": {"token": "2963", "ltp": 100.0, "data_age_s": 1, "adv_shares": 5e6, "whale_cvd_ema_1h": 0},
     "IDEA": {"token": "14366", "ltp": 10.0, "data_age_s": 1, "adv_shares": 9e7, "whale_cvd_ema_1h": 0},
@@ -23,7 +25,7 @@ REGIME = {"current_regime": "TREND_EXPANSION", "session_phase": "MORNING_SESSION
 
 
 def ticket(symbol, action, stop, target, ltp=None):
-    raw = dict(RAW[symbol], **({"ltp": ltp} if ltp else {}))
+    raw = dict(READY, **RAW[symbol], **({"ltp": ltp} if ltp else {}))
     return paper_rt.on_ticket(symbol, dict(TICKET, action_directive=action),
                               {"final_stop": stop, "final_target": target},
                               {"composite_score": 0.6}, REGIME, raw, f"SIG-{symbol}", False)

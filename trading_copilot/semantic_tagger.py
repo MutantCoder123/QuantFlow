@@ -249,7 +249,8 @@ class SemanticTagger:
             "2_derivatives_matrix_52w": block_2,
             "3_local_structural_edge_20d": block_3,
             "4_catalyst_engine": {
-                "raw_news": flat.get("raw_news", [])
+                "raw_news": flat.get("raw_news", []),
+                "news_score": flat.get("news_score"),        # core.news_score; None = no rated news
             }
         }
         

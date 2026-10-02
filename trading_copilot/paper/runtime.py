@@ -87,6 +87,11 @@ def realized_loss_today() -> float:
     return _guard(lambda b: b.realized_loss_today()) or 0.0
 
 
+def _data_missing(raw: dict) -> list:
+    from core.data_readiness import missing
+    return missing(raw)
+
+
 def on_ticket(symbol: str, ticket: dict, risk_params: dict, math_setup: dict,
               regime: dict, raw: dict, signal_id: str | None, manual_position: bool):
     """Called where a CONFIRM/ADJUST ticket is recorded."""
@@ -106,6 +111,7 @@ def on_ticket(symbol: str, ticket: dict, risk_params: dict, math_setup: dict,
             "regime": regime.get("current_regime"), "session_phase": regime.get("session_phase"),
             "signal_id": signal_id, "rationale": ticket.get("institutional_rationale"),
             "manual_position": manual_position,
+            "data_missing": _data_missing(raw),
         })
     return _guard(_do)
 

@@ -231,6 +231,7 @@ class PreMarketScreener:
         # None if selection failed and the file was left alone. Discovery
         # applies exactly this to the live feed -- never top_picks.
         self.selected = None
+        self.suggested = None   # the bounded selection a scan proposes; never applied
 
     async def _process_single_stock(self, token, metadata, nifty_df, catalyst_cache):
         try:
@@ -346,6 +347,7 @@ class PreMarketScreener:
         logger.info("Initiating Phase 0 Pre-Market Screener...")
         self.selected = None
         self.universe = None
+        self.suggested = None
         
         # Fetch News Catalyst Cache
         catalyst_cache = {}
@@ -426,11 +428,13 @@ class PreMarketScreener:
             previous_watchlist = load_watchlist_from_csv(self.watchlist_file)
             previous_symbols = [v.get("symbol", "") for v in previous_watchlist.values()
                                  if str(v.get("symbol", "")).upper() not in core_symbols]
-            bounded = select_bounded_watchlist(filtered, previous_symbols, policy, clusters)
-            if self._update_watchlist(bounded):
-                self.selected = bounded
+            # A SUGGESTION only. The operator chooses what joins the
+            # watchlist (Discovery's Add); a scan never rewrites
+            # watchlist.csv or the live feed. self.selected stays None, so
+            # the Discovery job applies nothing.
+            self.suggested = select_bounded_watchlist(filtered, previous_symbols, policy, clusters)
         except Exception as e:
-            logger.error(f"Bounded watchlist selection failed; watchlist.csv left unchanged: {e}")
+            logger.error(f"Bounded watchlist suggestion failed: {e}")
 
         return top_picks
 

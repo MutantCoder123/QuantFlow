@@ -42,10 +42,14 @@ class NewsEngine:
             return None
 
     @classmethod
-    async def analyze_catalyst(cls, headline: str, summary: str, model_name: str = DEFAULT_MODEL):
+    async def analyze_catalyst(cls, headline: str, summary: str, model_name: str = DEFAULT_MODEL,
+                               symbol: str | None = None):
         try:
+            about = (f"Rate it for {symbol} specifically: news about the whole market, an index, or "
+                     "other companies is NEUTRAL for it. ") if symbol else ""
             prompt = (
                 f"You are a quantitative text parser. Analyze this news: {headline} - {summary}. "
+                + about +
                 "Categorize it and summarize it in exactly one sentence. "
                 "Format MUST be exactly: '[BULLISH/BEARISH/NEUTRAL] - [1-sentence summary]'. "
                 "If no relevant stock news is present, return 'NEUTRAL - No immediate fundamental catalyst detected.'"
@@ -55,6 +59,22 @@ class NewsEngine:
         except Exception as e:
             logger.error(f"LLM error during news parsing ({model_name}): {e}")
             return "NEUTRAL - Catalyst parsing failed due to API error."
+
+    _ratings: dict = {}          # (symbol, headline) -> -1 / 0 / +1, rated once
+
+    @classmethod
+    async def _rate(cls, symbol: str, articles: list, model_name: str) -> list:
+        """Give each article a sentiment (core.news_score), asking the model
+        only about headlines it has not rated before."""
+        from core.news_score import parse_sentiment
+        for a in articles:
+            key = (symbol, a.get("headline", ""))
+            if key not in cls._ratings:
+                reply = await cls.analyze_catalyst(a.get("headline", ""), a.get("summary", ""),
+                                                   model_name, symbol=symbol)
+                cls._ratings[key] = parse_sentiment(reply)
+            a["sentiment"] = cls._ratings[key]
+        return articles
 
     @classmethod
     def _fallback_payload(cls, symbol: str):
@@ -129,7 +149,8 @@ class NewsEngine:
                             recent_news[sym].append({
                                 "Article": f"Article {len(recent_news[sym]) + 1}",
                                 "headline": heading,
-                                "summary": summary
+                                "summary": summary,
+                                "published_ts": ts,
                             })
                             
             logger.info(f"--- RAW NEWS FETCHED ({count} items) ---")
@@ -140,11 +161,13 @@ class NewsEngine:
                     headline = recent_news[sym][0]['headline']
                     existing = cls.catalyst_cache.get(sym)
                     if existing and existing.get("raw_news") and existing["raw_news"][0]["headline"] == headline:
+                        if any("sentiment" not in a for a in existing["raw_news"]):
+                            await cls._rate(sym, existing["raw_news"], model_name)   # cached before rating existed
                         continue
 
                     logger.info(f"[NEWS] Found match for {sym}: {headline}")
                     news_data = {
-                        "raw_news": recent_news[sym]
+                        "raw_news": await cls._rate(sym, recent_news[sym], model_name)
                     }
                     cls.catalyst_cache[sym] = news_data
                     logger.info(f"[CATALYST] {sym} -> {headline} (Raw)")
@@ -207,15 +230,21 @@ class NewsEngine:
                     summary = item.get('summary', '')
                     logger.info(f"[NEWS FORCE FETCH] Match for {symbol}: {heading}")
 
+                    def _ts(i):
+                        try:
+                            return int(i.get('published_time', 0)) / 1000
+                        except (TypeError, ValueError):
+                            return time.time()
                     news_data = {
-                        "raw_news": [
+                        "raw_news": await cls._rate(symbol, [
                             {
                                 "Article": f"Article {idx + 1}",
                                 "headline": i.get('heading', ''),
-                                "summary": i.get('summary', '')
+                                "summary": i.get('summary', ''),
+                                "published_ts": _ts(i),
                             }
                             for idx, i in enumerate(all_items[:3])
-                        ]
+                        ], model)
                     }
                     cls.catalyst_cache[symbol] = news_data
                     return news_data

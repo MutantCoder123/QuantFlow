@@ -200,6 +200,16 @@ class IntradayGatekeeper:
                 res["math_rejection"] = f"ENTRY_START_{str(start).replace(':', '')}"
                 return res
 
+        # DATA COMPLETENESS: a new trade is considered only on complete data
+        # (core.data_readiness). An incomplete stock is never escalated to
+        # the AI and never becomes a setup; its exits (Path A) are untouched.
+        from core.data_readiness import missing as _missing
+        if _missing(raw_payload):
+            res = cls._create_response("Wait", priority=0, confidence=0, llm_auth=False)
+            res["math_rejection"] = "DATA_INCOMPLETE"
+            res["data_missing"] = _missing(raw_payload)
+            return res
+
         # Read ConvictionScorer output directly
         setup_rejected = math_setup.get("setup_rejected", True)
         composite_score = abs(math_setup.get("composite_score", 0.0))

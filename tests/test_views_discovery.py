@@ -47,7 +47,7 @@ def test_notes_say_what_the_run_did():
     assert notes(DONE) == ["The watchlist was updated; 1 stock went live.",
                            "Leaving the watchlist at the next restart: IDEA."]
     assert notes({"state": "error", "error": "boom"}) == ["The scan failed: boom. The watchlist was not changed."]
-    assert notes({"state": "done", "watchlist_written": False}) == ["No selection was made, so the watchlist is unchanged."]
+    assert notes({"state": "done", "watchlist_written": False}) == ["The watchlist is unchanged. Add the picks you want from the list."]
     assert "GPU" in notes({"state": "done", "watchlist_written": False, "analysis": {"device": "CPU"}})[1]
 
 
@@ -64,3 +64,14 @@ def test_the_endpoint_says_when_the_feed_is_down(monkeypatch):
     monkeypatch.setattr(api_server, "_reload_watchlist", lambda: {"TMCX": {"symbol": "MCX-EQ", "exchange": "NSE"}})
     body = TestClient(api_server.app).get("/api/discovery/view").json()
     assert body["status"] == "success" and body["picks"][1]["on_watchlist"] is True
+
+
+def test_a_scan_only_suggests_and_never_rewrites_the_watchlist():
+    """2026-10-01: the operator chooses what joins the watchlist. run_scan
+    computes the bounded selection as a suggestion; it does not write
+    watchlist.csv and leaves `selected` None, so the job applies nothing."""
+    import inspect
+    from screener_engine import PreMarketScreener
+    src = inspect.getsource(PreMarketScreener.run_scan)
+    assert "_update_watchlist(" not in src
+    assert "self.selected = bounded" not in src and "self.suggested =" in src

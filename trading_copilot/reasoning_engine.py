@@ -250,6 +250,10 @@ class ReasoningEngine:
         catalyst = TerminalDashboard.catalyst_cache.get(clean_sym)
         if catalyst and "raw_news" in catalyst:
             payload["raw_news"] = catalyst["raw_news"]
+        from core.news_score import news_score
+        _ns = news_score((catalyst or {}).get("raw_news"))
+        if _ns is not None:
+            payload["news_score"] = _ns          # numeric: the feature log records it as f_news_score
             
         tactical_payload = SemanticTagger.translate_to_llm_payload(payload)
 

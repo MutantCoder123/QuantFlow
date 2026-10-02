@@ -462,12 +462,13 @@ def _paper_arms(sc):
 async def paper_metrics(rng: str = Query("all", alias="range"),
                         frm: str | None = Query(None, alias="from"), to: str | None = None):
     from performance.metrics import daily, headline, risk_adjusted
+    from performance.small_sample import early
     sc, min_n, err = _paper_scope(rng, frm, to)
     if err:
         return err
     return {"status": "success", "range": _range_body(rng, sc), "min_n": min_n,
             "headline": headline(sc, min_n), "risk_adjusted": risk_adjusted(sc, min_n),
-            "daily": daily(sc)}
+            "early": early(sc.trades), "daily": daily(sc)}
 
 
 @app.get("/api/paper/equity")

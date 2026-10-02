@@ -150,13 +150,19 @@ class ConvictionScorer:
         struct_norm = max(min(struct_score / 3.0, 1.0), -1.0)
 
         # --- Catalyst (Max abs sum: 0.5) ---
+        # The rated news (core.news_score), in [-1, 1]; None when there is
+        # no rated news. It is always MEASURED and shown; it COUNTS in the
+        # composite only when the policy says so (conviction.news_in_score),
+        # i.e. once scripts/fit_score.py has shown it predicts.
         catalyst = semantic_payload.get("4_catalyst_engine", {})
-        raw_news = catalyst.get("raw_news", [])
-        catalyst_norm = 0.0  # Pass-through logic: qualitative news interpretation belongs in LLM Layer 2
+        news = catalyst.get("news_score")
+        news = float(news) if isinstance(news, (int, float)) else None
+        news_counted = news is not None and bool(self._cfg_conviction("news_in_score", False))
+        catalyst_norm = max(-1.0, min(1.0, news)) if news_counted else 0.0
 
         # Step 3: Composite Calculation -- renormalise over live components so a
         # dead catalyst weight can't cap |composite| below 1.0 (C-1).
-        catalyst_live = (catalyst_norm != 0.0)
+        catalyst_live = news_counted
         weights = self._normalized_weights(regime, catalyst_live)
         w_micro, w_struct, w_deriv, w_cat = weights["w_micro"], weights["w_struct"], weights["w_deriv"], weights["w_cat"]
 
@@ -191,13 +197,17 @@ class ConvictionScorer:
                 "firing_signals": deriv_signals,
             },
             "catalyst": {
-                "raw": None,
+                # raw = the news reading itself, counted or not; None = no rated news
+                "raw": round(news, 3) if news is not None else None,
                 "normalized": round(catalyst_norm, 3),
                 "weight": round(w_cat, 3),
                 "contribution": round(catalyst_norm * w_cat, 3),
-                "firing_signals": [],
-                "dead": True,
-                "marker": "⚠ no catalyst input (see C-1)",
+                "firing_signals": ([f"news {'bullish' if news > 0 else 'bearish' if news < 0 else 'neutral'} {news:+.2f}"]
+                                   if news is not None else []),
+                "dead": news is None,
+                "counted": news_counted,
+                "marker": ("no rated news for this stock" if news is None
+                           else None if news_counted else "measured, not in the score yet"),
             },
         }
 
