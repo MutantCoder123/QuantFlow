@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 from diagnostic_ui import TerminalDashboard
 from config import load_watchlist_from_csv
 from reasoning_engine import ReasoningEngine, attention_rank
+from core.watchlist import on_watchlist
 from history_manager import HistoryManager
 from paths import INSTITUTIONAL_FLOW_PATH, TRADE_HISTORY_PATH, WATCHLIST_PATH, ensure_dirs
 from llm import DEFAULT_MODEL
@@ -1107,6 +1108,10 @@ async def websocket_endpoint(websocket: WebSocket):
             for instrument_key, payload in local_active_states.items():
                 symbol = instrument_key.split('|')[-1] if '|' in instrument_key else instrument_key
                 if symbol == "Nifty 50": continue
+                # Removed from the watchlist: off the board at once (the feed streams it
+                # until a restart). Kept while a position on it is still open.
+                if not on_watchlist(symbol) and not ReasoningEngine.user_positions.get(symbol.split('-')[0]):
+                    continue
 
                 payload_copy = dict(payload)
                 from pipeline_guard import is_market_open

@@ -234,6 +234,8 @@ class PaperBroker:
             return self._reject(s, "ALREADY_OPEN")
         if s.get("manual_position"):
             return self._reject(s, "MANUAL_POSITION_HELD")
+        if s.get("off_watchlist"):
+            return self._reject(s, "NOT_ON_WATCHLIST")    # removed by the operator: no new trades
         if s.get("data_missing"):
             return self._reject(s, "DATA_INCOMPLETE")    # core.data_readiness: never trade on partial data
         if self._flipping(s["symbol"], side):

@@ -97,6 +97,11 @@ def realized_loss_today() -> float:
     return _guard(lambda b: b.realized_loss_today()) or 0.0
 
 
+def _on_watchlist(symbol: str) -> bool:
+    from core.watchlist import on_watchlist
+    return on_watchlist(symbol)
+
+
 def _data_missing(raw: dict) -> list:
     from core.data_readiness import missing
     return missing(raw)
@@ -122,6 +127,7 @@ def on_ticket(symbol: str, ticket: dict, risk_params: dict, math_setup: dict,
             "signal_id": signal_id, "rationale": ticket.get("institutional_rationale"),
             "manual_position": manual_position,
             "data_missing": _data_missing(raw),
+            "off_watchlist": not _on_watchlist(symbol),
         })
     return _guard(_do)
 

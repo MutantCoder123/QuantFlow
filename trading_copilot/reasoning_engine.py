@@ -9,6 +9,7 @@ import collections
 from google import genai
 from diagnostic_ui import TerminalDashboard
 from llm import DEFAULT_MODEL
+from core.watchlist import on_watchlist
 
 logger = logging.getLogger(__name__)
 
@@ -912,6 +913,12 @@ class ReasoningEngine:
                 current_pos = cls.user_positions.get(norm_sym)
                 if current_pos is None:
                     current_pos = {}
+                # Removed from the watchlist: no new evaluation, signal or trade.
+                # The feed keeps streaming it until a restart (removals are
+                # deferred), so a held position -- paper or manual, both in
+                # user_positions -- is still managed to its exit, then it goes quiet.
+                if not current_pos and not on_watchlist(norm_sym):
+                    continue
                 try:
                     # ---- NEW: Run Math Engine FIRST for every symbol ----
                     # This is the ONE authoritative decision loop -- the only

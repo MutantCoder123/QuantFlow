@@ -65,6 +65,7 @@ const REJECTION = {
   AFTER_ENTRY_CUTOFF: 'After the entry cutoff',
   BEFORE_ENTRY_START: 'Opening range: no entries yet',
   DATA_INCOMPLETE: 'Data not complete yet',
+  NOT_ON_WATCHLIST: 'Removed from the watchlist',
   ENGINE_PAUSED: 'Paper engine paused',
   NOT_AN_ENTRY: 'Not an entry',
   DEGENERATE_STOP: 'Stop at the entry',
