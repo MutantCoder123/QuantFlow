@@ -126,7 +126,17 @@ class RollingStateEngine:
             RollingStateEngine.live_options_state = data.get('live_options_state', {})
             RollingStateEngine.daily_metrics_cache = data.get('daily_metrics_cache', {})
             
+            # Restore only stocks still on the watchlist. A stock the operator
+            # removed came back from this cache and was evaluated all day on
+            # a frozen price (360ONE, 2026-10-01: 2,725 evaluations, all gated
+            # stale). Indices and other non-equity keys are always kept.
+            on_list = {self._resolve_symbol(t).upper() for t in self.watchlist}
+            dropped = []
             for token, token_dfs in data.get('dfs', {}).items():
+                if on_list and str(token).startswith("NSE_EQ|") \
+                        and str(token).split('|')[-1].split('-')[0].upper() not in on_list:
+                    dropped.append(str(token).split('|')[-1])
+                    continue
                 if token not in self.dfs:
                     self.dfs[token] = {}
                 for df_key, records in token_dfs.items():
@@ -137,6 +147,8 @@ class RollingStateEngine:
                             df['timestamp'] = pd.to_datetime(df['timestamp'])
                         self.dfs[token][df_key] = df
                         
+            if dropped:
+                logger.info(f"Not restored (no longer on the watchlist): {sorted(dropped)}")
             logger.info("Hydrated state from cache. Engine Anti-Cold Start successful.")
             return True
         except Exception as e:

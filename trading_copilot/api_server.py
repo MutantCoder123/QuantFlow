@@ -427,6 +427,31 @@ async def paper_rejections(rng: str = Query("all", alias="range"),
     return err or {"status": "success", "range": _range_body(rng, sc), "rejections": sc.rejections}
 
 
+@app.get("/api/paper/journal")
+async def paper_journal(symbol: str | None = None, pos_id: str | None = None):
+    """The position journal (policy v4): a position's OPEN, its REVIEW
+    entries and its CLOSE, in time order. By pos_id, or the latest position
+    on `symbol` (open, else most recently opened)."""
+    from paper import runtime as paper_rt
+    from paper.store import EventStore
+    b = paper_rt.broker()
+    events = (b.store if b else EventStore()).load()
+    if not pos_id and symbol:
+        want = symbol.upper().split("-")[0]
+        opens = [e for e in events if e.get("type") == "OPEN" and str(e.get("symbol", "")).upper() == want]
+        open_ids = set(b.open) if b else set()
+        live = [e for e in opens if e["pos_id"] in open_ids]
+        pick = (live or sorted(opens, key=lambda e: e.get("ts", 0)))[-1:] if opens else []
+        pos_id = pick[0]["pos_id"] if pick else None
+    if not pos_id:
+        return {"status": "success", "pos_id": None, "entries": []}
+    keep = ("OPEN", "REVIEW", "CLOSE")
+    entries = sorted((e for e in events if e.get("pos_id") == pos_id and e.get("type") in keep),
+                     key=lambda e: e.get("ts", 0))
+    return {"status": "success", "pos_id": pos_id,
+            "entries": [{k: v for k, v in e.items() if k not in ("settings", "costs")} for e in entries]}
+
+
 # ---- Paper performance (pure metrics over the event log) -----------------
 def _paper_scope(rng, frm, to):
     """(scope, min_n, error). Reads the event log directly, so the figures
@@ -1082,7 +1107,7 @@ async def websocket_endpoint(websocket: WebSocket):
             for instrument_key, payload in local_active_states.items():
                 symbol = instrument_key.split('|')[-1] if '|' in instrument_key else instrument_key
                 if symbol == "Nifty 50": continue
-                
+
                 payload_copy = dict(payload)
                 from pipeline_guard import is_market_open
                 payload_copy["market_state"] = "LIVE" if is_market_open() else "CLOSED"

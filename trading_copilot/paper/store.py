@@ -71,6 +71,7 @@ class State:
     rejections: list = field(default_factory=list)
     settings_changes: list = field(default_factory=list)
     equity: list = field(default_factory=list)           # EQUITY snapshots
+    reviews: list = field(default_factory=list)          # REVIEW journal entries (policy v4)
 
 
 def rebuild(events: list[dict]) -> State:
@@ -105,6 +106,13 @@ def rebuild(events: list[dict]) -> State:
             s.equity.append(e)
             for pid, m in (e.get("marks") or {}).items():
                 if pid in s.open:
-                    s.open[pid].update({k: m[k] for k in ("last", "mae_r", "mfe_r", "trail_stop", "trail_ts")
-                                        if m.get(k) is not None})
+                    s.open[pid].update({k: m[k] for k in ("last", "mae_r", "mfe_r", "trail_stop", "trail_ts",
+                                                          "past_target") if m.get(k) is not None})
+        elif t == "REVIEW":
+            # the position journal (policy v4). A run-on must survive a
+            # restart: once past its target the target is no longer an exit.
+            s.reviews.append(e)
+            pos = s.open.get(e.get("pos_id"))
+            if pos is not None and e.get("kind") == "RUN_ON":
+                pos["past_target"] = True
     return s

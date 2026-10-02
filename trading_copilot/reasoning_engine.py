@@ -81,8 +81,12 @@ def _classify_decision(math_setup: dict, gatekeeper_res: dict) -> str:
         return f"REJECTED_{math_setup.get('rejection_reason', 'UNKNOWN')}"
     elif gatekeeper_res.get("llm_authorized"):
         return "PROPOSED"
+    elif gatekeeper_res.get("math_rejection"):
+        return f"GATED_{gatekeeper_res['math_rejection']}"
     else:
-        return f"GATED_{gatekeeper_res.get('math_rejection', 'UNKNOWN')}"
+        # Path A (a position is held): no entry gate applies; the gatekeeper is
+        # managing it. Was logged GATED_UNKNOWN (2,464 rows on 2026-10-01).
+        return f"MANAGING_{str(gatekeeper_res.get('Action') or 'UNKNOWN').upper()}"
 
 
 def _numeric_features(payload: dict) -> dict:
@@ -932,7 +936,11 @@ class ReasoningEngine:
                         user_context={"position": current_pos} if current_pos else {},
                         ltp=ltp
                     )
-                    paper_rt.on_gatekeeper(norm_sym, gatekeeper_res, ltp)
+                    paper_rt.on_gatekeeper(
+                        norm_sym, gatekeeper_res, ltp,
+                        score=(structured.get("math_setup") or {}).get("composite_score"),
+                        regime=(structured.get("market_regime") or {}).get("current_regime"),
+                        data_age_s=payload.get("data_age_s"))
                     
                     # ---- Log a feature vector for THIS symbol/tick, whether
                     # it gets proposed, rejected, or gated — before the

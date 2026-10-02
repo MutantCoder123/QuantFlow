@@ -33,3 +33,10 @@ def test_numeric_features_excludes_strings_and_bools():
               "is_live": True, "vol_z": -1.2, "nested": {"a": 1}}
     out = _numeric_features(payload)
     assert out == {"ltp": 100.5, "obi": 0.42, "vol_z": -1.2}
+
+
+def test_a_held_position_is_logged_as_managed_not_unknown():
+    """Path A sets no math_rejection; it was logged GATED_UNKNOWN (2026-10-01)."""
+    math_setup = {"setup_rejected": False}
+    assert _classify_decision(math_setup, {"llm_authorized": False, "Action": "Hold"}) == "MANAGING_HOLD"
+    assert _classify_decision(math_setup, {"llm_authorized": False}) == "MANAGING_UNKNOWN"

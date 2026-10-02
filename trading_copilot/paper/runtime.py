@@ -39,7 +39,11 @@ def init(mirror: dict) -> PaperBroker | None:
                               config_version=policy.version,
                               trail=horizon.get("trail") or (),
                               reversal_cooldown_min=horizon.get("reversal_cooldown_min", 0),
-                              entry_start=horizon.get("entry_start_ist"))
+                              entry_start=horizon.get("entry_start_ist"),
+                              run_on_trail_r=(horizon.get("run_on") or {}).get("trail_r"),
+                              thesis_against=(horizon.get("thesis_exit") or {}).get("against"),
+                              thesis_minutes=(horizon.get("thesis_exit") or {}).get("minutes", 10),
+                              review_every_min=horizon.get("review_every_min"))
         stale = _broker.recover()
         logger.info(f"Paper engine ready: {len(_broker.open)} open, {len(_broker.closed)} closed"
                     + (f", {stale} stale position(s) closed" if stale else ""))
@@ -116,13 +120,22 @@ def on_ticket(symbol: str, ticket: dict, risk_params: dict, math_setup: dict,
     return _guard(_do)
 
 
-def on_gatekeeper(symbol: str, res: dict, ltp):
-    """Every loop tick, for every symbol: mark, then act on a Path A Close."""
+def on_gatekeeper(symbol: str, res: dict, ltp, score=None, regime: str | None = None,
+                  data_age_s=None):
+    """Every loop tick, for every symbol: mark, act on a Path A Close, then
+    hand the live score to the thesis exit and the journal (policy v4)."""
     def _do(b: PaperBroker):
         if b.position_for(symbol) is None:
             return None
         b.mark(symbol, ltp)
-        return b.on_gatekeeper(symbol, res, ltp)
+        ev = b.on_gatekeeper(symbol, res, ltp)
+        if ev is not None:
+            return ev
+        try:
+            fresh = float(data_age_s or 0.0) <= b.settings.options()["stale_price_seconds"]
+        except (TypeError, ValueError, KeyError):
+            fresh = False
+        return b.on_score(symbol, score, regime=regime, fresh=fresh, ltp=ltp)
     return _guard(_do)
 
 

@@ -129,12 +129,31 @@ export function paperPosition(p, now) {
         <div><span class="qf-label">Entry</span><b>${px(p.entry_price)}</b></div>
         <div><span class="qf-label">Unrealised</span><b data-tone="${p.unrealized > 0 ? 'profit' : p.unrealized < 0 ? 'loss' : 'flat'}">${inr(p.unrealized)}</b></div>
         <div><span class="qf-label">Opened</span><b>${hm(p.ts)}</b></div>
-        <div><span class="qf-label">Stop</span><b class="qf-down">${px(p.stop)}</b></div>
-        <div><span class="qf-label">Target</span><b class="qf-up">${px(p.target)}</b></div>
+        <div><span class="qf-label">${p.trail_stop ? 'Stop (trailed)' : 'Stop'}</span><b class="qf-down">${px(p.trail_stop || p.stop)}</b></div>
+        <div><span class="qf-label">Target</span><b class="qf-up">${p.past_target ? 'Passed, running on' : px(p.target)}</b></div>
         <div><span class="qf-label">Now</span><b>${fmtR(p.r_now)}</b></div>
         <div><span class="qf-label">Price age</span><b>${Number.isFinite(p.last_mark_ts) ? `${Math.max(0, Math.round(now - p.last_mark_ts))} s` : DASH}</b></div>
       </div>
       <p class="qf-cap">The paper engine manages this position; a near-stop warning waits for the real stop.</p>
+    </section>`;
+}
+
+/** The position journal: entry, each re-check, the close. Checks fold away
+ * so the decisions (run on, stop raised, score turned) stand out. */
+export function journal(rows) {
+  if (!rows || !rows.length) return '';
+  const checks = rows.filter((r) => r.check).length;
+  const shown = rows.filter((r) => !r.check);
+  const lastCheck = [...rows].reverse().find((r) => r.check);
+  if (lastCheck) shown.push(lastCheck);
+  shown.sort((a, b) => a.ts - b.ts);
+  return html`
+    <section class="in-journal" aria-label="Position journal">
+      <h3 class="qf-h3">Journal</h3>
+      <ol class="in-tl">${shown.map((r) => html`
+        <li data-tone="${r.tone}"><span class="in-tl-time">${hm(r.ts)}</span>
+          <div><b>${r.title}</b><p>${r.note}</p></div></li>`)}</ol>
+      ${checks > 1 ? html`<p class="qf-cap">${checks} routine checks; the latest is shown.</p>` : ''}
     </section>`;
 }
 

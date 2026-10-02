@@ -22,6 +22,8 @@ EXIT_TUNES = {
     "STOP": ["conviction.atr_mult_by_iv_regime"],
     "TARGET": ["conviction.min_reward_risk"],
     "TRAIL_STOP": ["horizon.trail"],
+    "RUN_ON_STOP": ["horizon.run_on"],
+    "THESIS_EXIT": ["horizon.thesis_exit"],
     "GATEKEEPER_STOP_PROXIMITY": ["gates.stop_proximity_pct"],
     "GATEKEEPER_WHALE_FLIP": ["gates.whale_flip_adv_frac"],
     "SQUARE_OFF": ["horizon.entry_cutoff_ist", "horizon.square_off_ist"],

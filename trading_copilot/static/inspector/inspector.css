@@ -63,6 +63,19 @@
 .in-form-foot { grid-column: 1 / -1; display: flex; align-items: center; justify-content: flex-end; gap: 12px; flex-wrap: wrap; }
 .in-form-foot .qf-cap { margin-right: auto; }
 
+/* the position journal: a quiet timeline; decisions carry the colour */
+.in-journal { display: flex; flex-direction: column; gap: 10px; }
+.in-journal .qf-cap { margin: 0; }
+.in-tl { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
+.in-tl li { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 12px; padding: 8px 0 8px 12px;
+  border-left: 2px solid var(--rule-strong); }
+.in-tl li[data-tone="profit"] { border-left-color: var(--jade); }
+.in-tl li[data-tone="loss"] { border-left-color: var(--coral); }
+.in-tl li[data-tone="amber"] { border-left-color: var(--amber); }
+.in-tl-time { color: var(--mute); font-variant-numeric: tabular-nums; }
+.in-tl b { font-weight: 500; }
+.in-tl p { margin: 3px 0 0; color: var(--mute); font-size: 14px; }
+
 /* ai */
 .in-ai-controls { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .in-model select { width: 200px; }

@@ -2,8 +2,8 @@
 // Every number here was computed by the engine; this only picks, labels and
 // lays out.
 
-import { DASH, MINUS, r as fmtR, tone } from '../shared/format.js';
-import { rejectionLabel, sentenceCase, statusLabel, statusTone } from '../shared/labels.js';
+import { DASH, MINUS, group, inr, r as fmtR, tone } from '../shared/format.js';
+import { exitLabel, exitTone, rejectionLabel, sentenceCase, statusLabel, statusTone } from '../shared/labels.js';
 import { normalizeSymbol } from '../shared/positions.js';
 
 const known = (v) => typeof v === 'number' && Number.isFinite(v);
@@ -171,6 +171,39 @@ export function waterfall(math) {
     bias: math.directional_bias ? sentenceCase(math.directional_bias) : '',
     rejection: math.setup_rejected && math.rejection_reason ? rejectionLabel(math.rejection_reason) : '',
   };
+}
+
+const signed2 = (x) => (known(x) ? `${x < 0 ? MINUS : '+'}${Math.abs(x).toFixed(2)}` : DASH);
+const REVIEW_TITLE = {
+  CHECK: 'Checked', TRAIL: 'Stop raised', RUN_ON: 'Target reached, running on',
+  THESIS_AGAINST: 'Score turned against it', THESIS_OK: 'Score no longer against it', THESIS_EXIT: 'Closing: the score turned',
+};
+const REVIEW_TONE = { RUN_ON: 'profit', TRAIL: 'profit', THESIS_AGAINST: 'amber', THESIS_EXIT: 'amber' };
+
+/**
+ * The position journal (policy v4) as timeline rows: what the engine thought
+ * at entry, each re-check against that, and how it ended. `entries` are the
+ * OPEN, REVIEW and CLOSE events of one position from /api/paper/journal.
+ */
+export function journalOf(entries) {
+  return (entries || []).map((e) => {
+    if (e.type === 'OPEN') {
+      const c = e.context || {};
+      const bits = [`score ${signed2(c.composite)}`];
+      if (c.regime) bits.push(sentenceCase(c.regime).toLowerCase());
+      bits.push(`stop ${group(e.stop, 2)}`, `target ${group(e.target, 2)}`);
+      return { ts: e.ts, title: `Opened ${e.side === 'SHORT' ? 'short' : 'long'} at ${group(e.entry_price, 2)}`,
+        note: bits.join(', '), tone: 'plain' };
+    }
+    if (e.type === 'CLOSE') {
+      return { ts: e.ts, title: `Closed: ${exitLabel(e.reason).toLowerCase()}`,
+        note: `${inr(e.net)} net, ${fmtR(e.r_net)}`, tone: exitTone(e.reason) === 'plain' ? (e.net > 0 ? 'profit' : 'loss') : exitTone(e.reason) };
+    }
+    const was = known(e.score_at_entry) ? ` (entry ${signed2(e.score_at_entry)})` : '';
+    const now = `${fmtR(e.r_now)} now, best ${fmtR(e.best_r)}; score ${signed2(e.score)}${was}`;
+    return { ts: e.ts, title: REVIEW_TITLE[e.kind] || sentenceCase(e.kind),
+      note: e.kind === 'CHECK' ? now : `${e.note || ''}. ${now}`, tone: REVIEW_TONE[e.kind] || 'plain', check: e.kind === 'CHECK' };
+  });
 }
 
 /** News for the stock: the cached catalyst, newest fetch first. */

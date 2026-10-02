@@ -34,6 +34,12 @@ IST = ZoneInfo("Asia/Kolkata")
 ENTRY_ACTIONS = {"EXECUTE_LONG": "LONG", "EXECUTE_SHORT": "SHORT"}
 BAR_SECONDS = 300          # /api/bars serves five-minute bars, stamped at their start
 EXIT_ACTIONS = {"CLOSE_EXISTING": "LLM_CLOSE", "REVERSE_POSITION": "LLM_REVERSE"}
+# journal entry kind -> the decision it records
+REVIEW_DECISION = {"CHECK": "hold", "TRAIL": "tighten", "RUN_ON": "run on",
+                   "THESIS_AGAINST": "watch", "THESIS_OK": "hold", "THESIS_EXIT": "exit"}
+# a thesis run restarts if no fresh score arrived for this long (a feed gap
+# must not be read as "still against")
+THESIS_GAP_S = 180.0
 
 
 def _hm(s: str) -> tuple[int, int]:
@@ -46,8 +52,18 @@ class PaperBroker:
                  clock=time.time, mirror=None, entry_cutoff: str = "13:45",
                  square_off: str = "15:20", config_version: int | None = None,
                  trail: list | tuple = (), reversal_cooldown_min: float = 0.0,
-                 entry_start: str | None = None):
+                 entry_start: str | None = None, run_on_trail_r: float | None = None,
+                 thesis_against: float | None = None, thesis_minutes: float = 10.0,
+                 review_every_min: float | None = None):
         self.store = store
+        # v4 exits (policy horizon.run_on / thesis_exit), off when None.
+        # run on: at the target keep the trade, stop run_on_trail_r behind the best.
+        self.run_on_trail_r = float(run_on_trail_r) if run_on_trail_r else None
+        # thesis: close once score x side <= -thesis_against for thesis_minutes.
+        self.thesis_against = float(thesis_against) if thesis_against is not None else None
+        self.thesis_s = float(thesis_minutes or 0.0) * 60.0
+        # journal: a REVIEW event per open position this often (and at each decision)
+        self.review_every_s = float(review_every_min) * 60.0 if review_every_min else None
         # no new position before this IST time (policy horizon.entry_start_ist)
         self.entry_start = _hm(entry_start) if entry_start else None
         # [(trigger_R, lock_R), ...]: once the best move reaches trigger_R the
@@ -274,8 +290,12 @@ class PaperBroker:
     def _raise_trail(self, p: dict, best_r: float, at: float) -> None:
         """Move the stop up the trail for a best move of `best_r`. `at` is when
         the move was seen; bars that start before it cannot hit the new stop,
-        since inside one bar the high and the low are not ordered."""
-        lock = max((lk for trig, lk in self.trail if best_r >= trig), default=None)
+        since inside one bar the high and the low are not ordered. Past the
+        target (run on), the stop also follows run_on_trail_r behind the best."""
+        locks = [lk for trig, lk in self.trail if best_r >= trig]
+        if p.get("past_target") and self.run_on_trail_r:
+            locks.append(best_r - self.run_on_trail_r)
+        lock = max(locks, default=None)
         if lock is None:
             return
         rps = abs(p["entry_price"] - p["stop"])
@@ -283,6 +303,90 @@ class PaperBroker:
         better = level > self._stop_now(p) if p["side"] == "LONG" else level < self._stop_now(p)
         if better:
             p["trail_stop"], p["trail_ts"] = level, at
+            step = int(lock * 2) / 2                      # journal each half-R step, not every tick
+            if step > p.get("trail_step_r", float("-inf")):
+                p["trail_step_r"] = step
+                self._review(p, "TRAIL", "stop moved to breakeven" if abs(lock) < 1e-9
+                             else f"stop raised to lock {lock:+.2f}R", at=at)
+
+    # --------------------------------------------------------------- journal
+    def _review(self, p: dict, kind: str, note: str, at: float | None = None) -> dict | None:
+        """One journal entry for an open position: what is true now against
+        what was true at entry, the decision and why. Written only when the
+        policy turns the journal on (review_every_min)."""
+        if self.review_every_s is None:
+            return None
+        ctx = p.get("context") or {}
+        last = float(p.get("last") or p["entry_price"])
+        p["last_review_ts"] = self._now()
+        return self._emit({
+            "type": "REVIEW", "pos_id": p["pos_id"], "symbol": p["symbol"], "kind": kind,
+            "decision": REVIEW_DECISION.get(kind, "hold"), "note": note,
+            "score": p.get("score_now"), "score_at_entry": ctx.get("composite"),
+            "regime": p.get("regime_now"), "regime_at_entry": ctx.get("regime"),
+            "r_now": self._r(p, last), "best_r": p.get("mfe_r", 0.0), "last": last,
+            "stop": self._stop_now(p), "target": p["target"], "past_target": bool(p.get("past_target")),
+            "seen_ts": at,
+        })
+
+    def _target_live(self, p: dict) -> float:
+        """The target the touch checks use: none once the trade runs on past it
+        (and only while the policy runs on: back on v3, the target counts again)."""
+        if p.get("past_target") and self.run_on_trail_r:
+            return float("inf") if p["side"] == "LONG" else float("-inf")
+        return float(p["target"])
+
+    def _reach_target(self, p: dict, at: float) -> dict | None:
+        """The target was touched. Without run on: close there. With it: keep
+        the trade, start the trail at target - run_on_trail_r, journal it."""
+        if not self.run_on_trail_r:
+            return self._close(p, float(p["target"]), "TARGET", market=False,
+                               touch_check=p.pop("_touch", None))
+        p.pop("_touch", None)
+        p["past_target"], p["target_ts"] = True, at
+        tgt_r = self._r(p, float(p["target"]))
+        p["mfe_r"] = max(p.get("mfe_r", 0.0), tgt_r)
+        self._review(p, "RUN_ON", f"target reached at {tgt_r:+.2f}R; running on, stop "
+                                  f"{self.run_on_trail_r:g}R behind the best price", at=at)
+        self._raise_trail(p, p["mfe_r"], at)
+        return None
+
+    def on_score(self, symbol: str, score, regime: str | None = None, fresh: bool = True,
+                 ltp=None) -> dict | None:
+        """The live composite for a symbol, every evaluation. Drives the
+        thesis exit and the journal's periodic check. A score from stale data
+        is ignored (it neither counts toward nor clears a run)."""
+        p = self.position_for(symbol)
+        if p is None:
+            return None
+        try:
+            s = float(score)
+        except (TypeError, ValueError):
+            return None
+        if not fresh:
+            return None
+        now = self._now()
+        gap = now - p.get("score_ts", now)
+        p["score_now"], p["score_ts"] = s, now
+        if regime:
+            p["regime_now"] = regime
+        if self.thesis_against is not None and self.thesis_s > 0:
+            side = 1.0 if p["side"] == "LONG" else -1.0
+            if side * s <= -self.thesis_against:
+                if p.get("against_since") is None or gap > THESIS_GAP_S:
+                    p["against_since"] = now
+                    self._review(p, "THESIS_AGAINST", f"the score now opposes the {p['side'].lower()}")
+                elif now - p["against_since"] >= self.thesis_s:
+                    px = float(ltp or p.get("last") or p["entry_price"])
+                    self._review(p, "THESIS_EXIT", f"score has opposed the position for "
+                                 f"{(now - p['against_since']) / 60:.0f} min; closing")
+                    return self._close(p, px, "THESIS_EXIT", market=True)
+            elif p.get("against_since") is not None:
+                p["against_since"] = None
+                self._review(p, "THESIS_OK", "the score no longer opposes the position")
+        if self.review_every_s and now - p.get("last_review_ts", p["ts"]) >= self.review_every_s:
+            self._review(p, "CHECK", "periodic check")
+        return None
 
     def _r(self, p: dict, price: float) -> float:
         rps = abs(p["entry_price"] - p["stop"])
@@ -345,11 +449,15 @@ class PaperBroker:
         if (px <= stop) if long else (px >= stop):
             fill = min(px, stop) if long else max(px, stop)
             return self._close(p, fill, self._stop_reason(p), market=False, touch_check="ltp")
-        if (px >= p["target"]) if long else (px <= p["target"]):
-            return self._close(p, float(p["target"]), "TARGET", market=False, touch_check="ltp")
+        tgt = self._target_live(p)
+        if (px >= tgt) if long else (px <= tgt):
+            p["_touch"] = "ltp"
+            return self._reach_target(p, self._now())
         return None
 
     def _stop_reason(self, p: dict) -> str:
+        if p.get("past_target"):
+            return "RUN_ON_STOP"                     # ran past the target, then trailed out
         return "TRAIL_STOP" if p.get("trail_stop") else "STOP"
 
     def check_touches(self, symbol: str, bars: list[Bar] | None, ltp=None) -> dict | None:
@@ -364,12 +472,18 @@ class PaperBroker:
             fresh = sorted((b for b in bars if b.ts >= p.get("last_bar_ts", p["ts"])), key=lambda b: b.ts)
             for b in fresh:
                 in_force = self._stop_now(p) if b.ts >= p.get("trail_ts", 0.0) else p["stop"]
-                hit = first_touch(p["side"], in_force, p["target"], [b])
+                hit = first_touch(p["side"], in_force, self._target_live(p), [b])
                 if hit is not None:
                     reason, price, _ = hit
-                    if reason == "STOP" and in_force != p["stop"]:
-                        reason = "TRAIL_STOP"
-                    return self._close(p, price, reason, market=False, touch_check="bars")
+                    if reason == "TARGET":
+                        p["_touch"] = "bars"
+                        ev = self._reach_target(p, b.ts + BAR_SECONDS)
+                        if ev is not None:
+                            return ev
+                    else:
+                        if in_force != p["stop"]:
+                            reason = self._stop_reason(p)
+                        return self._close(p, price, reason, market=False, touch_check="bars")
                 for px in (b.high, b.low):
                     r = self._r(p, float(px))
                     p["mae_r"], p["mfe_r"] = min(p["mae_r"], r), max(p["mfe_r"], r)
@@ -384,12 +498,15 @@ class PaperBroker:
             return None
         if ltp:
             px = float(ltp)
-            hit = first_touch(p["side"], self._stop_now(p), p["target"], [Bar(self._now(), px, px, px, px)])
+            hit = first_touch(p["side"], self._stop_now(p), self._target_live(p),
+                              [Bar(self._now(), px, px, px, px)])
             if hit is None:
                 return None
             reason, price, _ = hit
-            return self._close(p, price, self._stop_reason(p) if reason == "STOP" else reason,
-                               market=False, touch_check="ltp_only")
+            if reason == "TARGET":
+                p["_touch"] = "ltp_only"
+                return self._reach_target(p, self._now())
+            return self._close(p, price, self._stop_reason(p), market=False, touch_check="ltp_only")
         return None
 
     # Path A rules paper does not act on. STOP_PROXIMITY closes anything
@@ -448,7 +565,8 @@ class PaperBroker:
             "open_count": len(self.open),
             "marks": {pid: {"last": p.get("last"), "mae_r": p.get("mae_r"), "mfe_r": p.get("mfe_r"),
                             "ts": p.get("last_mark_ts"), "trail_stop": p.get("trail_stop"),
-                            "trail_ts": p.get("trail_ts")} for pid, p in self.open.items()},
+                            "trail_ts": p.get("trail_ts"), "past_target": p.get("past_target"),
+                            "score": p.get("score_now")} for pid, p in self.open.items()},
         })
 
     # --------------------------------------------------------------- settings
@@ -472,7 +590,7 @@ class PaperBroker:
             "error_count": self.error_count, "as_of": self._now(),
             "open": [{k: p.get(k) for k in ("pos_id", "symbol", "side", "qty", "entry_price", "last",
                                             "stop", "trail_stop", "target", "risk_amount", "mae_r", "mfe_r", "ts",
-                                            "last_mark_ts")}
+                                            "last_mark_ts", "past_target", "score_now", "against_since")}
                      | {"unrealized": pnl(p["side"], p["entry_price"], p.get("last", p["entry_price"]), p["qty"]),
                         "r_now": self._r(p, p.get("last", p["entry_price"]))}
                      for p in self.open.values()],

@@ -1,12 +1,12 @@
 // The Inspector's pure parts, and the shared modules it brought in.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { copyText, newsOf, paperPositionFor, paperWords, parseIntent, parseReport, payloadOf, planOf, quote,
+import { copyText, journalOf, newsOf, paperPositionFor, paperWords, parseIntent, parseReport, payloadOf, planOf, quote,
   stateStamps, stockOf, waterfall } from '../../trading_copilot/static/inspector/model.js';
 import { candleGeometry, niceStep } from '../../trading_copilot/static/shared/charts/candles.js';
 import { normalizeSymbol, parsePositionForm } from '../../trading_copilot/static/shared/positions.js';
 import { DEFAULT_PROMPT, isDefault, migrate } from '../../trading_copilot/static/shared/prompt.js';
-import { rejectionLabel, statusLabel } from '../../trading_copilot/static/shared/labels.js';
+import { exitLabel, exitTone, rejectionLabel, statusLabel } from '../../trading_copilot/static/shared/labels.js';
 
 const live = {
   global_state: { SAIL: { symbol: 'SAIL', ltp: 184.3, prev_close: 186, structured_payload: { math_setup: {} } } },
@@ -159,4 +159,29 @@ test('news that is measured but not counted shows its reading, not "no input"', 
   assert.equal(w.rows[3].shadow, true);
   const counted = waterfall({ composite_score: 0.1, contributions: { catalyst: { contribution: -0.05, raw: -0.5, counted: true } } });
   assert.equal(counted.rows[0].text, '−0.05');
+});
+
+test('journalOf: entry, decisions and the close read as a timeline (policy v4)', () => {
+  const rows = journalOf([
+    { type: 'OPEN', ts: 1, side: 'LONG', entry_price: 100, stop: 98, target: 104, context: { composite: 0.35, regime: 'TREND_EXPANSION' } },
+    { type: 'REVIEW', ts: 2, kind: 'CHECK', r_now: 0.5, best_r: 0.8, score: 0.2, score_at_entry: 0.35 },
+    { type: 'REVIEW', ts: 3, kind: 'RUN_ON', note: 'target reached at +2.00R', r_now: 2, best_r: 2, score: 0.3, score_at_entry: 0.35 },
+    { type: 'CLOSE', ts: 4, reason: 'RUN_ON_STOP', net: 5200, r_net: 2.6 },
+  ]);
+  assert.equal(rows[0].title, 'Opened long at 100.00');
+  assert.match(rows[0].note, /score \+0\.35, trend expansion, stop 98\.00, target 104\.00/);
+  assert.equal(rows[1].check, true);
+  assert.match(rows[1].note, /score \+0\.20 \(entry \+0\.35\)/);
+  assert.equal(rows[2].title, 'Target reached, running on');
+  assert.equal(rows[2].tone, 'profit');
+  assert.equal(rows[3].title, 'Closed: ran past target');
+  assert.equal(rows[3].tone, 'profit');
+  assert.deepEqual(journalOf(null), []);
+});
+
+test('the v4 exits have words and tones', () => {
+  assert.equal(exitLabel('RUN_ON_STOP'), 'Ran past target');
+  assert.equal(exitLabel('THESIS_EXIT'), 'Score turned');
+  assert.equal(exitTone('RUN_ON_STOP'), 'profit');
+  assert.equal(exitTone('THESIS_EXIT'), 'plain');
 });

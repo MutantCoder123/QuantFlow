@@ -9,12 +9,13 @@ import { html, render } from '../shared/dom.js';
 import { request } from '../shared/api.js';
 import { loadPrompt } from '../shared/prompt.js';
 import { parsePositionForm, positionFor, savePosition } from '../shared/positions.js';
-import { copyText, newsOf, paperPositionFor, paperWords, parseIntent, parseReport, payloadOf, planOf, quote,
+import { copyText, journalOf, newsOf, paperPositionFor, paperWords, parseIntent, parseReport, payloadOf, planOf, quote,
   stateStamps, stockOf, waterfall } from './model.js';
 import * as V from './views.js';
 
 const REPORT_POLL_MS = 5000;
 const BARS_POLL_MS = 60_000;
+const JOURNAL_POLL_MS = 15_000;
 
 function fresh(symbol, opts) {
   opts = opts || {};
@@ -23,7 +24,7 @@ function fresh(symbol, opts) {
     auto: false, interval: 90, busy: null, aiError: null, news: null, newsAt: null, newsError: null,
     editing: false, posError: null, logging: !!opts.log, log: { kind: 'open', direction: 'Long', qty: '', price: '', stop: '', target: '', charges: '0', reason: '' },
     logError: null, intentOpen: false, intent: { action: 'None', type: 'Intraday', quantity: '', price: '', advice: '' },
-    copied: null, prefilled: false,
+    copied: null, prefilled: false, journal: [],
   };
 }
 
@@ -91,7 +92,8 @@ export function mount(host, store, actions) {
       ${V.stamps(stateStamps(sp))}
       ${paper ? V.paperPosition(paper, store.get().now)
         : V.manualPosition({ manual: positionFor(st.symbol), editing: st.editing, error: st.posError, logging: st.logging,
-          log: st.log, logError: st.logError, busy: st.busy === 'pos' })}`;
+          log: st.log, logError: st.logError, busy: st.busy === 'pos' })}
+      ${V.journal(journalOf(st.journal))}`;
   }
 
   // The frame (scrim + drawer) renders once per opening, so its slide-in plays
@@ -127,6 +129,14 @@ export function mount(host, store, actions) {
     if (!st || st.symbol !== sym) return;
     if (res.ok) set({ bars: res.data.bars || [], levels: res.data.levels || {}, barsError: null });
     else set({ bars: st.bars || [], barsError: res.error });
+  }
+  async function loadJournal() {
+    if (!st) return;
+    const sym = st.symbol;
+    const res = await request(`/api/paper/journal?symbol=${encodeURIComponent(sym)}`);
+    if (!st || st.symbol !== sym || !res.ok) return;
+    st.journal = res.data.entries || [];
+    if (st.tab === 'now' && !typing()) draw();
   }
   async function loadReport() {
     if (!st) return;
@@ -164,6 +174,8 @@ export function mount(host, store, actions) {
     loadBars();
     loadReport();
     loadModels();
+    loadJournal();
+    timers.push(setInterval(() => { if (st && st.tab === 'now') loadJournal(); }, JOURNAL_POLL_MS));
     timers.push(setInterval(() => { if (st && st.tab === 'now') loadBars(); }, BARS_POLL_MS));
     timers.push(setInterval(() => { if (st && (st.auto || st.busy === 'analyse' || st.tab === 'ai')) loadReport(); }, REPORT_POLL_MS));
   }

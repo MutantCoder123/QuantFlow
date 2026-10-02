@@ -5,6 +5,8 @@ export const EXIT = {
   TARGET: 'Target',
   STOP: 'Stop',
   TRAIL_STOP: 'Trailed stop',
+  RUN_ON_STOP: 'Ran past target',
+  THESIS_EXIT: 'Score turned',
   GATEKEEPER_STOP_PROXIMITY: 'Stop proximity',
   GATEKEEPER_WHALE_FLIP: 'Whale flip',
   GATEKEEPER_UNSPECIFIED: 'Gatekeeper exit',
@@ -16,7 +18,7 @@ export const EXIT = {
 
 // planned exits read as outcomes (jade/coral); rule exits stay neutral
 export function exitTone(reason) {
-  if (reason === 'TARGET') return 'profit';
+  if (reason === 'TARGET' || reason === 'RUN_ON_STOP') return 'profit';   // run on exits at target - 1R or better
   if (reason === 'STOP') return 'loss';
   return 'plain';
 }

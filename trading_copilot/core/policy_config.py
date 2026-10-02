@@ -37,10 +37,17 @@ class PolicyConfig:
                    gates=d["gates"], horizon=d["horizon"])
 
 
+DEFAULT_POLICY = "policy_v4.yaml"
+
+
 @lru_cache(maxsize=4)
 def load_policy(path: Path | None = None) -> PolicyConfig:
+    """The policy in force: DEFAULT_POLICY, or the file named by the
+    QUANTFLOW_POLICY environment variable (e.g. policy_v3.yaml to step back
+    one version without a code change)."""
     if path is None:
+        import os
         from paths import CONFIG_DIR
-        path = CONFIG_DIR / "policy_v3.yaml"
+        path = CONFIG_DIR / (os.environ.get("QUANTFLOW_POLICY") or DEFAULT_POLICY)
     with open(path, "r", encoding="utf-8") as f:
         return PolicyConfig.from_dict(yaml.safe_load(f))
