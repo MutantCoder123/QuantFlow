@@ -1,63 +1,111 @@
 {
   "360ONE": {
     "volatility_edge_52w": {
-      "iv_percentile_52w": 13.4921,
-      "iv_52w_high": 73.79,
+      "iv_percentile_52w": 58.3333,
+      "iv_52w_high": 81.01,
       "iv_52w_low": 15.84,
-      "historical_vol_20d": 26.9013
+      "historical_vol_20d": 26.7783
     },
     "options_positioning_52w": {
-      "pcr_percentile_52w": 70.6349,
-      "oi_volume_shock_52w_z": 1.0952,
-      "drift_20d_strike_migration": 1.8182
+      "pcr_percentile_52w": 66.6667,
+      "oi_volume_shock_52w_z": -0.0289,
+      "drift_20d_strike_migration": -13.3333
     },
     "structural_liquidity_5y": {
       "volume_poc_price": 1144.0,
-      "value_area_high": 1202.0,
-      "value_area_low": 331.0,
+      "value_area_high": 1203.0,
+      "value_area_low": 403.0,
       "step_size_used": 1.0
     },
     "regime_confluence_5y": {
       "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
-      "beta_5y": 0.8956,
-      "alpha_5y": 0.1354
+      "beta_5y": 0.9333,
+      "alpha_5y": 0.1225
+    }
+  },
+  "ABB": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 46.0317,
+      "iv_52w_high": 80.43,
+      "iv_52w_low": 14.93,
+      "historical_vol_20d": 27.9957
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 67.0635,
+      "oi_volume_shock_52w_z": -0.8952,
+      "drift_20d_strike_migration": -6.6667
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 3000.0,
+      "value_area_high": 9020.0,
+      "value_area_low": 1880.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.8916,
+      "alpha_5y": 0.1971
+    }
+  },
+  "ABCAPITAL": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 35.3175,
+      "iv_52w_high": 68.86,
+      "iv_52w_low": 18.74,
+      "historical_vol_20d": 32.5156
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 78.1746,
+      "oi_volume_shock_52w_z": -0.7194,
+      "drift_20d_strike_migration": -3.75
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 344.5,
+      "value_area_high": 424.5,
+      "value_area_low": 95.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.4179,
+      "alpha_5y": 0.152
     }
   },
   "ADANIENSOL": {
     "volatility_edge_52w": {
-      "iv_percentile_52w": 74.2063,
-      "iv_52w_high": 73.53,
-      "iv_52w_low": 14.63,
-      "historical_vol_20d": 39.8612
+      "iv_percentile_52w": 52.7778,
+      "iv_52w_high": 75.94,
+      "iv_52w_low": 9.55,
+      "historical_vol_20d": 31.7152
     },
     "options_positioning_52w": {
-      "pcr_percentile_52w": 5.9524,
-      "oi_volume_shock_52w_z": 0.9177,
-      "drift_20d_strike_migration": 15.3846
+      "pcr_percentile_52w": 49.2063,
+      "oi_volume_shock_52w_z": -1.1226,
+      "drift_20d_strike_migration": -7.0423
     },
     "structural_liquidity_5y": {
       "volume_poc_price": 767.0,
-      "value_area_high": 1708.0,
+      "value_area_high": 1724.0,
       "value_area_low": 601.0,
       "step_size_used": 1.0
     },
     "regime_confluence_5y": {
-      "macro_trend_alignment": "SECULAR_BULL_MARKET_ABOVE_KEY_MA",
-      "beta_5y": 1.5056,
-      "alpha_5y": -0.1937
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.4813,
+      "alpha_5y": -0.2073
     }
   },
   "ADANIENT": {
     "volatility_edge_52w": {
-      "iv_percentile_52w": 50.3968,
-      "iv_52w_high": 73.31,
-      "iv_52w_low": 16.78,
-      "historical_vol_20d": 30.3355
+      "iv_percentile_52w": 35.7143,
+      "iv_52w_high": 130.15,
+      "iv_52w_low": 16.61,
+      "historical_vol_20d": 40.6608
     },
     "options_positioning_52w": {
-      "pcr_percentile_52w": 23.8095,
-      "oi_volume_shock_52w_z": -0.2313,
-      "drift_20d_strike_migration": 15.748
+      "pcr_percentile_52w": 40.0794,
+      "oi_volume_shock_52w_z": -0.5768,
+      "drift_20d_strike_migration": -1.6949
     },
     "structural_liquidity_5y": {
       "volume_poc_price": 2400.0,
@@ -66,22 +114,22 @@
       "step_size_used": 5.0
     },
     "regime_confluence_5y": {
-      "macro_trend_alignment": "SECULAR_BULL_MARKET_ABOVE_KEY_MA",
-      "beta_5y": 1.8085,
-      "alpha_5y": -0.0317
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.7794,
+      "alpha_5y": -0.0284
     }
   },
   "ADANIGREEN": {
     "volatility_edge_52w": {
-      "iv_percentile_52w": 27.7778,
+      "iv_percentile_52w": 17.4603,
       "iv_52w_high": 90.68,
-      "iv_52w_low": 16.66,
-      "historical_vol_20d": 40.2215
+      "iv_52w_low": 21.66,
+      "historical_vol_20d": 32.6845
     },
     "options_positioning_52w": {
-      "pcr_percentile_52w": 59.5238,
-      "oi_volume_shock_52w_z": -0.0738,
-      "drift_20d_strike_migration": 13.0769
+      "pcr_percentile_52w": 88.4921,
+      "oi_volume_shock_52w_z": -1.3473,
+      "drift_20d_strike_migration": 0.0
     },
     "structural_liquidity_5y": {
       "volume_poc_price": 957.0,
@@ -90,33 +138,57 @@
       "step_size_used": 1.0
     },
     "regime_confluence_5y": {
-      "macro_trend_alignment": "SECULAR_BULL_MARKET_ABOVE_KEY_MA",
-      "beta_5y": 1.5891,
-      "alpha_5y": -0.2195
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.5646,
+      "alpha_5y": -0.2275
     }
   },
   "ADANIPORTS": {
     "volatility_edge_52w": {
-      "iv_percentile_52w": 50.7937,
+      "iv_percentile_52w": 33.7302,
       "iv_52w_high": 72.77,
       "iv_52w_low": 5.18,
-      "historical_vol_20d": 17.5027
+      "historical_vol_20d": 36.1767
     },
     "options_positioning_52w": {
-      "pcr_percentile_52w": 17.4603,
-      "oi_volume_shock_52w_z": -0.5643,
-      "drift_20d_strike_migration": 4.6512
+      "pcr_percentile_52w": 94.8413,
+      "oi_volume_shock_52w_z": -1.3353,
+      "drift_20d_strike_migration": 4.7059
     },
     "structural_liquidity_5y": {
       "volume_poc_price": 597.0,
-      "value_area_high": 1584.0,
+      "value_area_high": 1822.0,
       "value_area_low": 462.0,
       "step_size_used": 1.0
     },
     "regime_confluence_5y": {
       "macro_trend_alignment": "SECULAR_BULL_MARKET_ABOVE_KEY_MA",
-      "beta_5y": 1.6973,
-      "alpha_5y": 0.0447
+      "beta_5y": 1.6525,
+      "alpha_5y": 0.0449
+    }
+  },
+  "ADANIPOWER": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 14.2857,
+      "iv_52w_high": 73.48,
+      "iv_52w_low": 22.05,
+      "historical_vol_20d": 34.7414
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 96.0317,
+      "oi_volume_shock_52w_z": 0.5978,
+      "drift_20d_strike_migration": -4.7619
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 34.5,
+      "value_area_high": 162.5,
+      "value_area_low": 20.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.3481,
+      "alpha_5y": 0.4323
     }
   },
   "AGARIND": {
@@ -124,7 +196,7 @@
       "iv_percentile_52w": null,
       "iv_52w_high": null,
       "iv_52w_low": null,
-      "historical_vol_20d": 78.2758
+      "historical_vol_20d": 112.6866
     },
     "options_positioning_52w": {
       "pcr_percentile_52w": null,
@@ -138,22 +210,118 @@
       "step_size_used": 1.0
     },
     "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.3811,
+      "alpha_5y": -0.2039
+    }
+  },
+  "ALKEM": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 44.4444,
+      "iv_52w_high": 61.95,
+      "iv_52w_low": 14.08,
+      "historical_vol_20d": 24.1862
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 84.127,
+      "oi_volume_shock_52w_z": -0.7809,
+      "drift_20d_strike_migration": -1.8868
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 5480.0,
+      "value_area_high": 6195.0,
+      "value_area_low": 2905.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.5151,
+      "alpha_5y": -0.0174
+    }
+  },
+  "AMBER": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 29.7619,
+      "iv_52w_high": 83.98,
+      "iv_52w_low": 11.48,
+      "historical_vol_20d": 29.7053
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 33.3333,
+      "oi_volume_shock_52w_z": -0.9276,
+      "drift_20d_strike_migration": -9.4595
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 7250.0,
+      "value_area_high": 8660.0,
+      "value_area_low": 1870.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
       "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
-      "beta_5y": 1.3459,
-      "alpha_5y": -0.158
+      "beta_5y": 1.0284,
+      "alpha_5y": 0.1003
+    }
+  },
+  "AMBUJACEM": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 61.9048,
+      "iv_52w_high": 110.72,
+      "iv_52w_low": 9.36,
+      "historical_vol_20d": 24.0766
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 39.6825,
+      "oi_volume_shock_52w_z": -0.8555,
+      "drift_20d_strike_migration": -7.3171
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 380.0,
+      "value_area_high": 677.0,
+      "value_area_low": 334.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.5059,
+      "alpha_5y": -0.1421
+    }
+  },
+  "ANANDRATHI": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 100.0,
+      "iv_52w_high": 38.76,
+      "iv_52w_low": 31.89,
+      "historical_vol_20d": 17.576
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 0.3968,
+      "oi_volume_shock_52w_z": 13.8272,
+      "drift_20d_strike_migration": 0.0
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 146.0,
+      "value_area_high": 2229.0,
+      "value_area_low": 138.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.439,
+      "alpha_5y": 0.51
     }
   },
   "ANGELONE": {
     "volatility_edge_52w": {
-      "iv_percentile_52w": 2.7778,
+      "iv_percentile_52w": 36.9048,
       "iv_52w_high": 378.29,
-      "iv_52w_low": 27.63,
-      "historical_vol_20d": 38.2602
+      "iv_52w_low": 10.66,
+      "historical_vol_20d": 32.1605
     },
     "options_positioning_52w": {
-      "pcr_percentile_52w": 42.8571,
-      "oi_volume_shock_52w_z": 1.614,
-      "drift_20d_strike_migration": 6.25
+      "pcr_percentile_52w": 36.9048,
+      "oi_volume_shock_52w_z": 0.4672,
+      "drift_20d_strike_migration": -3.4483
     },
     "structural_liquidity_5y": {
       "volume_poc_price": 322.5,
@@ -162,57 +330,1017 @@
       "step_size_used": 0.5
     },
     "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.5635,
+      "alpha_5y": 0.0242
+    }
+  },
+  "APLAPOLLO": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 67.4603,
+      "iv_52w_high": 105.53,
+      "iv_52w_low": 12.06,
+      "historical_vol_20d": 36.0013
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 34.127,
+      "oi_volume_shock_52w_z": 1.3612,
+      "drift_20d_strike_migration": 0.0
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1688.0,
+      "value_area_high": 2273.0,
+      "value_area_low": 761.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
       "macro_trend_alignment": "SECULAR_BULL_MARKET_ABOVE_KEY_MA",
-      "beta_5y": 1.5726,
-      "alpha_5y": 0.0562
+      "beta_5y": 0.884,
+      "alpha_5y": 0.1147
+    }
+  },
+  "APOLLOHOSP": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 67.4603,
+      "iv_52w_high": 75.01,
+      "iv_52w_low": 12.75,
+      "historical_vol_20d": 29.4074
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 25.7937,
+      "oi_volume_shock_52w_z": 2.2481,
+      "drift_20d_strike_migration": -5.6818
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 4615.0,
+      "value_area_high": 8920.0,
+      "value_area_low": 3550.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.6987,
+      "alpha_5y": 0.0398
+    }
+  },
+  "ASHOKLEY": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 43.6508,
+      "iv_52w_high": 83.12,
+      "iv_52w_low": 1.06,
+      "historical_vol_20d": 27.9407
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 81.746,
+      "oi_volume_shock_52w_z": -0.1615,
+      "drift_20d_strike_migration": -8.5714
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 71.0,
+      "value_area_high": 178.5,
+      "value_area_low": 47.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.3846,
+      "alpha_5y": 0.0808
+    }
+  },
+  "ASIANPAINT": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 31.3492,
+      "iv_52w_high": 81.17,
+      "iv_52w_low": 13.77,
+      "historical_vol_20d": 18.868
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 21.8254,
+      "oi_volume_shock_52w_z": -1.4931,
+      "drift_20d_strike_migration": -7.6923
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 2880.0,
+      "value_area_high": 3395.0,
+      "value_area_low": 2215.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.7278,
+      "alpha_5y": -0.1454
+    }
+  },
+  "ASTRAL": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 42.0635,
+      "iv_52w_high": 76.05,
+      "iv_52w_low": 20.15,
+      "historical_vol_20d": 22.1821
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 100.0,
+      "oi_volume_shock_52w_z": -1.3117,
+      "drift_20d_strike_migration": -7.8947
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1954.0,
+      "value_area_high": 2406.0,
+      "value_area_low": 1269.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.8974,
+      "alpha_5y": -0.1341
+    }
+  },
+  "ATHERENERG": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 94.8413,
+      "iv_52w_high": 60.57,
+      "iv_52w_low": 30.5,
+      "historical_vol_20d": 43.8862
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 5.5556,
+      "oi_volume_shock_52w_z": 1.6121,
+      "drift_20d_strike_migration": -7.5
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 634.0,
+      "value_area_high": 1726.0,
+      "value_area_low": 302.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.5993,
+      "alpha_5y": 1.1795
+    }
+  },
+  "AUBANK": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 64.2857,
+      "iv_52w_high": 79.68,
+      "iv_52w_low": 13.0,
+      "historical_vol_20d": 30.061
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 67.0635,
+      "oi_volume_shock_52w_z": -0.5545,
+      "drift_20d_strike_migration": -9.0909
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 679.0,
+      "value_area_high": 1088.0,
+      "value_area_low": 502.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.9308,
+      "alpha_5y": 0.0299
+    }
+  },
+  "AUROPHARMA": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 36.1111,
+      "iv_52w_high": 98.52,
+      "iv_52w_low": 7.05,
+      "historical_vol_20d": 21.263
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 34.127,
+      "oi_volume_shock_52w_z": -0.2908,
+      "drift_20d_strike_migration": 3.6585
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 478.0,
+      "value_area_high": 1579.0,
+      "value_area_low": 408.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BULL_MARKET_ABOVE_KEY_MA",
+      "beta_5y": 0.7181,
+      "alpha_5y": 0.0998
+    }
+  },
+  "AXISBANK": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 71.4286,
+      "iv_52w_high": 68.75,
+      "iv_52w_low": 11.36,
+      "historical_vol_20d": 25.0739
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 84.9206,
+      "oi_volume_shock_52w_z": -0.5815,
+      "drift_20d_strike_migration": -3.1746
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1166.0,
+      "value_area_high": 1370.0,
+      "value_area_low": 636.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.0745,
+      "alpha_5y": -0.0119
+    }
+  },
+  "BAJAJ-AUTO": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 48.0159,
+      "iv_52w_high": 59.89,
+      "iv_52w_low": 7.66,
+      "historical_vol_20d": 31.769
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 25.3968,
+      "oi_volume_shock_52w_z": 1.9335,
+      "drift_20d_strike_migration": -12.5
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 10120.0,
+      "value_area_high": 12340.0,
+      "value_area_low": 3180.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.7825,
+      "alpha_5y": 0.1114
+    }
+  },
+  "BAJAJFINSV": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 73.4127,
+      "iv_52w_high": 69.85,
+      "iv_52w_low": 9.33,
+      "historical_vol_20d": 22.4529
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 70.6349,
+      "oi_volume_shock_52w_z": -1.2759,
+      "drift_20d_strike_migration": -12.0
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1331.0,
+      "value_area_high": 2096.0,
+      "value_area_low": 1093.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.2293,
+      "alpha_5y": -0.1123
+    }
+  },
+  "BAJAJHLDNG": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 60.7143,
+      "iv_52w_high": 102.49,
+      "iv_52w_low": 16.97,
+      "historical_vol_20d": 28.2959
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 99.6032,
+      "oi_volume_shock_52w_z": -0.7018,
+      "drift_20d_strike_migration": -1.7857
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 6295.0,
+      "value_area_high": 14525.0,
+      "value_area_low": 4470.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.8352,
+      "alpha_5y": 0.0861
+    }
+  },
+  "BAJFINANCE": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 68.254,
+      "iv_52w_high": 75.21,
+      "iv_52w_low": 16.35,
+      "historical_vol_20d": 32.0547
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 45.6349,
+      "oi_volume_shock_52w_z": -0.4373,
+      "drift_20d_strike_migration": -9.2593
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 700.0,
+      "value_area_high": 1141.0,
+      "value_area_low": 552.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.2911,
+      "alpha_5y": -0.062
+    }
+  },
+  "BANDHANBNK": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 77.381,
+      "iv_52w_high": 93.88,
+      "iv_52w_low": 15.48,
+      "historical_vol_20d": 40.7245
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 42.4603,
+      "oi_volume_shock_52w_z": -0.0405,
+      "drift_20d_strike_migration": 8.8235
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 173.5,
+      "value_area_high": 324.0,
+      "value_area_low": 137.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.2829,
+      "alpha_5y": -0.1766
+    }
+  },
+  "BANKBARODA": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 30.1587,
+      "iv_52w_high": 77.51,
+      "iv_52w_low": 14.63,
+      "historical_vol_20d": 19.8781
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 98.0159,
+      "oi_volume_shock_52w_z": -0.3422,
+      "drift_20d_strike_migration": -2.0408
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 159.0,
+      "value_area_high": 297.0,
+      "value_area_low": 80.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.3706,
+      "alpha_5y": 0.1109
+    }
+  },
+  "BANKINDIA": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 54.3651,
+      "iv_52w_high": 87.34,
+      "iv_52w_low": 6.56,
+      "historical_vol_20d": 25.6562
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 88.0952,
+      "oi_volume_shock_52w_z": 1.3257,
+      "drift_20d_strike_migration": -6.8966
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 112.0,
+      "value_area_high": 151.5,
+      "value_area_low": 67.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.4172,
+      "alpha_5y": 0.1432
+    }
+  },
+  "BDL": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 50.0,
+      "iv_52w_high": 71.19,
+      "iv_52w_low": 20.11,
+      "historical_vol_20d": 30.0044
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 78.1746,
+      "oi_volume_shock_52w_z": -0.1143,
+      "drift_20d_strike_migration": -10.7692
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 460.0,
+      "value_area_high": 2016.0,
+      "value_area_low": 206.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.0516,
+      "alpha_5y": 0.3234
+    }
+  },
+  "BEL": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 40.873,
+      "iv_52w_high": 76.22,
+      "iv_52w_low": 16.6,
+      "historical_vol_20d": 26.1458
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 97.2222,
+      "oi_volume_shock_52w_z": -1.2786,
+      "drift_20d_strike_migration": -2.439
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 70.0,
+      "value_area_high": 453.0,
+      "value_area_low": 66.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.1376,
+      "alpha_5y": 0.2635
+    }
+  },
+  "BHARATFORG": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 28.5714,
+      "iv_52w_high": 77.92,
+      "iv_52w_low": 15.67,
+      "historical_vol_20d": 26.4216
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 49.6032,
+      "oi_volume_shock_52w_z": -0.6227,
+      "drift_20d_strike_migration": -5.8824
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1405.0,
+      "value_area_high": 2171.0,
+      "value_area_low": 613.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.2106,
+      "alpha_5y": 0.097
+    }
+  },
+  "BHARTIARTL": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 26.9841,
+      "iv_52w_high": 73.94,
+      "iv_52w_low": 3.77,
+      "historical_vol_20d": 21.8643
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 92.8571,
+      "oi_volume_shock_52w_z": 0.5936,
+      "drift_20d_strike_migration": -5.2632
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 753.0,
+      "value_area_high": 2149.0,
+      "value_area_low": 642.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.7897,
+      "alpha_5y": 0.0982
     }
   },
   "BHEL": {
     "volatility_edge_52w": {
-      "iv_percentile_52w": 60.3175,
-      "iv_52w_high": 82.26,
-      "iv_52w_low": 19.27,
-      "historical_vol_20d": 34.2253
+      "iv_percentile_52w": 65.4762,
+      "iv_52w_high": 83.92,
+      "iv_52w_low": 18.14,
+      "historical_vol_20d": 31.8836
     },
     "options_positioning_52w": {
-      "pcr_percentile_52w": 37.3016,
-      "oi_volume_shock_52w_z": -2.0609,
-      "drift_20d_strike_migration": 0.0
+      "pcr_percentile_52w": 61.5079,
+      "oi_volume_shock_52w_z": -1.0841,
+      "drift_20d_strike_migration": -2.3529
     },
     "structural_liquidity_5y": {
       "volume_poc_price": 227.5,
-      "value_area_high": 377.0,
+      "value_area_high": 435.5,
       "value_area_low": 45.0,
       "step_size_used": 0.5
     },
     "regime_confluence_5y": {
       "macro_trend_alignment": "SECULAR_BULL_MARKET_ABOVE_KEY_MA",
-      "beta_5y": 1.5373,
-      "alpha_5y": 0.3794
+      "beta_5y": 1.4853,
+      "alpha_5y": 0.3841
+    }
+  },
+  "BIOCON": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 26.1905,
+      "iv_52w_high": 86.6,
+      "iv_52w_low": 14.27,
+      "historical_vol_20d": 22.8412
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 84.9206,
+      "oi_volume_shock_52w_z": -0.5625,
+      "drift_20d_strike_migration": -7.3171
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 229.0,
+      "value_area_high": 437.5,
+      "value_area_low": 201.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.8715,
+      "alpha_5y": -0.0679
+    }
+  },
+  "BLUESTARCO": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 84.9206,
+      "iv_52w_high": 88.66,
+      "iv_52w_low": 12.65,
+      "historical_vol_20d": 39.4779
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 41.2698,
+      "oi_volume_shock_52w_z": 0.167,
+      "drift_20d_strike_migration": 0.0
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 907.0,
+      "value_area_high": 2338.0,
+      "value_area_low": 438.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.6909,
+      "alpha_5y": 0.1877
+    }
+  },
+  "BOSCHLTD": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 44.4444,
+      "iv_52w_high": 100.15,
+      "iv_52w_low": 12.01,
+      "historical_vol_20d": 29.6503
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 73.0159,
+      "oi_volume_shock_52w_z": -0.4869,
+      "drift_20d_strike_migration": -3.125
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 30395.0,
+      "value_area_high": 50000.0,
+      "value_area_low": 13395.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.9391,
+      "alpha_5y": 0.1284
+    }
+  },
+  "BPCL": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 24.6032,
+      "iv_52w_high": 75.52,
+      "iv_52w_low": 14.19,
+      "historical_vol_20d": 23.1646
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 62.3016,
+      "oi_volume_shock_52w_z": -1.5269,
+      "drift_20d_strike_migration": -4.6875
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 308.0,
+      "value_area_high": 370.0,
+      "value_area_low": 141.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.124,
+      "alpha_5y": -0.0162
+    }
+  },
+  "BRITANNIA": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 48.4127,
+      "iv_52w_high": 80.86,
+      "iv_52w_low": 12.4,
+      "historical_vol_20d": 14.1918
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 72.2222,
+      "oi_volume_shock_52w_z": -0.6753,
+      "drift_20d_strike_migration": -7.5472
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 4840.0,
+      "value_area_high": 6210.0,
+      "value_area_low": 3765.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.486,
+      "alpha_5y": -0.0191
+    }
+  },
+  "BSE": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 42.4603,
+      "iv_52w_high": 90.06,
+      "iv_52w_low": 14.65,
+      "historical_vol_20d": 36.0664
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 45.6349,
+      "oi_volume_shock_52w_z": 0.0583,
+      "drift_20d_strike_migration": -3.0303
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 299.0,
+      "value_area_high": 3907.0,
+      "value_area_low": 139.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.2924,
+      "alpha_5y": 0.6041
+    }
+  },
+  "CAMS": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 43.6508,
+      "iv_52w_high": 77.19,
+      "iv_52w_low": 16.97,
+      "historical_vol_20d": 24.0691
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 68.6508,
+      "oi_volume_shock_52w_z": -0.4715,
+      "drift_20d_strike_migration": -6.6667
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 549.0,
+      "value_area_high": 1054.0,
+      "value_area_low": 439.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.9356,
+      "alpha_5y": -0.0548
+    }
+  },
+  "CANBK": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 46.4286,
+      "iv_52w_high": 86.53,
+      "iv_52w_low": 16.69,
+      "historical_vol_20d": 18.485
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 75.0,
+      "oi_volume_shock_52w_z": -1.312,
+      "drift_20d_strike_migration": -5.7692
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 45.0,
+      "value_area_high": 133.0,
+      "value_area_low": 35.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.4893,
+      "alpha_5y": 0.1432
+    }
+  },
+  "CDSL": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 76.5873,
+      "iv_52w_high": 72.18,
+      "iv_52w_low": 20.06,
+      "historical_vol_20d": 29.7953
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 98.4127,
+      "oi_volume_shock_52w_z": -0.314,
+      "drift_20d_strike_migration": -5.7143
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1194.0,
+      "value_area_high": 1905.0,
+      "value_area_low": 495.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.242,
+      "alpha_5y": 0.0551
     }
   },
   "CGPOWER": {
     "volatility_edge_52w": {
-      "iv_percentile_52w": 34.5238,
+      "iv_percentile_52w": 38.8889,
       "iv_52w_high": 74.9,
       "iv_52w_low": 3.63,
-      "historical_vol_20d": 36.3325
+      "historical_vol_20d": 32.8667
     },
     "options_positioning_52w": {
-      "pcr_percentile_52w": 36.9048,
-      "oi_volume_shock_52w_z": 0.1365,
-      "drift_20d_strike_migration": 9.6386
+      "pcr_percentile_52w": 55.9524,
+      "oi_volume_shock_52w_z": -1.3535,
+      "drift_20d_strike_migration": 0.0
     },
     "structural_liquidity_5y": {
       "volume_poc_price": 305.0,
-      "value_area_high": 938.0,
+      "value_area_high": 964.0,
       "value_area_low": 166.0,
       "step_size_used": 1.0
     },
     "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.9897,
+      "alpha_5y": 0.2702
+    }
+  },
+  "CHOLAFIN": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 58.3333,
+      "iv_52w_high": 85.95,
+      "iv_52w_low": 13.1,
+      "historical_vol_20d": 26.9675
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 51.5873,
+      "oi_volume_shock_52w_z": -0.194,
+      "drift_20d_strike_migration": -9.7826
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1099.0,
+      "value_area_high": 1850.0,
+      "value_area_low": 493.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.2834,
+      "alpha_5y": 0.1213
+    }
+  },
+  "CIPLA": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 59.5238,
+      "iv_52w_high": 82.89,
+      "iv_52w_low": 10.91,
+      "historical_vol_20d": 15.9645
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 38.0952,
+      "oi_volume_shock_52w_z": -1.2167,
+      "drift_20d_strike_migration": -2.1277
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1552.0,
+      "value_area_high": 1672.0,
+      "value_area_low": 877.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.4236,
+      "alpha_5y": 0.0004
+    }
+  },
+  "COALINDIA": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 52.7778,
+      "iv_52w_high": 82.87,
+      "iv_52w_low": 11.41,
+      "historical_vol_20d": 21.8057
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 13.8889,
+      "oi_volume_shock_52w_z": -1.1935,
+      "drift_20d_strike_migration": 2.439
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 214.5,
+      "value_area_high": 540.5,
+      "value_area_low": 131.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.9195,
+      "alpha_5y": 0.1003
+    }
+  },
+  "COCHINSHIP": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 13.0952,
+      "iv_52w_high": 93.35,
+      "iv_52w_low": 20.47,
+      "historical_vol_20d": 48.7731
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 0.3968,
+      "oi_volume_shock_52w_z": 0.6634,
+      "drift_20d_strike_migration": -13.3333
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 544.0,
+      "value_area_high": 2838.0,
+      "value_area_low": 172.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.116,
+      "alpha_5y": 0.3777
+    }
+  },
+  "COFORGE": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 66.6667,
+      "iv_52w_high": 90.27,
+      "iv_52w_low": 14.12,
+      "historical_vol_20d": 35.7677
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 82.5397,
+      "oi_volume_shock_52w_z": -0.6835,
+      "drift_20d_strike_migration": -6.25
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1078.0,
+      "value_area_high": 2015.0,
+      "value_area_low": 668.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
       "macro_trend_alignment": "SECULAR_BULL_MARKET_ABOVE_KEY_MA",
-      "beta_5y": 1.0354,
-      "alpha_5y": 0.2885
+      "beta_5y": 1.1158,
+      "alpha_5y": 0.0417
+    }
+  },
+  "COLPAL": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 66.6667,
+      "iv_52w_high": 83.85,
+      "iv_52w_low": 15.79,
+      "historical_vol_20d": 26.1797
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 97.619,
+      "oi_volume_shock_52w_z": -0.7264,
+      "drift_20d_strike_migration": -1.0526
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 2000.0,
+      "value_area_high": 3765.0,
+      "value_area_low": 1430.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.5282,
+      "alpha_5y": -0.0691
+    }
+  },
+  "CONCOR": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 65.4762,
+      "iv_52w_high": 90.05,
+      "iv_52w_low": 5.35,
+      "historical_vol_20d": 28.8919
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 38.0952,
+      "oi_volume_shock_52w_z": -1.2138,
+      "drift_20d_strike_migration": -10.6796
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 515.0,
+      "value_area_high": 939.0,
+      "value_area_low": 459.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.1271,
+      "alpha_5y": -0.1379
+    }
+  },
+  "CROMPTON": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 57.1429,
+      "iv_52w_high": 80.33,
+      "iv_52w_low": 17.04,
+      "historical_vol_20d": 23.1011
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 76.9841,
+      "oi_volume_shock_52w_z": -0.0318,
+      "drift_20d_strike_migration": -8.3333
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 392.0,
+      "value_area_high": 468.0,
+      "value_area_low": 221.5,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.7815,
+      "alpha_5y": -0.2511
+    }
+  },
+  "CUMMINSIND": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 29.7619,
+      "iv_52w_high": 70.32,
+      "iv_52w_low": 16.88,
+      "historical_vol_20d": 25.8202
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 78.9683,
+      "oi_volume_shock_52w_z": -1.0152,
+      "drift_20d_strike_migration": -5.7692
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1710.0,
+      "value_area_high": 6030.0,
+      "value_area_low": 875.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.9765,
+      "alpha_5y": 0.2606
+    }
+  },
+  "DABUR": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 48.4127,
+      "iv_52w_high": 79.9,
+      "iv_52w_low": 12.09,
+      "historical_vol_20d": 19.7579
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 40.873,
+      "oi_volume_shock_52w_z": -1.0502,
+      "drift_20d_strike_migration": -1.2821
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 522.0,
+      "value_area_high": 634.0,
+      "value_area_low": 426.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.5937,
+      "alpha_5y": -0.1853
+    }
+  },
+  "DELHIVERY": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 37.3016,
+      "iv_52w_high": 80.94,
+      "iv_52w_low": 18.72,
+      "historical_vol_20d": 27.4445
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 51.9841,
+      "oi_volume_shock_52w_z": -0.1566,
+      "drift_20d_strike_migration": -9.8901
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 351.0,
+      "value_area_high": 520.5,
+      "value_area_low": 243.5,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.8993,
+      "alpha_5y": -0.1528
     }
   },
   "DIACABS": {
@@ -220,7 +1348,7 @@
       "iv_percentile_52w": null,
       "iv_52w_high": null,
       "iv_52w_low": null,
-      "historical_vol_20d": null
+      "historical_vol_20d": 583.8024
     },
     "options_positioning_52w": {
       "pcr_percentile_52w": null,
@@ -229,7 +1357,7 @@
     },
     "structural_liquidity_5y": {
       "volume_poc_price": 196.5,
-      "value_area_high": 196.5,
+      "value_area_high": 360.5,
       "value_area_low": 196.5,
       "step_size_used": 0.5
     },
@@ -239,65 +1367,857 @@
       "alpha_5y": null
     }
   },
-  "FORTIS": {
+  "DIVISLAB": {
     "volatility_edge_52w": {
-      "iv_percentile_52w": 32.5397,
-      "iv_52w_high": 78.69,
-      "iv_52w_low": 13.89,
-      "historical_vol_20d": 21.5316
+      "iv_percentile_52w": 55.9524,
+      "iv_52w_high": 101.46,
+      "iv_52w_low": 15.1,
+      "historical_vol_20d": 22.8213
     },
     "options_positioning_52w": {
-      "pcr_percentile_52w": 39.2857,
-      "oi_volume_shock_52w_z": 0.0902,
-      "drift_20d_strike_migration": 3.1579
+      "pcr_percentile_52w": 14.6825,
+      "oi_volume_shock_52w_z": 0.3199,
+      "drift_20d_strike_migration": 4.4444
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 5460.0,
+      "value_area_high": 9250.0,
+      "value_area_low": 2750.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BULL_MARKET_ABOVE_KEY_MA",
+      "beta_5y": 0.6242,
+      "alpha_5y": 0.0463
+    }
+  },
+  "DIXON": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 37.6984,
+      "iv_52w_high": 87.57,
+      "iv_52w_low": 20.34,
+      "historical_vol_20d": 25.9377
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 66.2698,
+      "oi_volume_shock_52w_z": -1.2077,
+      "drift_20d_strike_migration": -10.3448
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 13935.0,
+      "value_area_high": 18940.0,
+      "value_area_low": 2680.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.3267,
+      "alpha_5y": 0.1241
+    }
+  },
+  "DLF": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 38.8889,
+      "iv_52w_high": 75.02,
+      "iv_52w_low": 19.32,
+      "historical_vol_20d": 32.252
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 20.6349,
+      "oi_volume_shock_52w_z": -1.6032,
+      "drift_20d_strike_migration": -2.9412
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 380.0,
+      "value_area_high": 901.0,
+      "value_area_low": 304.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.6064,
+      "alpha_5y": -0.02
+    }
+  },
+  "DMART": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 82.9365,
+      "iv_52w_high": 77.53,
+      "iv_52w_low": 12.48,
+      "historical_vol_20d": 16.1754
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 79.3651,
+      "oi_volume_shock_52w_z": -0.5692,
+      "drift_20d_strike_migration": -1.2987
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 4025.0,
+      "value_area_high": 5115.0,
+      "value_area_low": 3410.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.6343,
+      "alpha_5y": -0.0904
+    }
+  },
+  "DRREDDY": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 70.2381,
+      "iv_52w_high": 64.28,
+      "iv_52w_low": 6.18,
+      "historical_vol_20d": 22.5801
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 91.6667,
+      "oi_volume_shock_52w_z": -0.7702,
+      "drift_20d_strike_migration": 1.6949
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1331.0,
+      "value_area_high": 1376.0,
+      "value_area_low": 1145.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.4957,
+      "alpha_5y": -0.0648
+    }
+  },
+  "EICHERMOT": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 23.4127,
+      "iv_52w_high": 74.67,
+      "iv_52w_low": 6.01,
+      "historical_vol_20d": 17.8103
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 61.9048,
+      "oi_volume_shock_52w_z": -0.5533,
+      "drift_20d_strike_migration": -6.4935
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 3400.0,
+      "value_area_high": 8065.0,
+      "value_area_low": 2255.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.0284,
+      "alpha_5y": 0.0929
+    }
+  },
+  "ENRIN": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 100.0,
+      "iv_52w_high": 40.33,
+      "iv_52w_low": 38.5,
+      "historical_vol_20d": 36.6822
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 0.3968,
+      "oi_volume_shock_52w_z": 15.3832,
+      "drift_20d_strike_migration": 3.125
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 3165.0,
+      "value_area_high": 3870.0,
+      "value_area_low": 2405.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BULL_MARKET_ABOVE_KEY_MA",
+      "beta_5y": 0.6766,
+      "alpha_5y": 0.2034
+    }
+  },
+  "ETERNAL": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 50.7937,
+      "iv_52w_high": 76.96,
+      "iv_52w_low": 2.05,
+      "historical_vol_20d": 23.5366
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 57.9365,
+      "oi_volume_shock_52w_z": -1.5084,
+      "drift_20d_strike_migration": 1.5625
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 55.5,
+      "value_area_high": 328.0,
+      "value_area_low": 41.5,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.3531,
+      "alpha_5y": 0.1217
+    }
+  },
+  "FEDERALBNK": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 63.8889,
+      "iv_52w_high": 86.46,
+      "iv_52w_low": 12.54,
+      "historical_vol_20d": 16.2087
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 61.9048,
+      "oi_volume_shock_52w_z": -1.545,
+      "drift_20d_strike_migration": -7.1429
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 289.0,
+      "value_area_high": 349.0,
+      "value_area_low": 82.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.9916,
+      "alpha_5y": 0.1785
+    }
+  },
+  "FORCEMOT": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 9.5238,
+      "iv_52w_high": 102.1,
+      "iv_52w_low": 8.11,
+      "historical_vol_20d": 28.376
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 84.127,
+      "oi_volume_shock_52w_z": 0.3061,
+      "drift_20d_strike_migration": -2.8571
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1790.0,
+      "value_area_high": 25775.0,
+      "value_area_low": 1005.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.5343,
+      "alpha_5y": 0.4879
+    }
+  },
+  "FORTIS": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 55.1587,
+      "iv_52w_high": 78.69,
+      "iv_52w_low": 13.89,
+      "historical_vol_20d": 32.142
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 91.6667,
+      "oi_volume_shock_52w_z": 0.3245,
+      "drift_20d_strike_migration": -12.0879
     },
     "structural_liquidity_5y": {
       "volume_poc_price": 922.0,
       "value_area_high": 1095.0,
-      "value_area_low": 226.0,
+      "value_area_low": 236.0,
       "step_size_used": 0.5
     },
     "regime_confluence_5y": {
-      "macro_trend_alignment": "SECULAR_BULL_MARKET_ABOVE_KEY_MA",
-      "beta_5y": 0.692,
-      "alpha_5y": 0.2439
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.6791,
+      "alpha_5y": 0.1754
+    }
+  },
+  "GAIL": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 21.0317,
+      "iv_52w_high": 83.2,
+      "iv_52w_low": 4.6,
+      "historical_vol_20d": 12.7567
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 78.9683,
+      "oi_volume_shock_52w_z": -1.3415,
+      "drift_20d_strike_migration": 0.0
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 96.0,
+      "value_area_high": 241.0,
+      "value_area_low": 79.5,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.0708,
+      "alpha_5y": 0.0221
+    }
+  },
+  "GLENMARK": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 38.8889,
+      "iv_52w_high": 71.4,
+      "iv_52w_low": 6.53,
+      "historical_vol_20d": 31.1297
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 48.4127,
+      "oi_volume_shock_52w_z": -1.1729,
+      "drift_20d_strike_migration": -2.5
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 2181.0,
+      "value_area_high": 2442.0,
+      "value_area_low": 370.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.777,
+      "alpha_5y": 0.3778
+    }
+  },
+  "GMRAIRPORT": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 39.6825,
+      "iv_52w_high": 94.09,
+      "iv_52w_low": 15.96,
+      "historical_vol_20d": 34.7201
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 97.2222,
+      "oi_volume_shock_52w_z": -0.51,
+      "drift_20d_strike_migration": -3.0303
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 87.0,
+      "value_area_high": 103.5,
+      "value_area_low": 37.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.3603,
+      "alpha_5y": 0.084
+    }
+  },
+  "GODFRYPHLP": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 12.3016,
+      "iv_52w_high": 101.77,
+      "iv_52w_low": 13.44,
+      "historical_vol_20d": 27.6146
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 80.1587,
+      "oi_volume_shock_52w_z": -0.2643,
+      "drift_20d_strike_migration": -9.5238
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 2478.0,
+      "value_area_high": 3713.0,
+      "value_area_low": 373.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.0151,
+      "alpha_5y": 0.2851
+    }
+  },
+  "GODREJCP": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 43.6508,
+      "iv_52w_high": 78.62,
+      "iv_52w_low": 15.77,
+      "historical_vol_20d": 15.046
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 99.6032,
+      "oi_volume_shock_52w_z": 0.0346,
+      "drift_20d_strike_migration": -2.2222
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 910.0,
+      "value_area_high": 1464.0,
+      "value_area_low": 665.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.6534,
+      "alpha_5y": -0.1144
+    }
+  },
+  "GODREJPROP": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 48.4127,
+      "iv_52w_high": 77.44,
+      "iv_52w_low": 18.5,
+      "historical_vol_20d": 34.8963
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 75.7937,
+      "oi_volume_shock_52w_z": 0.1588,
+      "drift_20d_strike_migration": -17.0
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1997.0,
+      "value_area_high": 3327.0,
+      "value_area_low": 1089.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.6598,
+      "alpha_5y": -0.1734
+    }
+  },
+  "GRASIM": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 42.0635,
+      "iv_52w_high": 69.5,
+      "iv_52w_low": 7.94,
+      "historical_vol_20d": 21.7994
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 36.9048,
+      "oi_volume_shock_52w_z": -0.6726,
+      "drift_20d_strike_migration": -7.9755
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1715.0,
+      "value_area_high": 3310.0,
+      "value_area_low": 1320.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.0984,
+      "alpha_5y": 0.0155
+    }
+  },
+  "GVT&D": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 5.9524,
+      "iv_52w_high": 80.05,
+      "iv_52w_low": 23.02,
+      "historical_vol_20d": 47.0393
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 96.8254,
+      "oi_volume_shock_52w_z": 1.0457,
+      "drift_20d_strike_migration": 0.0
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 2864.0,
+      "value_area_high": 5534.0,
+      "value_area_low": 91.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.9213,
+      "alpha_5y": 0.6959
+    }
+  },
+  "HAL": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 18.6508,
+      "iv_52w_high": 77.51,
+      "iv_52w_low": 18.42,
+      "historical_vol_20d": 31.4845
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 82.5397,
+      "oi_volume_shock_52w_z": -1.1756,
+      "drift_20d_strike_migration": -3.0612
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1560.0,
+      "value_area_high": 5550.0,
+      "value_area_low": 625.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.128,
+      "alpha_5y": 0.3116
+    }
+  },
+  "HAVELLS": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 65.4762,
+      "iv_52w_high": 67.81,
+      "iv_52w_low": 14.67,
+      "historical_vol_20d": 30.286
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 79.7619,
+      "oi_volume_shock_52w_z": 0.1817,
+      "drift_20d_strike_migration": -10.0
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1518.0,
+      "value_area_high": 1996.0,
+      "value_area_low": 1040.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.8379,
+      "alpha_5y": -0.1522
+    }
+  },
+  "HCLTECH": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 88.0952,
+      "iv_52w_high": 65.18,
+      "iv_52w_low": 10.41,
+      "historical_vol_20d": 27.6642
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 68.254,
+      "oi_volume_shock_52w_z": -0.4419,
+      "drift_20d_strike_migration": -6.015
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1078.0,
+      "value_area_high": 1989.0,
+      "value_area_low": 883.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.8756,
+      "alpha_5y": -0.0945
+    }
+  },
+  "HDFCAMC": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 66.2698,
+      "iv_52w_high": 78.16,
+      "iv_52w_low": 11.26,
+      "historical_vol_20d": 26.1066
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 92.4603,
+      "oi_volume_shock_52w_z": -0.3568,
+      "drift_20d_strike_migration": -9.6154
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1262.0,
+      "value_area_high": 2914.0,
+      "value_area_low": 836.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.2671,
+      "alpha_5y": -0.0036
+    }
+  },
+  "HDFCBANK": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 69.0476,
+      "iv_52w_high": 63.1,
+      "iv_52w_low": 7.0,
+      "historical_vol_20d": 22.8402
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 76.1905,
+      "oi_volume_shock_52w_z": 0.939,
+      "drift_20d_strike_migration": 1.3889
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 818.0,
+      "value_area_high": 990.0,
+      "value_area_low": 686.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.0641,
+      "alpha_5y": -0.1285
+    }
+  },
+  "HDFCLIFE": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 87.6984,
+      "iv_52w_high": 82.89,
+      "iv_52w_low": 12.13,
+      "historical_vol_20d": 41.6594
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 98.0159,
+      "oi_volume_shock_52w_z": -0.1808,
+      "drift_20d_strike_migration": -3.6364
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 606.0,
+      "value_area_high": 807.0,
+      "value_area_low": 471.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.89,
+      "alpha_5y": -0.1528
+    }
+  },
+  "HEROMOTOCO": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 60.3175,
+      "iv_52w_high": 66.65,
+      "iv_52w_low": 17.52,
+      "historical_vol_20d": 24.1267
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 37.3016,
+      "oi_volume_shock_52w_z": -1.0367,
+      "drift_20d_strike_migration": -1.8519
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 5300.0,
+      "value_area_high": 6000.0,
+      "value_area_low": 2110.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.9229,
+      "alpha_5y": 0.0392
+    }
+  },
+  "HINDALCO": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 35.3175,
+      "iv_52w_high": 78.47,
+      "iv_52w_low": 16.67,
+      "historical_vol_20d": 24.8955
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 92.0635,
+      "oi_volume_shock_52w_z": -0.8442,
+      "drift_20d_strike_migration": -6.7308
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 421.0,
+      "value_area_high": 1040.0,
+      "value_area_low": 316.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.1842,
+      "alpha_5y": 0.0404
+    }
+  },
+  "HINDPETRO": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 32.1429,
+      "iv_52w_high": 81.58,
+      "iv_52w_low": 5.45,
+      "historical_vol_20d": 24.2275
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 67.4603,
+      "oi_volume_shock_52w_z": -1.9055,
+      "drift_20d_strike_migration": -5.4054
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 176.0,
+      "value_area_high": 452.0,
+      "value_area_low": 129.5,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.1889,
+      "alpha_5y": 0.0486
+    }
+  },
+  "HINDUNILVR": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 57.1429,
+      "iv_52w_high": 86.31,
+      "iv_52w_low": 2.49,
+      "historical_vol_20d": 18.3864
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 85.7143,
+      "oi_volume_shock_52w_z": 0.1074,
+      "drift_20d_strike_migration": -5.0
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 2505.0,
+      "value_area_high": 2715.0,
+      "value_area_low": 2100.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.5677,
+      "alpha_5y": -0.1594
+    }
+  },
+  "HINDZINC": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 45.6349,
+      "iv_52w_high": 82.3,
+      "iv_52w_low": 22.53,
+      "historical_vol_20d": 30.6738
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 52.7778,
+      "oi_volume_shock_52w_z": -0.9218,
+      "drift_20d_strike_migration": -3.3333
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 453.0,
+      "value_area_high": 772.5,
+      "value_area_low": 283.5,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.9155,
+      "alpha_5y": 0.0653
+    }
+  },
+  "HYUNDAI": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 24.2063,
+      "iv_52w_high": 58.89,
+      "iv_52w_low": 20.04,
+      "historical_vol_20d": 30.6809
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 17.8571,
+      "oi_volume_shock_52w_z": 0.238,
+      "drift_20d_strike_migration": -6.3636
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1730.0,
+      "value_area_high": 2809.0,
+      "value_area_low": 1580.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.813,
+      "alpha_5y": 0.059
+    }
+  },
+  "ICICIBANK": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 73.0159,
+      "iv_52w_high": 73.19,
+      "iv_52w_low": 1.81,
+      "historical_vol_20d": 15.8087
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 63.0952,
+      "oi_volume_shock_52w_z": -0.6715,
+      "drift_20d_strike_migration": -7.6389
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 936.0,
+      "value_area_high": 1460.0,
+      "value_area_low": 654.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.9718,
+      "alpha_5y": 0.0216
+    }
+  },
+  "ICICIGI": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 86.1111,
+      "iv_52w_high": 86.62,
+      "iv_52w_low": 14.34,
+      "historical_vol_20d": 36.7715
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 80.5556,
+      "oi_volume_shock_52w_z": -0.2983,
+      "drift_20d_strike_migration": -1.2658
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1624.0,
+      "value_area_high": 2238.0,
+      "value_area_low": 1075.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.7149,
+      "alpha_5y": -0.0836
+    }
+  },
+  "ICICIPRULI": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 86.9048,
+      "iv_52w_high": 76.22,
+      "iv_52w_low": 2.47,
+      "historical_vol_20d": 35.6326
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 73.8095,
+      "oi_volume_shock_52w_z": 0.0692,
+      "drift_20d_strike_migration": -9.0
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 600.0,
+      "value_area_high": 694.0,
+      "value_area_low": 402.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.8755,
+      "alpha_5y": -0.1683
     }
   },
   "IDEA": {
     "volatility_edge_52w": {
-      "iv_percentile_52w": 42.0635,
-      "iv_52w_high": 106.25,
-      "iv_52w_low": 19.36,
-      "historical_vol_20d": 34.6533
+      "iv_percentile_52w": 27.7778,
+      "iv_52w_high": 95.78,
+      "iv_52w_low": 12.3,
+      "historical_vol_20d": 43.7936
     },
     "options_positioning_52w": {
-      "pcr_percentile_52w": 45.6349,
-      "oi_volume_shock_52w_z": -0.0496,
-      "drift_20d_strike_migration": 16.6667
+      "pcr_percentile_52w": 53.9683,
+      "oi_volume_shock_52w_z": -0.0125,
+      "drift_20d_strike_migration": 0.0
     },
     "structural_liquidity_5y": {
       "volume_poc_price": 8.0,
-      "value_area_high": 16.0,
+      "value_area_high": 15.0,
       "value_area_low": 7.0,
       "step_size_used": 0.5
     },
     "regime_confluence_5y": {
-      "macro_trend_alignment": "SECULAR_BULL_MARKET_ABOVE_KEY_MA",
-      "beta_5y": 1.4965,
-      "alpha_5y": 0.0427
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.4586,
+      "alpha_5y": 0.0217
     }
   },
   "IDFCFIRSTB": {
     "volatility_edge_52w": {
-      "iv_percentile_52w": 67.0635,
-      "iv_52w_high": 86.58,
-      "iv_52w_low": 8.33,
-      "historical_vol_20d": 23.3665
+      "iv_percentile_52w": 60.7143,
+      "iv_52w_high": 82.9,
+      "iv_52w_low": 2.78,
+      "historical_vol_20d": 29.3808
     },
     "options_positioning_52w": {
-      "pcr_percentile_52w": 96.8254,
-      "oi_volume_shock_52w_z": -0.2724,
-      "drift_20d_strike_migration": 7.2464
+      "pcr_percentile_52w": 40.4762,
+      "oi_volume_shock_52w_z": -0.0797,
+      "drift_20d_strike_migration": -3.4884
     },
     "structural_liquidity_5y": {
       "volume_poc_price": 70.0,
@@ -307,45 +2227,525 @@
     },
     "regime_confluence_5y": {
       "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
-      "beta_5y": 1.1935,
-      "alpha_5y": 0.0278
+      "beta_5y": 1.2084,
+      "alpha_5y": 0.0572
     }
   },
-  "INFY": {
+  "IEX": {
     "volatility_edge_52w": {
-      "iv_percentile_52w": 65.0794,
-      "iv_52w_high": 72.51,
-      "iv_52w_low": 6.79,
-      "historical_vol_20d": 34.0909
+      "iv_percentile_52w": 40.0794,
+      "iv_52w_high": 87.29,
+      "iv_52w_low": 21.73,
+      "historical_vol_20d": 24.2324
     },
     "options_positioning_52w": {
-      "pcr_percentile_52w": 23.4127,
-      "oi_volume_shock_52w_z": 1.1489,
-      "drift_20d_strike_migration": -1.2821
+      "pcr_percentile_52w": 83.7302,
+      "oi_volume_shock_52w_z": -0.9685,
+      "drift_20d_strike_migration": -10.2041
     },
     "structural_liquidity_5y": {
-      "volume_poc_price": 1475.0,
-      "value_area_high": 1944.0,
-      "value_area_low": 1095.0,
+      "volume_poc_price": 145.0,
+      "value_area_high": 295.0,
+      "value_area_low": 119.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.2234,
+      "alpha_5y": -0.2059
+    }
+  },
+  "INDHOTEL": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 45.6349,
+      "iv_52w_high": 71.53,
+      "iv_52w_low": 12.09,
+      "historical_vol_20d": 20.2145
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 53.5714,
+      "oi_volume_shock_52w_z": -1.1779,
+      "drift_20d_strike_migration": 0.0
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 322.0,
+      "value_area_high": 890.0,
+      "value_area_low": 173.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.2043,
+      "alpha_5y": 0.1884
+    }
+  },
+  "INDIANB": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 54.7619,
+      "iv_52w_high": 90.48,
+      "iv_52w_low": 13.4,
+      "historical_vol_20d": 17.367
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 93.254,
+      "oi_volume_shock_52w_z": -1.0433,
+      "drift_20d_strike_migration": -7.8652
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 833.0,
+      "value_area_high": 939.0,
+      "value_area_low": 135.0,
       "step_size_used": 1.0
     },
     "regime_confluence_5y": {
       "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
-      "beta_5y": 0.9575,
-      "alpha_5y": -0.1848
+      "beta_5y": 1.214,
+      "alpha_5y": 0.2795
+    }
+  },
+  "INDIGO": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 65.0794,
+      "iv_52w_high": 75.91,
+      "iv_52w_low": 11.19,
+      "historical_vol_20d": 25.4819
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 57.9365,
+      "oi_volume_shock_52w_z": -0.9983,
+      "drift_20d_strike_migration": -2.9412
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 5315.0,
+      "value_area_high": 5975.0,
+      "value_area_low": 1615.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.1946,
+      "alpha_5y": 0.0954
+    }
+  },
+  "INDUSINDBK": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 50.0,
+      "iv_52w_high": 90.04,
+      "iv_52w_low": 18.5,
+      "historical_vol_20d": 25.7726
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 94.0476,
+      "oi_volume_shock_52w_z": -0.9447,
+      "drift_20d_strike_migration": -8.0
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 685.0,
+      "value_area_high": 1561.0,
+      "value_area_low": 637.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.2404,
+      "alpha_5y": -0.1306
+    }
+  },
+  "INDUSTOWER": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 29.7619,
+      "iv_52w_high": 77.84,
+      "iv_52w_low": 15.45,
+      "historical_vol_20d": 28.6447
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 52.381,
+      "oi_volume_shock_52w_z": -1.0639,
+      "drift_20d_strike_migration": -1.3158
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 334.0,
+      "value_area_high": 445.0,
+      "value_area_low": 137.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.1311,
+      "alpha_5y": -0.0296
+    }
+  },
+  "INFY": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 87.3016,
+      "iv_52w_high": 72.51,
+      "iv_52w_low": 6.79,
+      "historical_vol_20d": 32.442
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 91.2698,
+      "oi_volume_shock_52w_z": -0.5449,
+      "drift_20d_strike_migration": -10.5263
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1051.0,
+      "value_area_high": 1944.0,
+      "value_area_low": 1000.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.9671,
+      "alpha_5y": -0.198
+    }
+  },
+  "INOXWIND": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 47.2222,
+      "iv_52w_high": 93.58,
+      "iv_52w_low": 17.59,
+      "historical_vol_20d": 33.5746
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 26.1905,
+      "oi_volume_shock_52w_z": -0.5126,
+      "drift_20d_strike_migration": -3.3333
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 172.0,
+      "value_area_high": 254.5,
+      "value_area_low": 23.5,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.3599,
+      "alpha_5y": 0.1856
+    }
+  },
+  "IOC": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 45.2381,
+      "iv_52w_high": 85.52,
+      "iv_52w_low": 14.87,
+      "historical_vol_20d": 23.7308
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 15.0794,
+      "oi_volume_shock_52w_z": -1.2891,
+      "drift_20d_strike_migration": -1.8182
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 70.0,
+      "value_area_high": 186.5,
+      "value_area_low": 60.5,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.0514,
+      "alpha_5y": 0.0207
+    }
+  },
+  "IREDA": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 65.873,
+      "iv_52w_high": 140.46,
+      "iv_52w_low": 20.28,
+      "historical_vol_20d": 30.4074
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 92.8571,
+      "oi_volume_shock_52w_z": 0.3072,
+      "drift_20d_strike_migration": -2.1739
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 60.0,
+      "value_area_high": 289.5,
+      "value_area_low": 60.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.4833,
+      "alpha_5y": 0.1961
+    }
+  },
+  "IRFC": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 61.1111,
+      "iv_52w_high": 89.62,
+      "iv_52w_low": 18.15,
+      "historical_vol_20d": 22.9659
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 69.0476,
+      "oi_volume_shock_52w_z": 0.3032,
+      "drift_20d_strike_migration": -8.046
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 33.0,
+      "value_area_high": 217.5,
+      "value_area_low": 21.5,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.1298,
+      "alpha_5y": 0.1846
+    }
+  },
+  "ITC": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 63.0952,
+      "iv_52w_high": 77.4,
+      "iv_52w_low": 2.93,
+      "historical_vol_20d": 19.3238
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 94.0476,
+      "oi_volume_shock_52w_z": -0.6213,
+      "drift_20d_strike_migration": -0.9259
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 420.0,
+      "value_area_high": 494.0,
+      "value_area_low": 208.5,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.6908,
+      "alpha_5y": -0.0728
+    }
+  },
+  "JINDALSTEL": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 51.9841,
+      "iv_52w_high": 77.7,
+      "iv_52w_low": 16.09,
+      "historical_vol_20d": 26.196
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 73.0159,
+      "oi_volume_shock_52w_z": -0.1804,
+      "drift_20d_strike_migration": -1.7241
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 378.0,
+      "value_area_high": 1261.0,
+      "value_area_low": 307.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.2987,
+      "alpha_5y": 0.1101
+    }
+  },
+  "JIOFIN": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 65.4762,
+      "iv_52w_high": 84.66,
+      "iv_52w_low": 16.96,
+      "historical_vol_20d": 19.5898
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 69.4444,
+      "oi_volume_shock_52w_z": 1.7171,
+      "drift_20d_strike_migration": -6.25
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 334.0,
+      "value_area_high": 382.5,
+      "value_area_low": 206.5,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.4104,
+      "alpha_5y": -0.1464
+    }
+  },
+  "JSWENERGY": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 52.7778,
+      "iv_52w_high": 83.79,
+      "iv_52w_low": 16.91,
+      "historical_vol_20d": 26.1934
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 86.9048,
+      "oi_volume_shock_52w_z": -1.4576,
+      "drift_20d_strike_migration": -7.4074
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 613.0,
+      "value_area_high": 782.5,
+      "value_area_low": 234.5,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.2795,
+      "alpha_5y": -0.0063
+    }
+  },
+  "JSWSTEEL": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 50.0,
+      "iv_52w_high": 79.12,
+      "iv_52w_low": 17.34,
+      "historical_vol_20d": 24.719
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 56.3492,
+      "oi_volume_shock_52w_z": -0.5751,
+      "drift_20d_strike_migration": -2.3077
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 674.0,
+      "value_area_high": 1308.0,
+      "value_area_low": 539.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.2076,
+      "alpha_5y": 0.0186
+    }
+  },
+  "JUBLFOOD": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 67.4603,
+      "iv_52w_high": 75.07,
+      "iv_52w_low": 18.62,
+      "historical_vol_20d": 28.6935
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 21.0317,
+      "oi_volume_shock_52w_z": -1.2397,
+      "drift_20d_strike_migration": -8.0
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 503.0,
+      "value_area_high": 855.0,
+      "value_area_low": 413.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.0198,
+      "alpha_5y": -0.2053
+    }
+  },
+  "KALYANKJIL": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 73.0159,
+      "iv_52w_high": 85.0,
+      "iv_52w_low": 19.72,
+      "historical_vol_20d": 31.9636
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 73.4127,
+      "oi_volume_shock_52w_z": -0.0952,
+      "drift_20d_strike_migration": -6.6667
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 510.5,
+      "value_area_high": 775.5,
+      "value_area_low": 62.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.0808,
+      "alpha_5y": 0.3709
+    }
+  },
+  "KAYNES": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 60.7143,
+      "iv_52w_high": 101.01,
+      "iv_52w_low": 9.64,
+      "historical_vol_20d": 43.3495
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 95.6349,
+      "oi_volume_shock_52w_z": -0.7556,
+      "drift_20d_strike_migration": -2.7027
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 4330.0,
+      "value_area_high": 7245.0,
+      "value_area_low": 690.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.3347,
+      "alpha_5y": 0.3891
+    }
+  },
+  "KEI": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 37.6984,
+      "iv_52w_high": 70.73,
+      "iv_52w_low": 15.19,
+      "historical_vol_20d": 41.5419
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 70.6349,
+      "oi_volume_shock_52w_z": 0.0724,
+      "drift_20d_strike_migration": -14.8148
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 2840.0,
+      "value_area_high": 5790.0,
+      "value_area_low": 810.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.9055,
+      "alpha_5y": 0.2646
+    }
+  },
+  "KFINTECH": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 83.7302,
+      "iv_52w_high": 97.77,
+      "iv_52w_low": 18.83,
+      "historical_vol_20d": 30.0613
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 96.0317,
+      "oi_volume_shock_52w_z": -1.0151,
+      "drift_20d_strike_migration": -8.5106
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 515.0,
+      "value_area_high": 1592.0,
+      "value_area_low": 364.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.2057,
+      "alpha_5y": 0.1685
     }
   },
   "KOTAKBANK": {
     "volatility_edge_52w": {
-      "iv_percentile_52w": 6.3492,
+      "iv_percentile_52w": 41.2698,
       "iv_52w_high": 114.25,
-      "iv_52w_low": 16.44,
-      "historical_vol_20d": 18.4112
+      "iv_52w_low": 9.35,
+      "historical_vol_20d": 18.6475
     },
     "options_positioning_52w": {
-      "pcr_percentile_52w": 65.0794,
-      "oi_volume_shock_52w_z": 1.1055,
-      "drift_20d_strike_migration": 3.268
+      "pcr_percentile_52w": 13.8889,
+      "oi_volume_shock_52w_z": 0.9364,
+      "drift_20d_strike_migration": -2.381
     },
     "structural_liquidity_5y": {
       "volume_poc_price": 403.0,
@@ -354,46 +2754,646 @@
       "step_size_used": 0.5
     },
     "regime_confluence_5y": {
-      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
-      "beta_5y": 0.9207,
-      "alpha_5y": -0.1185
+      "macro_trend_alignment": "SECULAR_BULL_MARKET_ABOVE_KEY_MA",
+      "beta_5y": 0.9177,
+      "alpha_5y": -0.0828
     }
   },
-  "MCX": {
+  "KPITTECH": {
     "volatility_edge_52w": {
-      "iv_percentile_52w": 4.3651,
-      "iv_52w_high": 161.38,
-      "iv_52w_low": 15.08,
-      "historical_vol_20d": 39.6759
+      "iv_percentile_52w": 66.2698,
+      "iv_52w_high": 78.37,
+      "iv_52w_low": 14.13,
+      "historical_vol_20d": 28.8179
     },
     "options_positioning_52w": {
-      "pcr_percentile_52w": 2.381,
-      "oi_volume_shock_52w_z": 1.764,
-      "drift_20d_strike_migration": -9.375
+      "pcr_percentile_52w": 41.6667,
+      "oi_volume_shock_52w_z": -0.143,
+      "drift_20d_strike_migration": -13.3333
     },
     "structural_liquidity_5y": {
-      "volume_poc_price": 410.0,
-      "value_area_high": 3204.0,
-      "value_area_low": 242.0,
+      "volume_poc_price": 558.0,
+      "value_area_high": 1866.0,
+      "value_area_low": 341.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.0706,
+      "alpha_5y": 0.028
+    }
+  },
+  "LAURUSLABS": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 63.8889,
+      "iv_52w_high": 75.43,
+      "iv_52w_low": 16.52,
+      "historical_vol_20d": 25.5761
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 54.7619,
+      "oi_volume_shock_52w_z": -0.0292,
+      "drift_20d_strike_migration": 6.4516
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 535.0,
+      "value_area_high": 1915.0,
+      "value_area_low": 292.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BULL_MARKET_ABOVE_KEY_MA",
+      "beta_5y": 0.9263,
+      "alpha_5y": 0.1674
+    }
+  },
+  "LICHSGFIN": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 70.6349,
+      "iv_52w_high": 106.41,
+      "iv_52w_low": 15.28,
+      "historical_vol_20d": 33.3027
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 51.9841,
+      "oi_volume_shock_52w_z": -0.3052,
+      "drift_20d_strike_migration": 1.9231
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 358.0,
+      "value_area_high": 770.0,
+      "value_area_low": 313.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.3614,
+      "alpha_5y": -0.0689
+    }
+  },
+  "LICI": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 11.9048,
+      "iv_52w_high": 74.45,
+      "iv_52w_low": 17.14,
+      "historical_vol_20d": 22.5028
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 71.8254,
+      "oi_volume_shock_52w_z": 0.5707,
+      "drift_20d_strike_migration": -4.7619
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 437.5,
+      "value_area_high": 592.0,
+      "value_area_low": 284.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.0617,
+      "alpha_5y": -0.1425
+    }
+  },
+  "LODHA": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 55.9524,
+      "iv_52w_high": 78.28,
+      "iv_52w_low": 8.1,
+      "historical_vol_20d": 39.0778
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 50.7937,
+      "oi_volume_shock_52w_z": -1.3079,
+      "drift_20d_strike_migration": -9.8361
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 882.0,
+      "value_area_high": 1595.0,
+      "value_area_low": 360.0,
       "step_size_used": 1.0
     },
     "regime_confluence_5y": {
       "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
-      "beta_5y": 1.2753,
-      "alpha_5y": 0.4887
+      "beta_5y": 1.4788,
+      "alpha_5y": 0.0911
+    }
+  },
+  "LTF": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 71.4286,
+      "iv_52w_high": 87.31,
+      "iv_52w_low": 17.96,
+      "historical_vol_20d": 43.561
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 74.2063,
+      "oi_volume_shock_52w_z": 0.6674,
+      "drift_20d_strike_migration": -11.1111
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 87.0,
+      "value_area_high": 315.5,
+      "value_area_low": 67.5,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.528,
+      "alpha_5y": 0.1191
+    }
+  },
+  "LTM": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 84.5238,
+      "iv_52w_high": 76.78,
+      "iv_52w_low": 28.0,
+      "historical_vol_20d": 26.7061
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 78.9683,
+      "oi_volume_shock_52w_z": 0.2528,
+      "drift_20d_strike_migration": -13.0435
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 4815.0,
+      "value_area_high": 6940.0,
+      "value_area_low": 3825.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.0453,
+      "alpha_5y": -0.1542
+    }
+  },
+  "LT": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 61.5079,
+      "iv_52w_high": 71.64,
+      "iv_52w_low": 6.74,
+      "historical_vol_20d": 19.8172
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 98.8095,
+      "oi_volume_shock_52w_z": -0.6392,
+      "drift_20d_strike_migration": -2.5
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 3620.0,
+      "value_area_high": 4170.0,
+      "value_area_low": 1535.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.2026,
+      "alpha_5y": 0.0465
+    }
+  },
+  "LUPIN": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 45.6349,
+      "iv_52w_high": 70.41,
+      "iv_52w_low": 12.65,
+      "historical_vol_20d": 17.5787
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 88.8889,
+      "oi_volume_shock_52w_z": -0.346,
+      "drift_20d_strike_migration": -3.6697
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 660.0,
+      "value_area_high": 2443.0,
+      "value_area_low": 601.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.6828,
+      "alpha_5y": 0.0771
+    }
+  },
+  "M&M": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 55.9524,
+      "iv_52w_high": 78.54,
+      "iv_52w_low": 15.07,
+      "historical_vol_20d": 18.9591
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 37.3016,
+      "oi_volume_shock_52w_z": 0.4392,
+      "drift_20d_strike_migration": -9.0909
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 998.0,
+      "value_area_high": 3749.0,
+      "value_area_low": 691.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.1957,
+      "alpha_5y": 0.1491
+    }
+  },
+  "MAHABANK": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 98.8095,
+      "iv_52w_high": 71.13,
+      "iv_52w_low": 21.94,
+      "historical_vol_20d": 36.2529
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 97.2222,
+      "oi_volume_shock_52w_z": 2.0874,
+      "drift_20d_strike_migration": -5.8824
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 57.5,
+      "value_area_high": 84.0,
+      "value_area_low": 21.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.2797,
+      "alpha_5y": 0.216
+    }
+  },
+  "MANAPPURAM": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 26.5873,
+      "iv_52w_high": 105.67,
+      "iv_52w_low": 17.37,
+      "historical_vol_20d": 37.504
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 40.0794,
+      "oi_volume_shock_52w_z": -1.2963,
+      "drift_20d_strike_migration": -11.4286
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 234.0,
+      "value_area_high": 365.0,
+      "value_area_low": 91.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.2582,
+      "alpha_5y": 0.0366
+    }
+  },
+  "MANKIND": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 34.127,
+      "iv_52w_high": 76.36,
+      "iv_52w_low": 16.81,
+      "historical_vol_20d": 34.1481
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 93.254,
+      "oi_volume_shock_52w_z": -0.2745,
+      "drift_20d_strike_migration": 5.042
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1420.0,
+      "value_area_high": 2805.0,
+      "value_area_low": 1380.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BULL_MARKET_ABOVE_KEY_MA",
+      "beta_5y": 0.4988,
+      "alpha_5y": 0.1138
+    }
+  },
+  "MARICO": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 70.6349,
+      "iv_52w_high": 83.76,
+      "iv_52w_low": 13.68,
+      "historical_vol_20d": 23.7782
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 75.0,
+      "oi_volume_shock_52w_z": -0.3141,
+      "drift_20d_strike_migration": -4.7619
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 584.0,
+      "value_area_high": 840.0,
+      "value_area_low": 480.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.4992,
+      "alpha_5y": -0.0046
+    }
+  },
+  "MARUTI": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 81.3492,
+      "iv_52w_high": 71.66,
+      "iv_52w_low": 2.54,
+      "historical_vol_20d": 22.6636
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 57.5397,
+      "oi_volume_shock_52w_z": 0.0063,
+      "drift_20d_strike_migration": -8.3969
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 12405.0,
+      "value_area_high": 16645.0,
+      "value_area_low": 6770.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.8844,
+      "alpha_5y": 0.0005
+    }
+  },
+  "MAXHEALTH": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 67.0635,
+      "iv_52w_high": 80.57,
+      "iv_52w_low": 13.12,
+      "historical_vol_20d": 32.2674
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 80.5556,
+      "oi_volume_shock_52w_z": 1.5731,
+      "drift_20d_strike_migration": -5.9406
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 549.0,
+      "value_area_high": 1280.0,
+      "value_area_low": 380.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.6276,
+      "alpha_5y": 0.1651
+    }
+  },
+  "MAZDOCK": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 31.3492,
+      "iv_52w_high": 79.79,
+      "iv_52w_low": 23.51,
+      "historical_vol_20d": 27.0479
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 85.3175,
+      "oi_volume_shock_52w_z": -0.1781,
+      "drift_20d_strike_migration": -15.6863
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 377.0,
+      "value_area_high": 3522.0,
+      "value_area_low": 130.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.3881,
+      "alpha_5y": 0.5424
+    }
+  },
+  "MCX": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 28.9683,
+      "iv_52w_high": 161.38,
+      "iv_52w_low": 15.08,
+      "historical_vol_20d": 32.724
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 12.6984,
+      "oi_volume_shock_52w_z": -0.7007,
+      "drift_20d_strike_migration": 3.125
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 410.0,
+      "value_area_high": 3428.0,
+      "value_area_low": 242.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BULL_MARKET_ABOVE_KEY_MA",
+      "beta_5y": 1.2084,
+      "alpha_5y": 0.495
+    }
+  },
+  "MFSL": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 63.8889,
+      "iv_52w_high": 71.93,
+      "iv_52w_low": 13.32,
+      "historical_vol_20d": 51.8161
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 94.0476,
+      "oi_volume_shock_52w_z": 0.0537,
+      "drift_20d_strike_migration": -10.2564
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1117.0,
+      "value_area_high": 1825.0,
+      "value_area_low": 615.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.8544,
+      "alpha_5y": -0.0145
+    }
+  },
+  "MOTHERSON": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 24.2063,
+      "iv_52w_high": 80.64,
+      "iv_52w_low": 16.34,
+      "historical_vol_20d": 30.1755
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 17.8571,
+      "oi_volume_shock_52w_z": -1.4993,
+      "drift_20d_strike_migration": -3.0303
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 80.5,
+      "value_area_high": 168.5,
+      "value_area_low": 42.5,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.3334,
+      "alpha_5y": 0.0266
+    }
+  },
+  "MOTILALOFS": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 22.2222,
+      "iv_52w_high": 71.81,
+      "iv_52w_low": 24.5,
+      "historical_vol_20d": 29.7967
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 26.9841,
+      "oi_volume_shock_52w_z": 0.2913,
+      "drift_20d_strike_migration": 0.0
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 701.5,
+      "value_area_high": 1091.5,
+      "value_area_low": 150.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BULL_MARKET_ABOVE_KEY_MA",
+      "beta_5y": 1.3012,
+      "alpha_5y": 0.2503
+    }
+  },
+  "MPHASIS": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 64.6825,
+      "iv_52w_high": 82.75,
+      "iv_52w_low": 16.74,
+      "historical_vol_20d": 30.2458
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 98.4127,
+      "oi_volume_shock_52w_z": -0.9515,
+      "drift_20d_strike_migration": -8.1633
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 2395.0,
+      "value_area_high": 3265.0,
+      "value_area_low": 1720.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.1362,
+      "alpha_5y": -0.1492
+    }
+  },
+  "MUTHOOTFIN": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 46.8254,
+      "iv_52w_high": 83.55,
+      "iv_52w_low": 15.98,
+      "historical_vol_20d": 23.7404
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 69.8413,
+      "oi_volume_shock_52w_z": -0.5851,
+      "drift_20d_strike_migration": -6.6667
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1040.0,
+      "value_area_high": 4067.0,
+      "value_area_low": 946.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.918,
+      "alpha_5y": 0.0408
+    }
+  },
+  "NAM-INDIA": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 20.2381,
+      "iv_52w_high": 94.78,
+      "iv_52w_low": 21.76,
+      "historical_vol_20d": 34.585
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 97.619,
+      "oi_volume_shock_52w_z": 0.2019,
+      "drift_20d_strike_migration": -8.3333
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 288.0,
+      "value_area_high": 1232.0,
+      "value_area_low": 216.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.2675,
+      "alpha_5y": 0.0937
+    }
+  },
+  "NATIONALUM": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 48.8095,
+      "iv_52w_high": 89.09,
+      "iv_52w_low": 20.6,
+      "historical_vol_20d": 27.8497
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 70.6349,
+      "oi_volume_shock_52w_z": -1.0568,
+      "drift_20d_strike_migration": -10.2564
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 191.5,
+      "value_area_high": 429.0,
+      "value_area_low": 68.5,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.4732,
+      "alpha_5y": 0.275
+    }
+  },
+  "NAUKRI": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 55.5556,
+      "iv_52w_high": 79.81,
+      "iv_52w_low": 3.81,
+      "historical_vol_20d": 30.2869
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 19.0476,
+      "oi_volume_shock_52w_z": -1.0464,
+      "drift_20d_strike_migration": -8.9552
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1159.0,
+      "value_area_high": 1742.0,
+      "value_area_low": 675.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.2441,
+      "alpha_5y": -0.1035
     }
   },
   "NBCC": {
     "volatility_edge_52w": {
-      "iv_percentile_52w": 69.4444,
+      "iv_percentile_52w": 24.2063,
       "iv_52w_high": 96.45,
       "iv_52w_low": 13.94,
-      "historical_vol_20d": 35.8349
+      "historical_vol_20d": 25.7001
     },
     "options_positioning_52w": {
-      "pcr_percentile_52w": 94.4444,
-      "oi_volume_shock_52w_z": 0.494,
-      "drift_20d_strike_migration": 8.4211
+      "pcr_percentile_52w": 58.3333,
+      "oi_volume_shock_52w_z": -0.9044,
+      "drift_20d_strike_migration": -11.1111
     },
     "structural_liquidity_5y": {
       "volume_poc_price": 112.5,
@@ -402,22 +3402,70 @@
       "step_size_used": 0.5
     },
     "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.5834,
+      "alpha_5y": 0.1793
+    }
+  },
+  "NESTLEIND": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 83.7302,
+      "iv_52w_high": 78.95,
+      "iv_52w_low": 5.17,
+      "historical_vol_20d": 19.4028
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 92.4603,
+      "oi_volume_shock_52w_z": -1.2123,
+      "drift_20d_strike_migration": -6.25
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1180.0,
+      "value_area_high": 1521.0,
+      "value_area_low": 843.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
       "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
-      "beta_5y": 1.5865,
-      "alpha_5y": 0.2566
+      "beta_5y": 0.5286,
+      "alpha_5y": -0.0222
+    }
+  },
+  "NHPC": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 23.0159,
+      "iv_52w_high": 129.3,
+      "iv_52w_low": 14.46,
+      "historical_vol_20d": 16.1124
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 79.7619,
+      "oi_volume_shock_52w_z": -0.652,
+      "drift_20d_strike_migration": -2.6316
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 103.5,
+      "value_area_high": 113.0,
+      "value_area_low": 31.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.9175,
+      "alpha_5y": 0.116
     }
   },
   "NMDC": {
     "volatility_edge_52w": {
-      "iv_percentile_52w": 66.2698,
+      "iv_percentile_52w": 76.5873,
       "iv_52w_high": 88.66,
       "iv_52w_low": 15.92,
-      "historical_vol_20d": 38.3392
+      "historical_vol_20d": 24.1226
     },
     "options_positioning_52w": {
-      "pcr_percentile_52w": 3.9683,
-      "oi_volume_shock_52w_z": -0.0596,
-      "drift_20d_strike_migration": 0.0
+      "pcr_percentile_52w": 54.7619,
+      "oi_volume_shock_52w_z": -0.7249,
+      "drift_20d_strike_migration": -8.1395
     },
     "structural_liquidity_5y": {
       "volume_poc_price": 13.5,
@@ -426,22 +3474,94 @@
       "step_size_used": 0.5
     },
     "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.3273,
+      "alpha_5y": 0.2577
+    }
+  },
+  "NTPC": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 50.0,
+      "iv_52w_high": 71.22,
+      "iv_52w_low": 3.01,
+      "historical_vol_20d": 15.4312
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 87.3016,
+      "oi_volume_shock_52w_z": -1.536,
+      "drift_20d_strike_migration": -1.5152
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 331.0,
+      "value_area_high": 437.0,
+      "value_area_low": 124.5,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.9072,
+      "alpha_5y": 0.0657
+    }
+  },
+  "NYKAA": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 44.0476,
+      "iv_52w_high": 90.49,
+      "iv_52w_low": 16.35,
+      "historical_vol_20d": 27.3692
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 88.0952,
+      "oi_volume_shock_52w_z": -1.078,
+      "drift_20d_strike_migration": -2.9851
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 203.5,
+      "value_area_high": 393.0,
+      "value_area_low": 117.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
       "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
-      "beta_5y": 1.3633,
-      "alpha_5y": 0.3145
+      "beta_5y": 0.8801,
+      "alpha_5y": -0.075
+    }
+  },
+  "OBEROIRLTY": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 63.0952,
+      "iv_52w_high": 86.49,
+      "iv_52w_low": 10.11,
+      "historical_vol_20d": 31.5641
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 94.8413,
+      "oi_volume_shock_52w_z": -1.0433,
+      "drift_20d_strike_migration": -5.2632
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1947.0,
+      "value_area_high": 2316.0,
+      "value_area_low": 756.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.3114,
+      "alpha_5y": 0.039
     }
   },
   "OFSS": {
     "volatility_edge_52w": {
-      "iv_percentile_52w": 65.0794,
-      "iv_52w_high": 74.39,
+      "iv_percentile_52w": 71.8254,
+      "iv_52w_high": 72.95,
       "iv_52w_low": 16.22,
-      "historical_vol_20d": 32.9394
+      "historical_vol_20d": 39.0006
     },
     "options_positioning_52w": {
-      "pcr_percentile_52w": 34.9206,
-      "oi_volume_shock_52w_z": 0.1949,
-      "drift_20d_strike_migration": 2.1505
+      "pcr_percentile_52w": 67.4603,
+      "oi_volume_shock_52w_z": -0.4079,
+      "drift_20d_strike_migration": -10.0
     },
     "structural_liquidity_5y": {
       "volume_poc_price": 6305.0,
@@ -450,9 +3570,33 @@
       "step_size_used": 5.0
     },
     "regime_confluence_5y": {
-      "macro_trend_alignment": "SECULAR_BULL_MARKET_ABOVE_KEY_MA",
-      "beta_5y": 1.0449,
-      "alpha_5y": 0.173
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.0294,
+      "alpha_5y": 0.1826
+    }
+  },
+  "OIL": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 42.4603,
+      "iv_52w_high": 88.5,
+      "iv_52w_low": 14.4,
+      "historical_vol_20d": 21.0888
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 78.5714,
+      "oi_volume_shock_52w_z": -1.2651,
+      "drift_20d_strike_migration": -7.2165
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 741.0,
+      "value_area_high": 741.0,
+      "value_area_low": 116.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.6415,
+      "alpha_5y": 0.1784
     }
   },
   "OLAELEC": {
@@ -460,11 +3604,11 @@
       "iv_percentile_52w": null,
       "iv_52w_high": null,
       "iv_52w_low": null,
-      "historical_vol_20d": 61.9362
+      "historical_vol_20d": 81.8919
     },
     "options_positioning_52w": {
       "pcr_percentile_52w": null,
-      "oi_volume_shock_52w_z": null,
+      "oi_volume_shock_52w_z": 0.0,
       "drift_20d_strike_migration": null
     },
     "structural_liquidity_5y": {
@@ -475,21 +3619,405 @@
     },
     "regime_confluence_5y": {
       "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
-      "beta_5y": 1.4072,
-      "alpha_5y": -0.2348
+      "beta_5y": 1.3927,
+      "alpha_5y": -0.2544
+    }
+  },
+  "ONGC": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 48.8095,
+      "iv_52w_high": 81.66,
+      "iv_52w_low": 9.81,
+      "historical_vol_20d": 19.9149
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 90.4762,
+      "oi_volume_shock_52w_z": -1.0974,
+      "drift_20d_strike_migration": -2.1277
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 158.0,
+      "value_area_high": 336.0,
+      "value_area_low": 118.5,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.7921,
+      "alpha_5y": 0.0249
+    }
+  },
+  "PAGEIND": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 37.3016,
+      "iv_52w_high": 81.42,
+      "iv_52w_low": 15.63,
+      "historical_vol_20d": 27.2426
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 90.873,
+      "oi_volume_shock_52w_z": -0.9837,
+      "drift_20d_strike_migration": 2.7778
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 37500.0,
+      "value_area_high": 53080.0,
+      "value_area_low": 31525.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.6987,
+      "alpha_5y": -0.0577
+    }
+  },
+  "PATANJALI": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 82.9365,
+      "iv_52w_high": 89.26,
+      "iv_52w_low": 14.79,
+      "historical_vol_20d": 51.6139
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 22.2222,
+      "oi_volume_shock_52w_z": 0.8942,
+      "drift_20d_strike_migration": 5.7143
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 308.0,
+      "value_area_high": 667.0,
+      "value_area_low": 251.5,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.0182,
+      "alpha_5y": -0.0567
+    }
+  },
+  "PAYTM": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 53.1746,
+      "iv_52w_high": 86.24,
+      "iv_52w_low": 14.89,
+      "historical_vol_20d": 44.1761
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 33.3333,
+      "oi_volume_shock_52w_z": -0.3564,
+      "drift_20d_strike_migration": 3.6585
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 651.0,
+      "value_area_high": 1808.0,
+      "value_area_low": 325.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BULL_MARKET_ABOVE_KEY_MA",
+      "beta_5y": 1.0783,
+      "alpha_5y": 0.0124
+    }
+  },
+  "PERSISTENT": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 63.8889,
+      "iv_52w_high": 78.5,
+      "iv_52w_low": 19.84,
+      "historical_vol_20d": 24.9464
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 71.8254,
+      "oi_volume_shock_52w_z": -1.0731,
+      "drift_20d_strike_migration": -7.0175
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 3200.0,
+      "value_area_high": 6640.0,
+      "value_area_low": 1590.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.1269,
+      "alpha_5y": 0.1415
+    }
+  },
+  "PETRONET": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 25.0,
+      "iv_52w_high": 93.53,
+      "iv_52w_low": 11.93,
+      "historical_vol_20d": 21.9666
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 7.9365,
+      "oi_volume_shock_52w_z": -2.0805,
+      "drift_20d_strike_migration": 0.0
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 290.5,
+      "value_area_high": 365.5,
+      "value_area_low": 189.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BULL_MARKET_ABOVE_KEY_MA",
+      "beta_5y": 0.8307,
+      "alpha_5y": -0.0338
+    }
+  },
+  "PFC": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 62.3016,
+      "iv_52w_high": 77.65,
+      "iv_52w_low": 19.21,
+      "historical_vol_20d": 22.1098
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 87.3016,
+      "oi_volume_shock_52w_z": 0.0163,
+      "drift_20d_strike_migration": -5.5556
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 208.0,
+      "value_area_high": 555.0,
+      "value_area_low": 82.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.413,
+      "alpha_5y": 0.1226
+    }
+  },
+  "PGEL": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 24.2063,
+      "iv_52w_high": 99.47,
+      "iv_52w_low": 16.98,
+      "historical_vol_20d": 28.6861
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 56.746,
+      "oi_volume_shock_52w_z": -1.7334,
+      "drift_20d_strike_migration": -12.069
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 506.0,
+      "value_area_high": 1000.0,
+      "value_area_low": 49.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.3789,
+      "alpha_5y": 0.4775
+    }
+  },
+  "PHOENIXLTD": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 53.5714,
+      "iv_52w_high": 83.18,
+      "iv_52w_low": 9.48,
+      "historical_vol_20d": 23.2037
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 89.2857,
+      "oi_volume_shock_52w_z": -1.7281,
+      "drift_20d_strike_migration": 0.0
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1550.0,
+      "value_area_high": 2154.0,
+      "value_area_low": 474.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BULL_MARKET_ABOVE_KEY_MA",
+      "beta_5y": 0.9158,
+      "alpha_5y": 0.2235
+    }
+  },
+  "PIDILITIND": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 51.1905,
+      "iv_52w_high": 80.39,
+      "iv_52w_low": 11.06,
+      "historical_vol_20d": 26.304
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 65.873,
+      "oi_volume_shock_52w_z": -0.793,
+      "drift_20d_strike_migration": -8.5366
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1455.0,
+      "value_area_high": 1688.0,
+      "value_area_low": 1000.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.6943,
+      "alpha_5y": -0.0483
+    }
+  },
+  "PIIND": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 42.4603,
+      "iv_52w_high": 78.08,
+      "iv_52w_low": 16.44,
+      "historical_vol_20d": 33.4518
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 73.8095,
+      "oi_volume_shock_52w_z": -0.1861,
+      "drift_20d_strike_migration": -6.1224
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 3425.0,
+      "value_area_high": 4615.0,
+      "value_area_low": 2260.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.8502,
+      "alpha_5y": -0.1522
+    }
+  },
+  "PNBHOUSING": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 59.9206,
+      "iv_52w_high": 92.41,
+      "iv_52w_low": 17.37,
+      "historical_vol_20d": 32.6176
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 55.1587,
+      "oi_volume_shock_52w_z": -1.2839,
+      "drift_20d_strike_migration": -5.1724
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 808.0,
+      "value_area_high": 1137.0,
+      "value_area_low": 303.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.2258,
+      "alpha_5y": 0.0939
+    }
+  },
+  "PNB": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 67.4603,
+      "iv_52w_high": 66.16,
+      "iv_52w_low": 13.73,
+      "historical_vol_20d": 22.371
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 41.6667,
+      "oi_volume_shock_52w_z": -1.8012,
+      "drift_20d_strike_migration": -1.7094
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 41.5,
+      "value_area_high": 129.5,
+      "value_area_low": 30.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.4057,
+      "alpha_5y": 0.1082
+    }
+  },
+  "POLICYBZR": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 94.4444,
+      "iv_52w_high": 91.85,
+      "iv_52w_low": 4.54,
+      "historical_vol_20d": 166.9154
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 3.5714,
+      "oi_volume_shock_52w_z": 7.353,
+      "drift_20d_strike_migration": -39.5604
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1294.0,
+      "value_area_high": 2203.0,
+      "value_area_low": 372.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.1245,
+      "alpha_5y": 0.1093
+    }
+  },
+  "POLYCAB": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 52.381,
+      "iv_52w_high": 58.97,
+      "iv_52w_low": 10.15,
+      "historical_vol_20d": 27.2024
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 86.1111,
+      "oi_volume_shock_52w_z": -0.4569,
+      "drift_20d_strike_migration": -8.8889
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 3880.0,
+      "value_area_high": 9780.0,
+      "value_area_low": 2135.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.9548,
+      "alpha_5y": 0.1734
+    }
+  },
+  "POWERGRID": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 32.1429,
+      "iv_52w_high": 73.23,
+      "iv_52w_low": 14.02,
+      "historical_vol_20d": 23.3124
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 76.5873,
+      "oi_volume_shock_52w_z": -0.9332,
+      "drift_20d_strike_migration": -1.8519
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 155.5,
+      "value_area_high": 350.0,
+      "value_area_low": 142.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.7676,
+      "alpha_5y": 0.0393
     }
   },
   "POWERINDIA": {
     "volatility_edge_52w": {
-      "iv_percentile_52w": 61.9048,
+      "iv_percentile_52w": 23.4127,
       "iv_52w_high": 127.57,
-      "iv_52w_low": 24.32,
-      "historical_vol_20d": 51.4519
+      "iv_52w_low": 22.91,
+      "historical_vol_20d": 32.5592
     },
     "options_positioning_52w": {
-      "pcr_percentile_52w": 61.5079,
-      "oi_volume_shock_52w_z": -0.8401,
-      "drift_20d_strike_migration": 7.6923
+      "pcr_percentile_52w": 81.746,
+      "oi_volume_shock_52w_z": -0.6683,
+      "drift_20d_strike_migration": -6.0606
     },
     "structural_liquidity_5y": {
       "volume_poc_price": 19780.0,
@@ -498,9 +4026,81 @@
       "step_size_used": 5.0
     },
     "regime_confluence_5y": {
-      "macro_trend_alignment": "SECULAR_BULL_MARKET_ABOVE_KEY_MA",
-      "beta_5y": 0.8734,
-      "alpha_5y": 0.5518
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.8464,
+      "alpha_5y": 0.4941
+    }
+  },
+  "PREMIERENE": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 32.1429,
+      "iv_52w_high": 79.1,
+      "iv_52w_low": 23.53,
+      "historical_vol_20d": 30.8365
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 17.4603,
+      "oi_volume_shock_52w_z": 1.6261,
+      "drift_20d_strike_migration": -10.0
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 840.0,
+      "value_area_high": 1374.0,
+      "value_area_low": 683.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.0892,
+      "alpha_5y": 0.1061
+    }
+  },
+  "PRESTIGE": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 60.3175,
+      "iv_52w_high": 95.56,
+      "iv_52w_low": 7.79,
+      "historical_vol_20d": 35.7952
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 92.8571,
+      "oi_volume_shock_52w_z": -0.2027,
+      "drift_20d_strike_migration": -7.5
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1813.0,
+      "value_area_high": 2057.0,
+      "value_area_low": 398.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.2807,
+      "alpha_5y": 0.2113
+    }
+  },
+  "RADICO": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 91.6667,
+      "iv_52w_high": 70.82,
+      "iv_52w_low": 14.0,
+      "historical_vol_20d": 31.9835
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 0.3968,
+      "oi_volume_shock_52w_z": 1.3558,
+      "drift_20d_strike_migration": -1.1111
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1173.0,
+      "value_area_high": 4733.0,
+      "value_area_low": 799.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.661,
+      "alpha_5y": 0.2629
     }
   },
   "RAILTEL": {
@@ -527,17 +4127,65 @@
       "alpha_5y": null
     }
   },
-  "RELIANCE": {
+  "RBLBANK": {
     "volatility_edge_52w": {
-      "iv_percentile_52w": 85.7143,
-      "iv_52w_high": 72.13,
-      "iv_52w_low": 9.54,
-      "historical_vol_20d": 21.0111
+      "iv_percentile_52w": 58.3333,
+      "iv_52w_high": 94.99,
+      "iv_52w_low": 16.38,
+      "historical_vol_20d": 33.1674
     },
     "options_positioning_52w": {
-      "pcr_percentile_52w": 47.619,
-      "oi_volume_shock_52w_z": 1.7928,
-      "drift_20d_strike_migration": -2.9197
+      "pcr_percentile_52w": 29.7619,
+      "oi_volume_shock_52w_z": -0.6135,
+      "drift_20d_strike_migration": 2.5
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 141.0,
+      "value_area_high": 363.0,
+      "value_area_low": 77.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BULL_MARKET_ABOVE_KEY_MA",
+      "beta_5y": 1.6019,
+      "alpha_5y": 0.088
+    }
+  },
+  "RECLTD": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 61.1111,
+      "iv_52w_high": 81.34,
+      "iv_52w_low": 18.05,
+      "historical_vol_20d": 27.6212
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 97.619,
+      "oi_volume_shock_52w_z": -0.9211,
+      "drift_20d_strike_migration": -6.0606
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 101.0,
+      "value_area_high": 644.5,
+      "value_area_low": 89.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.4057,
+      "alpha_5y": 0.0948
+    }
+  },
+  "RELIANCE": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 69.4444,
+      "iv_52w_high": 72.13,
+      "iv_52w_low": 9.54,
+      "historical_vol_20d": 19.1881
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 71.8254,
+      "oi_volume_shock_52w_z": 0.8296,
+      "drift_20d_strike_migration": -7.5758
     },
     "structural_liquidity_5y": {
       "volume_poc_price": 1255.0,
@@ -547,21 +4195,69 @@
     },
     "regime_confluence_5y": {
       "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
-      "beta_5y": 1.1111,
-      "alpha_5y": -0.1517
+      "beta_5y": 1.1175,
+      "alpha_5y": -0.1555
+    }
+  },
+  "RVNL": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 46.8254,
+      "iv_52w_high": 151.6,
+      "iv_52w_low": 20.03,
+      "historical_vol_20d": 34.84
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 88.8889,
+      "oi_volume_shock_52w_z": -0.3213,
+      "drift_20d_strike_migration": -4.5455
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 105.0,
+      "value_area_high": 630.0,
+      "value_area_low": 31.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.3105,
+      "alpha_5y": 0.3614
+    }
+  },
+  "SAGILITY": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 7.5397,
+      "iv_52w_high": 69.79,
+      "iv_52w_low": 18.85,
+      "historical_vol_20d": 23.1821
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 90.873,
+      "oi_volume_shock_52w_z": 1.8796,
+      "drift_20d_strike_migration": -6.5217
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 53.5,
+      "value_area_high": 54.5,
+      "value_area_low": 39.5,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.002,
+      "alpha_5y": 0.2473
     }
   },
   "SAIL": {
     "volatility_edge_52w": {
-      "iv_percentile_52w": 71.4286,
+      "iv_percentile_52w": 61.5079,
       "iv_52w_high": 131.84,
       "iv_52w_low": 9.9,
-      "historical_vol_20d": 29.581
+      "historical_vol_20d": 37.4035
     },
     "options_positioning_52w": {
-      "pcr_percentile_52w": 1.1905,
-      "oi_volume_shock_52w_z": -1.6514,
-      "drift_20d_strike_migration": 2.7027
+      "pcr_percentile_52w": 16.6667,
+      "oi_volume_shock_52w_z": -1.389,
+      "drift_20d_strike_migration": -5.2632
     },
     "structural_liquidity_5y": {
       "volume_poc_price": 133.0,
@@ -571,21 +4267,21 @@
     },
     "regime_confluence_5y": {
       "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
-      "beta_5y": 1.5678,
-      "alpha_5y": 0.0135
+      "beta_5y": 1.5281,
+      "alpha_5y": 0.0125
     }
   },
   "SAMMAANCAP": {
     "volatility_edge_52w": {
-      "iv_percentile_52w": 78.1746,
+      "iv_percentile_52w": 78.5714,
       "iv_52w_high": 96.66,
       "iv_52w_low": 21.02,
-      "historical_vol_20d": 50.3753
+      "historical_vol_20d": 25.8946
     },
     "options_positioning_52w": {
-      "pcr_percentile_52w": 23.4127,
-      "oi_volume_shock_52w_z": 0.5331,
-      "drift_20d_strike_migration": 18.9655
+      "pcr_percentile_52w": 52.7778,
+      "oi_volume_shock_52w_z": -0.9884,
+      "drift_20d_strike_migration": 0.0
     },
     "structural_liquidity_5y": {
       "volume_poc_price": 147.0,
@@ -594,9 +4290,81 @@
       "step_size_used": 0.5
     },
     "regime_confluence_5y": {
-      "macro_trend_alignment": "SECULAR_BULL_MARKET_ABOVE_KEY_MA",
-      "beta_5y": 1.4506,
-      "alpha_5y": -0.0128
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.441,
+      "alpha_5y": -0.0637
+    }
+  },
+  "SBICARD": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 71.8254,
+      "iv_52w_high": 77.16,
+      "iv_52w_low": 17.35,
+      "historical_vol_20d": 33.0741
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 49.2063,
+      "oi_volume_shock_52w_z": -0.1639,
+      "drift_20d_strike_migration": -7.6923
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 839.0,
+      "value_area_high": 1055.0,
+      "value_area_low": 624.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.9562,
+      "alpha_5y": -0.2219
+    }
+  },
+  "SBILIFE": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 83.7302,
+      "iv_52w_high": 85.93,
+      "iv_52w_low": 5.89,
+      "historical_vol_20d": 30.2911
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 91.6667,
+      "oi_volume_shock_52w_z": -1.5777,
+      "drift_20d_strike_migration": -1.1364
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1695.0,
+      "value_area_high": 2083.0,
+      "value_area_low": 1054.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.8574,
+      "alpha_5y": -0.0249
+    }
+  },
+  "SBIN": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 34.5238,
+      "iv_52w_high": 76.44,
+      "iv_52w_low": 10.34,
+      "historical_vol_20d": 19.0955
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 79.7619,
+      "oi_volume_shock_52w_z": -0.3926,
+      "drift_20d_strike_migration": -4.8077
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 528.0,
+      "value_area_high": 1146.0,
+      "value_area_low": 440.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.1668,
+      "alpha_5y": 0.04
     }
   },
   "SCI": {
@@ -604,11 +4372,11 @@
       "iv_percentile_52w": null,
       "iv_52w_high": null,
       "iv_52w_low": null,
-      "historical_vol_20d": 42.2474
+      "historical_vol_20d": 22.7349
     },
     "options_positioning_52w": {
       "pcr_percentile_52w": null,
-      "oi_volume_shock_52w_z": null,
+      "oi_volume_shock_52w_z": 0.0,
       "drift_20d_strike_migration": null
     },
     "structural_liquidity_5y": {
@@ -619,45 +4387,309 @@
     },
     "regime_confluence_5y": {
       "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
-      "beta_5y": 1.5186,
-      "alpha_5y": 0.2512
+      "beta_5y": 1.4975,
+      "alpha_5y": 0.2211
+    }
+  },
+  "SHREECEM": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 70.6349,
+      "iv_52w_high": 77.29,
+      "iv_52w_low": 15.77,
+      "historical_vol_20d": 23.281
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 50.7937,
+      "oi_volume_shock_52w_z": -0.159,
+      "drift_20d_strike_migration": -8.3333
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 21285.0,
+      "value_area_high": 32345.0,
+      "value_area_low": 18045.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.8394,
+      "alpha_5y": -0.1479
+    }
+  },
+  "SHRIRAMFIN": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 53.1746,
+      "iv_52w_high": 72.08,
+      "iv_52w_low": 11.03,
+      "historical_vol_20d": 26.6918
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 67.8571,
+      "oi_volume_shock_52w_z": -1.0341,
+      "drift_20d_strike_migration": -9.2593
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 347.0,
+      "value_area_high": 1141.0,
+      "value_area_low": 208.5,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.4297,
+      "alpha_5y": 0.1633
+    }
+  },
+  "SIEMENS": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 28.1746,
+      "iv_52w_high": 90.46,
+      "iv_52w_low": 13.61,
+      "historical_vol_20d": 28.8998
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 94.4444,
+      "oi_volume_shock_52w_z": -1.0611,
+      "drift_20d_strike_migration": -6.1728
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 2810.0,
+      "value_area_high": 7985.0,
+      "value_area_low": 2155.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.1618,
+      "alpha_5y": 0.0437
+    }
+  },
+  "SOLARINDS": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 55.5556,
+      "iv_52w_high": 84.13,
+      "iv_52w_low": 21.88,
+      "historical_vol_20d": 65.1355
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 20.2381,
+      "oi_volume_shock_52w_z": 0.3599,
+      "drift_20d_strike_migration": -3.6585
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 9370.0,
+      "value_area_high": 22455.0,
+      "value_area_low": 2210.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.7648,
+      "alpha_5y": 0.376
+    }
+  },
+  "SONACOMS": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 62.3016,
+      "iv_52w_high": 106.22,
+      "iv_52w_low": 21.15,
+      "historical_vol_20d": 31.5199
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 51.5873,
+      "oi_volume_shock_52w_z": 0.0775,
+      "drift_20d_strike_migration": 1.2346
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 542.0,
+      "value_area_high": 824.0,
+      "value_area_low": 406.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BULL_MARKET_ABOVE_KEY_MA",
+      "beta_5y": 0.9942,
+      "alpha_5y": 0.0211
+    }
+  },
+  "SRF": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 30.9524,
+      "iv_52w_high": 76.55,
+      "iv_52w_low": 16.5,
+      "historical_vol_20d": 22.4798
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 84.9206,
+      "oi_volume_shock_52w_z": -1.3664,
+      "drift_20d_strike_migration": -3.8462
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 2005.0,
+      "value_area_high": 3040.0,
+      "value_area_low": 2005.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.0626,
+      "alpha_5y": -0.0746
+    }
+  },
+  "SUNPHARMA": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 50.7937,
+      "iv_52w_high": 71.73,
+      "iv_52w_low": 7.23,
+      "historical_vol_20d": 17.6795
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 86.1111,
+      "oi_volume_shock_52w_z": -1.0903,
+      "drift_20d_strike_migration": -4.1667
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1734.0,
+      "value_area_high": 1990.0,
+      "value_area_low": 751.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.5642,
+      "alpha_5y": 0.0744
+    }
+  },
+  "SUPREMEIND": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 50.0,
+      "iv_52w_high": 82.44,
+      "iv_52w_low": 2.86,
+      "historical_vol_20d": 40.2199
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 53.5714,
+      "oi_volume_shock_52w_z": -1.496,
+      "drift_20d_strike_migration": -2.7778
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 4460.0,
+      "value_area_high": 6155.0,
+      "value_area_low": 1895.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.8327,
+      "alpha_5y": 0.007
     }
   },
   "SUZLON": {
     "volatility_edge_52w": {
-      "iv_percentile_52w": 53.9683,
+      "iv_percentile_52w": 68.254,
       "iv_52w_high": 103.79,
       "iv_52w_low": 16.8,
-      "historical_vol_20d": 38.5601
+      "historical_vol_20d": 23.0581
     },
     "options_positioning_52w": {
-      "pcr_percentile_52w": 58.3333,
-      "oi_volume_shock_52w_z": 0.4769,
-      "drift_20d_strike_migration": 3.7037
+      "pcr_percentile_52w": 80.5556,
+      "oi_volume_shock_52w_z": -0.4109,
+      "drift_20d_strike_migration": -12.766
     },
     "structural_liquidity_5y": {
       "volume_poc_price": 8.0,
-      "value_area_high": 71.5,
+      "value_area_high": 68.0,
       "value_area_low": 6.0,
       "step_size_used": 0.5
     },
     "regime_confluence_5y": {
-      "macro_trend_alignment": "SECULAR_BULL_MARKET_ABOVE_KEY_MA",
-      "beta_5y": 1.3369,
-      "alpha_5y": 0.3606
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.316,
+      "alpha_5y": 0.2663
+    }
+  },
+  "SWIGGY": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 54.3651,
+      "iv_52w_high": 79.95,
+      "iv_52w_low": 23.32,
+      "historical_vol_20d": 36.2473
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 15.0794,
+      "oi_volume_shock_52w_z": 1.2606,
+      "drift_20d_strike_migration": -7.1429
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 430.5,
+      "value_area_high": 596.5,
+      "value_area_low": 241.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.1839,
+      "alpha_5y": -0.3023
+    }
+  },
+  "TATACONSUM": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 54.7619,
+      "iv_52w_high": 84.23,
+      "iv_52w_low": 11.51,
+      "historical_vol_20d": 18.3152
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 71.4286,
+      "oi_volume_shock_52w_z": -0.7683,
+      "drift_20d_strike_migration": -5.7692
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 789.0,
+      "value_area_high": 1271.0,
+      "value_area_low": 694.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.7818,
+      "alpha_5y": -0.0548
+    }
+  },
+  "TATAELXSI": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 70.6349,
+      "iv_52w_high": 81.11,
+      "iv_52w_low": 12.02,
+      "historical_vol_20d": 24.5924
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 93.6508,
+      "oi_volume_shock_52w_z": -0.2512,
+      "drift_20d_strike_migration": -13.5135
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 8380.0,
+      "value_area_high": 10685.0,
+      "value_area_low": 3210.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.935,
+      "alpha_5y": -0.201
     }
   },
   "TATAPOWER": {
     "volatility_edge_52w": {
-      "iv_percentile_52w": 32.5397,
-      "iv_52w_high": 83.68,
+      "iv_percentile_52w": 32.1429,
+      "iv_52w_high": 100.01,
       "iv_52w_low": 15.78,
-      "historical_vol_20d": 18.0121
+      "historical_vol_20d": 19.9257
     },
     "options_positioning_52w": {
-      "pcr_percentile_52w": 3.9683,
-      "oi_volume_shock_52w_z": -0.2223,
-      "drift_20d_strike_migration": -4.7619
+      "pcr_percentile_52w": 76.1905,
+      "oi_volume_shock_52w_z": -1.2461,
+      "drift_20d_strike_migration": -1.3514
     },
     "structural_liquidity_5y": {
       "volume_poc_price": 247.5,
@@ -666,9 +4698,81 @@
       "step_size_used": 0.5
     },
     "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.2055,
+      "alpha_5y": -0.0446
+    }
+  },
+  "TATASTEEL": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 72.2222,
+      "iv_52w_high": 88.3,
+      "iv_52w_low": 4.92,
+      "historical_vol_20d": 28.6045
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 49.2063,
+      "oi_volume_shock_52w_z": -0.0572,
+      "drift_20d_strike_migration": 1.3333
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 107.5,
+      "value_area_high": 187.0,
+      "value_area_low": 86.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.2966,
+      "alpha_5y": -0.039
+    }
+  },
+  "TCS": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 82.9365,
+      "iv_52w_high": 86.84,
+      "iv_52w_low": 11.52,
+      "historical_vol_20d": 23.3174
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 79.7619,
+      "oi_volume_shock_52w_z": -0.2859,
+      "drift_20d_strike_migration": -10.2564
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 3500.0,
+      "value_area_high": 4315.0,
+      "value_area_low": 2030.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.8005,
+      "alpha_5y": -0.2122
+    }
+  },
+  "TECHM": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 80.5556,
+      "iv_52w_high": 77.64,
+      "iv_52w_low": 12.51,
+      "historical_vol_20d": 21.9569
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 2.381,
+      "oi_volume_shock_52w_z": -0.8879,
+      "drift_20d_strike_migration": -4.9383
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1100.0,
+      "value_area_high": 1790.0,
+      "value_area_low": 965.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
       "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
-      "beta_5y": 1.2366,
-      "alpha_5y": -0.0199
+      "beta_5y": 0.9695,
+      "alpha_5y": -0.07
     }
   },
   "TEJASNET": {
@@ -676,11 +4780,11 @@
       "iv_percentile_52w": null,
       "iv_52w_high": null,
       "iv_52w_low": null,
-      "historical_vol_20d": 61.4599
+      "historical_vol_20d": 46.5294
     },
     "options_positioning_52w": {
       "pcr_percentile_52w": null,
-      "oi_volume_shock_52w_z": null,
+      "oi_volume_shock_52w_z": 0.0,
       "drift_20d_strike_migration": null
     },
     "structural_liquidity_5y": {
@@ -691,21 +4795,453 @@
     },
     "regime_confluence_5y": {
       "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
-      "beta_5y": 1.3577,
-      "alpha_5y": -0.0141
+      "beta_5y": 1.3607,
+      "alpha_5y": -0.0502
+    }
+  },
+  "TIINDIA": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 59.127,
+      "iv_52w_high": 88.14,
+      "iv_52w_low": 20.06,
+      "historical_vol_20d": 20.2905
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 14.6825,
+      "oi_volume_shock_52w_z": -0.8605,
+      "drift_20d_strike_migration": -12.5
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 2770.0,
+      "value_area_high": 4290.0,
+      "value_area_low": 2280.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.8713,
+      "alpha_5y": -0.0351
+    }
+  },
+  "TITAN": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 50.7937,
+      "iv_52w_high": 68.39,
+      "iv_52w_low": 11.17,
+      "historical_vol_20d": 21.1364
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 70.2381,
+      "oi_volume_shock_52w_z": -0.7152,
+      "drift_20d_strike_migration": -6.0
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 2375.0,
+      "value_area_high": 5090.0,
+      "value_area_low": 1935.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.9216,
+      "alpha_5y": 0.0562
+    }
+  },
+  "TMPV": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 63.0952,
+      "iv_52w_high": 86.96,
+      "iv_52w_low": 13.7,
+      "historical_vol_20d": 26.2806
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 72.619,
+      "oi_volume_shock_52w_z": 0.8438,
+      "drift_20d_strike_migration": -9.375
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 507.0,
+      "value_area_high": 1122.0,
+      "value_area_low": 303.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.3896,
+      "alpha_5y": -0.1151
+    }
+  },
+  "TORNTPHARM": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 43.6508,
+      "iv_52w_high": 71.89,
+      "iv_52w_low": 10.33,
+      "historical_vol_20d": 21.7112
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 86.9048,
+      "oi_volume_shock_52w_z": -1.2346,
+      "drift_20d_strike_migration": -3.0303
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1520.0,
+      "value_area_high": 5125.0,
+      "value_area_low": 1295.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.4703,
+      "alpha_5y": 0.1578
+    }
+  },
+  "TRENT": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 95.6349,
+      "iv_52w_high": 69.25,
+      "iv_52w_low": 13.72,
+      "historical_vol_20d": 19.8337
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 61.1111,
+      "oi_volume_shock_52w_z": -0.6292,
+      "drift_20d_strike_migration": -6.8966
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 690.0,
+      "value_area_high": 5360.0,
+      "value_area_low": 675.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.1532,
+      "alpha_5y": 0.1889
+    }
+  },
+  "TVSMOTOR": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 70.2381,
+      "iv_52w_high": 83.54,
+      "iv_52w_low": 16.74,
+      "historical_vol_20d": 17.6851
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 56.746,
+      "oi_volume_shock_52w_z": -0.7605,
+      "drift_20d_strike_migration": -3.5294
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1050.0,
+      "value_area_high": 4390.0,
+      "value_area_low": 555.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.9688,
+      "alpha_5y": 0.3129
+    }
+  },
+  "UJJIVANSFB": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 100.0,
+      "iv_52w_high": 36.08,
+      "iv_52w_low": 35.6,
+      "historical_vol_20d": 39.4913
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 100.0,
+      "oi_volume_shock_52w_z": 12.3387,
+      "drift_20d_strike_migration": 1.5152
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 44.0,
+      "value_area_high": 69.0,
+      "value_area_low": 28.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.1976,
+      "alpha_5y": 0.2102
+    }
+  },
+  "ULTRACEMCO": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 59.5238,
+      "iv_52w_high": 61.5,
+      "iv_52w_low": 3.38,
+      "historical_vol_20d": 22.9251
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 17.4603,
+      "oi_volume_shock_52w_z": -1.1919,
+      "drift_20d_strike_migration": -4.3478
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 11420.0,
+      "value_area_high": 12765.0,
+      "value_area_low": 5175.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.028,
+      "alpha_5y": -0.0308
+    }
+  },
+  "UNIONBANK": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 53.5714,
+      "iv_52w_high": 84.9,
+      "iv_52w_low": 12.61,
+      "historical_vol_20d": 29.0096
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 69.0476,
+      "oi_volume_shock_52w_z": -1.2216,
+      "drift_20d_strike_migration": -5.4054
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 146.5,
+      "value_area_high": 189.0,
+      "value_area_low": 42.5,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 1.4846,
+      "alpha_5y": 0.261
+    }
+  },
+  "UNITDSPR": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 59.9206,
+      "iv_52w_high": 115.7,
+      "iv_52w_low": 12.7,
+      "historical_vol_20d": 24.8776
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 61.1111,
+      "oi_volume_shock_52w_z": -1.3186,
+      "drift_20d_strike_migration": -9.2105
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 893.0,
+      "value_area_high": 1620.0,
+      "value_area_low": 732.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.8251,
+      "alpha_5y": 0.0033
+    }
+  },
+  "UNOMINDA": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 44.8413,
+      "iv_52w_high": 63.58,
+      "iv_52w_low": 10.05,
+      "historical_vol_20d": 41.1891
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 36.5079,
+      "oi_volume_shock_52w_z": -1.0408,
+      "drift_20d_strike_migration": -7.9365
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 593.0,
+      "value_area_high": 1366.0,
+      "value_area_low": 387.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
+      "beta_5y": 0.9427,
+      "alpha_5y": 0.1675
+    }
+  },
+  "UPL": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 41.6667,
+      "iv_52w_high": 90.79,
+      "iv_52w_low": 17.09,
+      "historical_vol_20d": 29.3226
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 44.0476,
+      "oi_volume_shock_52w_z": -0.8855,
+      "drift_20d_strike_migration": -5.1724
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 645.0,
+      "value_area_high": 824.0,
+      "value_area_low": 456.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.0779,
+      "alpha_5y": -0.1522
+    }
+  },
+  "VBL": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 54.7619,
+      "iv_52w_high": 82.03,
+      "iv_52w_low": 16.48,
+      "historical_vol_20d": 16.1361
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 94.0476,
+      "oi_volume_shock_52w_z": -0.8664,
+      "drift_20d_strike_migration": 0.0
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 250.0,
+      "value_area_high": 652.0,
+      "value_area_low": 110.5,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.7965,
+      "alpha_5y": 0.1961
+    }
+  },
+  "VEDL": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 46.4286,
+      "iv_52w_high": 79.27,
+      "iv_52w_low": 4.42,
+      "historical_vol_20d": 30.0459
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 55.1587,
+      "oi_volume_shock_52w_z": -1.588,
+      "drift_20d_strike_migration": -7.1429
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 332.5,
+      "value_area_high": 773.5,
+      "value_area_low": 187.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.3491,
+      "alpha_5y": -0.0077
+    }
+  },
+  "VMM": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 23.4127,
+      "iv_52w_high": 93.85,
+      "iv_52w_low": 19.52,
+      "historical_vol_20d": 28.1046
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 28.1746,
+      "oi_volume_shock_52w_z": 1.1526,
+      "drift_20d_strike_migration": -9.0909
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 127.0,
+      "value_area_high": 153.0,
+      "value_area_low": 100.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.0322,
+      "alpha_5y": -0.0425
+    }
+  },
+  "VOLTAS": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 53.9683,
+      "iv_52w_high": 74.26,
+      "iv_52w_low": 12.24,
+      "historical_vol_20d": 30.4064
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 48.8095,
+      "oi_volume_shock_52w_z": -0.0504,
+      "drift_20d_strike_migration": -8.1967
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1644.0,
+      "value_area_high": 1881.0,
+      "value_area_low": 750.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.9669,
+      "alpha_5y": -0.1101
+    }
+  },
+  "WAAREEENER": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 24.6032,
+      "iv_52w_high": 74.39,
+      "iv_52w_low": 7.94,
+      "historical_vol_20d": 29.0114
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 81.746,
+      "oi_volume_shock_52w_z": -0.1757,
+      "drift_20d_strike_migration": -7.6923
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 2990.0,
+      "value_area_high": 3740.0,
+      "value_area_low": 2090.0,
+      "step_size_used": 5.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 1.1068,
+      "alpha_5y": 0.079
+    }
+  },
+  "WIPRO": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 68.254,
+      "iv_52w_high": 83.38,
+      "iv_52w_low": 12.41,
+      "historical_vol_20d": 20.5048
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 95.6349,
+      "oi_volume_shock_52w_z": -0.4173,
+      "drift_20d_strike_migration": -8.3333
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 247.5,
+      "value_area_high": 354.0,
+      "value_area_low": 157.0,
+      "step_size_used": 0.5
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BEAR_MARKET_BELOW_KEY_MA",
+      "beta_5y": 0.9828,
+      "alpha_5y": -0.2363
     }
   },
   "YESBANK": {
     "volatility_edge_52w": {
-      "iv_percentile_52w": 69.8413,
+      "iv_percentile_52w": 69.0476,
       "iv_52w_high": 83.8,
       "iv_52w_low": 15.64,
-      "historical_vol_20d": 29.7029
+      "historical_vol_20d": 36.1921
     },
     "options_positioning_52w": {
-      "pcr_percentile_52w": 52.381,
-      "oi_volume_shock_52w_z": -0.1171,
-      "drift_20d_strike_migration": 4.5455
+      "pcr_percentile_52w": 76.5873,
+      "oi_volume_shock_52w_z": -0.3798,
+      "drift_20d_strike_migration": -4.3478
     },
     "structural_liquidity_5y": {
       "volume_poc_price": 21.0,
@@ -715,8 +5251,32 @@
     },
     "regime_confluence_5y": {
       "macro_trend_alignment": "MACRO_CONSOLIDATION_CHOP",
-      "beta_5y": 1.1297,
-      "alpha_5y": 0.0328
+      "beta_5y": 1.1332,
+      "alpha_5y": 0.0118
+    }
+  },
+  "ZYDUSLIFE": {
+    "volatility_edge_52w": {
+      "iv_percentile_52w": 80.5556,
+      "iv_52w_high": 94.87,
+      "iv_52w_low": 14.11,
+      "historical_vol_20d": 27.3907
+    },
+    "options_positioning_52w": {
+      "pcr_percentile_52w": 30.1587,
+      "oi_volume_shock_52w_z": -0.0588,
+      "drift_20d_strike_migration": 3.4783
+    },
+    "structural_liquidity_5y": {
+      "volume_poc_price": 1041.0,
+      "value_area_high": 1215.0,
+      "value_area_low": 887.0,
+      "step_size_used": 1.0
+    },
+    "regime_confluence_5y": {
+      "macro_trend_alignment": "SECULAR_BULL_MARKET_ABOVE_KEY_MA",
+      "beta_5y": 0.6598,
+      "alpha_5y": 0.126
     }
   }
 }
