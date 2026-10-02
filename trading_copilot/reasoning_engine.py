@@ -940,7 +940,7 @@ class ReasoningEngine:
                         norm_sym, gatekeeper_res, ltp,
                         score=(structured.get("math_setup") or {}).get("composite_score"),
                         regime=(structured.get("market_regime") or {}).get("current_regime"),
-                        data_age_s=payload.get("data_age_s"))
+                        data_age_s=payload.get("data_age_s"), atr15=payload.get("atr_15m"))
                     
                     # ---- Log a feature vector for THIS symbol/tick, whether
                     # it gets proposed, rejected, or gated — before the

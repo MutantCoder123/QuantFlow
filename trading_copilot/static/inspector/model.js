@@ -177,8 +177,9 @@ const signed2 = (x) => (known(x) ? `${x < 0 ? MINUS : '+'}${Math.abs(x).toFixed(
 const REVIEW_TITLE = {
   CHECK: 'Checked', TRAIL: 'Stop raised', RUN_ON: 'Target reached, running on',
   THESIS_AGAINST: 'Score turned against it', THESIS_OK: 'Score no longer against it', THESIS_EXIT: 'Closing: the score turned',
+  TARGET_PULLED: 'Target brought within reach', FADE_TIGHTEN: 'Conviction faded: stop to breakeven',
 };
-const REVIEW_TONE = { RUN_ON: 'profit', TRAIL: 'profit', THESIS_AGAINST: 'amber', THESIS_EXIT: 'amber' };
+const REVIEW_TONE = { RUN_ON: 'profit', TRAIL: 'profit', FADE_TIGHTEN: 'profit', THESIS_AGAINST: 'amber', THESIS_EXIT: 'amber', TARGET_PULLED: 'amber' };
 
 /**
  * The position journal (policy v4) as timeline rows: what the engine thought

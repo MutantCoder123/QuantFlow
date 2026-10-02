@@ -43,7 +43,13 @@ def init(mirror: dict) -> PaperBroker | None:
                               run_on_trail_r=(horizon.get("run_on") or {}).get("trail_r"),
                               thesis_against=(horizon.get("thesis_exit") or {}).get("against"),
                               thesis_minutes=(horizon.get("thesis_exit") or {}).get("minutes", 10),
-                              review_every_min=horizon.get("review_every_min"))
+                              review_every_min=horizon.get("review_every_min"),
+                              reach_atr=(horizon.get("reach_target") or {}).get("atr_mult"),
+                              reach_floor_r=(horizon.get("reach_target") or {}).get("floor_r", 1.0),
+                              reach_every_min=(horizon.get("reach_target") or {}).get("every_min", 5),
+                              fade_frac=(horizon.get("memory") or {}).get("fade_frac"),
+                              fade_minutes=(horizon.get("memory") or {}).get("minutes", 10),
+                              fade_min_open_r=(horizon.get("memory") or {}).get("min_open_r", 0.5))
         stale = _broker.recover()
         logger.info(f"Paper engine ready: {len(_broker.open)} open, {len(_broker.closed)} closed"
                     + (f", {stale} stale position(s) closed" if stale else ""))
@@ -121,7 +127,7 @@ def on_ticket(symbol: str, ticket: dict, risk_params: dict, math_setup: dict,
 
 
 def on_gatekeeper(symbol: str, res: dict, ltp, score=None, regime: str | None = None,
-                  data_age_s=None):
+                  data_age_s=None, atr15=None):
     """Every loop tick, for every symbol: mark, act on a Path A Close, then
     hand the live score to the thesis exit and the journal (policy v4)."""
     def _do(b: PaperBroker):
@@ -135,7 +141,7 @@ def on_gatekeeper(symbol: str, res: dict, ltp, score=None, regime: str | None = 
             fresh = float(data_age_s or 0.0) <= b.settings.options()["stale_price_seconds"]
         except (TypeError, ValueError, KeyError):
             fresh = False
-        return b.on_score(symbol, score, regime=regime, fresh=fresh, ltp=ltp)
+        return b.on_score(symbol, score, regime=regime, fresh=fresh, ltp=ltp, atr15=atr15)
     return _guard(_do)
 
 

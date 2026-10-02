@@ -36,7 +36,8 @@ BAR_SECONDS = 300          # /api/bars serves five-minute bars, stamped at their
 EXIT_ACTIONS = {"CLOSE_EXISTING": "LLM_CLOSE", "REVERSE_POSITION": "LLM_REVERSE"}
 # journal entry kind -> the decision it records
 REVIEW_DECISION = {"CHECK": "hold", "TRAIL": "tighten", "RUN_ON": "run on",
-                   "THESIS_AGAINST": "watch", "THESIS_OK": "hold", "THESIS_EXIT": "exit"}
+                   "THESIS_AGAINST": "watch", "THESIS_OK": "hold", "THESIS_EXIT": "exit",
+                   "TARGET_PULLED": "retarget", "FADE_TIGHTEN": "tighten"}
 # a thesis run restarts if no fresh score arrived for this long (a feed gap
 # must not be read as "still against")
 THESIS_GAP_S = 180.0
@@ -54,8 +55,22 @@ class PaperBroker:
                  trail: list | tuple = (), reversal_cooldown_min: float = 0.0,
                  entry_start: str | None = None, run_on_trail_r: float | None = None,
                  thesis_against: float | None = None, thesis_minutes: float = 10.0,
-                 review_every_min: float | None = None):
+                 review_every_min: float | None = None, reach_atr: float | None = None,
+                 reach_floor_r: float = 1.0, reach_every_min: float = 5.0,
+                 fade_frac: float | None = None, fade_minutes: float = 10.0, fade_min_open_r: float = 0.5):
         self.store = store
+        # v5 (policy horizon.reach_target): a target more than reach_atr x ATR15
+        # from the price is pulled in to that distance (never out, never inside
+        # entry + reach_floor_r R), checked every reach_every_min.
+        self.reach_atr = float(reach_atr) if reach_atr else None
+        self.reach_floor_r = float(reach_floor_r)
+        self.reach_every_s = float(reach_every_min or 5.0) * 60.0
+        # v5 (policy horizon.memory): the score in the trade's favour has fallen
+        # below fade_frac of its value at entry for fade_minutes -> the stop goes
+        # to breakeven once fade_min_open_r is open.
+        self.fade_frac = float(fade_frac) if fade_frac else None
+        self.fade_s = float(fade_minutes or 0.0) * 60.0
+        self.fade_min_open_r = float(fade_min_open_r)
         # v4 exits (policy horizon.run_on / thesis_exit), off when None.
         # run on: at the target keep the trade, stop run_on_trail_r behind the best.
         self.run_on_trail_r = float(run_on_trail_r) if run_on_trail_r else None
@@ -352,7 +367,7 @@ class PaperBroker:
         return None
 
     def on_score(self, symbol: str, score, regime: str | None = None, fresh: bool = True,
-                 ltp=None) -> dict | None:
+                 ltp=None, atr15=None) -> dict | None:
         """The live composite for a symbol, every evaluation. Drives the
         thesis exit and the journal's periodic check. A score from stale data
         is ignored (it neither counts toward nor clears a run)."""
@@ -384,9 +399,73 @@ class PaperBroker:
             elif p.get("against_since") is not None:
                 p["against_since"] = None
                 self._review(p, "THESIS_OK", "the score no longer opposes the position")
+        ev = self._retarget(p, atr15, now)
+        if ev is not None:
+            return ev
+        self._fade(p, s, now, gap)
         if self.review_every_s and now - p.get("last_review_ts", p["ts"]) >= self.review_every_s:
             self._review(p, "CHECK", "periodic check")
         return None
+
+    def _retarget(self, p: dict, atr15, now: float) -> dict | None:
+        """Pull an out-of-reach target in to reach_atr x ATR15 from the price.
+        2026-09-29..10-01: no target more than 4 ATR15 away was ever hit, and
+        the trades behind them (BANKINDIA 7.5R, MCX, NBCC) gave back what a
+        reachable target plus run on would have kept."""
+        if not self.reach_atr or p.get("past_target"):
+            return None
+        if now - p.get("reach_ts", float("-inf")) < self.reach_every_s:
+            return None
+        try:
+            atr = float(atr15)
+        except (TypeError, ValueError):
+            return None
+        if not atr > 0:
+            return None
+        p["reach_ts"] = now
+        last = float(p.get("last") or p["entry_price"])
+        sgn = 1.0 if p["side"] == "LONG" else -1.0
+        rps = abs(p["entry_price"] - p["stop"])
+        cand = last + sgn * self.reach_atr * atr
+        floor = p["entry_price"] + sgn * self.reach_floor_r * rps
+        cand = max(cand, floor) if sgn > 0 else min(cand, floor)
+        if sgn * (p["target"] - cand) <= 1e-9:
+            return None                                      # already within reach: never pushed out
+        old = p["target"]
+        p["target"] = cand
+        self._mirror_set(p)
+        self._review(p, "TARGET_PULLED", f"target {old:.2f} was more than {self.reach_atr:g} ATR away; "
+                                         f"now {cand:.2f} ({self._r(p, cand):+.2f}R)")
+        if (last >= cand) if sgn > 0 else (last <= cand):
+            return self._reach_target(p, now)
+        return None
+
+    def _fade(self, p: dict, s: float, now: float, gap: float) -> None:
+        """Memory: the score's support for the trade against its value at
+        entry. Faded below fade_frac for fade_s -> stop to breakeven once
+        fade_min_open_r is open (NMDC 10-01: -5,281 -> -283 in replay)."""
+        if not self.fade_frac or self.fade_s <= 0:
+            return
+        sgn = 1.0 if p["side"] == "LONG" else -1.0
+        s0 = sgn * float((p.get("context") or {}).get("composite") or 0.0)
+        if s0 <= 0:
+            return
+        if sgn * s >= self.fade_frac * s0:
+            p.pop("fade_since", None)
+            return
+        if p.get("fade_since") is None or gap > THESIS_GAP_S:
+            p["fade_since"] = now
+            return
+        if now - p["fade_since"] < self.fade_s:
+            return
+        last = float(p.get("last") or p["entry_price"])
+        if self._r(p, last) < self.fade_min_open_r:
+            return
+        be = float(p["entry_price"])
+        if (be > self._stop_now(p)) if sgn > 0 else (be < self._stop_now(p)):
+            p["trail_stop"], p["trail_ts"] = be, now
+            self._review(p, "FADE_TIGHTEN", f"the score ({s:+.2f}) has stayed below {self.fade_frac:.0%} of its "
+                                            f"entry value for {self.fade_s / 60:.0f} min; stop to breakeven")
 
     def _r(self, p: dict, price: float) -> float:
         rps = abs(p["entry_price"] - p["stop"])

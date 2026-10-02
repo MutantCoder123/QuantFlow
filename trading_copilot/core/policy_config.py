@@ -37,7 +37,7 @@ class PolicyConfig:
                    gates=d["gates"], horizon=d["horizon"])
 
 
-DEFAULT_POLICY = "policy_v4.yaml"
+DEFAULT_POLICY = "policy_v5.yaml"
 
 
 @lru_cache(maxsize=4)

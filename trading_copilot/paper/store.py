@@ -115,4 +115,8 @@ def rebuild(events: list[dict]) -> State:
             pos = s.open.get(e.get("pos_id"))
             if pos is not None and e.get("kind") == "RUN_ON":
                 pos["past_target"] = True
+            if pos is not None and e.get("kind") == "TARGET_PULLED" and e.get("target"):
+                pos["target"] = e["target"]                 # v5: a pulled-in target survives a restart
+            if pos is not None and e.get("kind") == "FADE_TIGHTEN" and e.get("stop"):
+                pos["trail_stop"] = e["stop"]
     return s
