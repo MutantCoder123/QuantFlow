@@ -31,13 +31,27 @@ def test_market_hours_decide_whether_the_services_wait_for_the_backfill():
 
 def test_only_an_after_close_backfill_counts_as_storing_the_day(tmp_path, monkeypatch):
     monkeypatch.setattr(run, "EOD_STAMP", tmp_path / ".last_eod_backfill")
+    monkeypatch.setattr(run, "NSE_FO_DIR", tmp_path)
     monkeypatch.setattr(run, "run_step", lambda *a, **k: True)
+    (tmp_path / "20260929.csv.zip").write_bytes(b"PK")
     monkeypatch.setattr(run, "now_ist", lambda: at(9, 20))
     assert run.backfill(full=True) and not run.eod_done_today()     # mid-session: the day is not in yet
     monkeypatch.setattr(run, "now_ist", lambda: at(15, 50))
     assert run.backfill(full=True) and run.eod_done_today()
     monkeypatch.setattr(run, "now_ist", lambda: at(9, 20, day=30))
     assert not run.eod_done_today()
+
+
+def test_the_day_waits_for_nses_options_file(tmp_path, monkeypatch):
+    """NSE publishes the day's F&O file around 18:30: until it is in, the day
+    is not stored (supervise retries); past 23:00 it gives up for the day."""
+    monkeypatch.setattr(run, "EOD_STAMP", tmp_path / ".last_eod_backfill")
+    monkeypatch.setattr(run, "NSE_FO_DIR", tmp_path)
+    monkeypatch.setattr(run, "run_step", lambda *a, **k: True)
+    monkeypatch.setattr(run, "now_ist", lambda: at(16, 0))
+    assert run.backfill(full=True) and not run.eod_done_today()
+    monkeypatch.setattr(run, "now_ist", lambda: at(23, 5))
+    assert run.backfill(full=True) and run.eod_done_today()
 
 
 def test_a_failed_backfill_is_not_stamped(tmp_path, monkeypatch):
@@ -92,12 +106,19 @@ def test_a_step_that_finishes_reports_its_result():
 
 
 def test_the_full_backfill_stops_at_market_hours(monkeypatch):
-    seen = {}
-    monkeypatch.setattr(run, "run_step", lambda name, args, timeout, stop_when=None: seen.update(
-        {name: stop_when}) or False)
+    seen = []
+    monkeypatch.setattr(run, "run_step", lambda name, args, timeout, stop_when=None: seen.append(
+        (name, args[1:], stop_when)) or False)
     run.backfill(full=True)
+    full = list(seen)
+    seen.clear()
     run.backfill(full=False)
-    assert seen["backfill"] is run.market_hours and seen["prices"] is None
+    # behind the services: every F&O stock, then 1-minute candles, both stopped at the open
+    assert ("history", ["--daily"], run.market_hours) in full
+    assert ("intraday", ["--intraday"], run.market_hours) in full
+    # in front of the services: the watchlist only, never stopped
+    assert ("history", ["--daily", "--watchlist"], None) in seen
+    assert not any(name == "intraday" for name, _, _ in seen)
 
 
 def test_every_launch_outside_hours_catches_up_even_after_the_eod_run(monkeypatch, tmp_path):

@@ -43,6 +43,7 @@ IST = ZoneInfo("Asia/Kolkata")
 DASHBOARD = "http://127.0.0.1:8000/"
 EOD_BACKFILL_AFTER = dt.time(15, 45)
 EOD_STAMP = APP / "data" / ".last_eod_backfill"
+EOD_RETRY_S = 30 * 60      # after the close, retry storing the day this often until NSE's file is in
 STEP_POLL_S = 5            # how often a running step checks whether to stop
 
 # name, script, port it listens on (None: no port), started after this port is up
@@ -281,20 +282,32 @@ def _shown(path: Path) -> str:
         return str(path)
 
 
+NSE_FO_DIR = APP / "data" / "nse_fo"
+HISTORY = "trading_copilot/scripts/history_sync.py"
+
+
 def backfill(full: bool) -> bool:
+    """The local history store (scripts/history_sync.py) fills every missing
+    trading day, however long the system was off.
+
+    full=False (in front of the services, any time): the watchlist's daily
+    prices and options figures -- quick, so the session can start.
+    full=True (behind the services, outside market hours, and after the close):
+    every F&O stock's daily prices and options figures, then 1-minute candles.
+    The options figures come from NSE's daily F&O file, published around 18:30;
+    the day counts as stored only once that file is in (supervise retries)."""
     t = now_ist()
-    # Only a run that starts after the close has today's session to store;
-    # a morning or mid-session run must not stand in for it.
     after_close = t.weekday() < 5 and t.time() >= EOD_BACKFILL_AFTER
-    args = ["trading_copilot/scripts/master_bootstrap.py"] + ([] if full else ["--prices-only"])
-    say("history", "catching up daily prices and options history..." if full else "catching up daily prices...")
-    # The full backfill runs behind the services; it must not still be
-    # spending the Upstox rate limit when the session opens.
-    ok = run_step("backfill" if full else "prices", args, timeout=6 * 3600 if full else 300,
-                  stop_when=market_hours if full else None)
-    if ok:
-        ok = run_step("baselines", ["trading_copilot/scripts/macro_bootstrap.py"], timeout=900)
-    if ok and full and after_close:
+    if full:
+        say("history", "storing every F&O stock: daily prices, options figures, 1-minute candles...")
+        ok = run_step("history", [HISTORY, "--daily"], timeout=2 * 3600, stop_when=market_hours)
+        ok = run_step("intraday", [HISTORY, "--intraday"], timeout=3 * 3600, stop_when=market_hours) and ok
+    else:
+        say("history", "catching up the watchlist's daily prices and options figures...")
+        ok = run_step("history", [HISTORY, "--daily", "--watchlist"], timeout=1800)
+    ok = run_step("baselines", ["trading_copilot/scripts/macro_bootstrap.py"], timeout=1800) and ok
+    today_file = NSE_FO_DIR / f"{t:%Y%m%d}.csv.zip"
+    if ok and full and after_close and (today_file.exists() or t.time() >= dt.time(23, 0)):
         EOD_STAMP.write_text(now_ist().date().isoformat(), encoding="utf-8")
     return ok
 
@@ -389,10 +402,11 @@ def supervise(services: list[Service], history: bool, full_now: bool = False):
     # stocks added since then have no options history yet, and the backfill
     # only fetches what is missing.
     if full_now:
-        say("history", "catching up options history in the background (logs/run/backfill.log)")
+        say("history", "updating the full history store in the background (logs/run/history.log)")
         eod = threading.Thread(target=backfill, args=(True,), daemon=True)
         eod.start()
     was_on_battery = on_battery()[0]
+    last_eod = time.monotonic() if full_now else float("-inf")
     while True:
         time.sleep(5)
         batt, pct = on_battery()
@@ -410,9 +424,12 @@ def supervise(services: list[Service], history: bool, full_now: bool = False):
                 say(s.name, f"exited (code {rc}) and keeps crashing; left stopped. See {s.log.relative_to(ROOT)}")
                 s.proc = None
         t = now_ist()
+        # After the close, until today is stored: NSE's F&O file arrives around
+        # 18:30, so a run that finds it missing is retried every 30 minutes.
         if (history and t.weekday() < 5 and t.time() >= EOD_BACKFILL_AFTER and not eod_done_today()
-                and not (eod and eod.is_alive())):
+                and not (eod and eod.is_alive()) and time.monotonic() - last_eod >= EOD_RETRY_S):
             say("history", "market closed: storing today's history")
+            last_eod = time.monotonic()
             eod = threading.Thread(target=backfill, args=(True,), daemon=True)
             eod.start()
 
@@ -436,12 +453,12 @@ def main() -> int:
 
     history = not a.no_backfill
     if history:
-        # Only daily prices hold up the start. The options history is
-        # thousands of requests, and one 429 costs a 30-minute cooldown: it
-        # runs behind the services (supervise), never in front of them.
+        # Only the watchlist's catch-up holds up the start (every missed day,
+        # from the local store and NSE's daily files: about a minute). The
+        # whole F&O universe and the 1-minute candles run behind the services.
         backfill(full=False)
         if market_hours():
-            say("history", "options history will be stored after 15:45 IST")
+            say("history", "the full history store is updated after 15:45 IST")
 
     services = start_services(a.verbose)
     try:

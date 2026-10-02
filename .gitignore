@@ -46,6 +46,11 @@ dev-notes/
 # Paper trading runtime state and UI-written settings (local only)
 trading_copilot/data/paper/
 trading_copilot/data/shadow/
+# local history store (scripts/history_sync.py): raw NSE F&O files, 1-minute candles, and the
+# daily files of stocks added to the store (the ones committed before stay tracked)
+trading_copilot/data/nse_fo/
+trading_copilot/data/intraday/
+trading_copilot/data/*_1D.parquet
 trading_copilot/config/paper_overrides.yaml
 
 # Browser-automation screenshots and logs (local review only)
