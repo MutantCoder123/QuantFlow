@@ -51,6 +51,9 @@ SERVICES = [
     ("news", "trading_copilot/data_services/news_feed.py", 8003, None),
     ("macro", "trading_copilot/data_services/macro_worker.py", None, None),
     ("web", "trading_copilot/main.py", 8000, 8001),
+    # shadow only: asks the AI at each key moment of a paper position and
+    # records the answer; never acts (trading_copilot/shadow/). QF_SHADOW=0 idles it.
+    ("shadow", "trading_copilot/shadow/reanalysis.py", None, 8000),
 ]
 MAX_RESTARTS = 5            # per service, within RESTART_WINDOW_S
 RESTART_WINDOW_S = 600
