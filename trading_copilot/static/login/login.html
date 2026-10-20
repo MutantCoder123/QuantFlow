@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0D111A">
+  <meta name="robots" content="noindex">
+  <title>QuantFlow · Sign in</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600&family=IBM+Plex+Sans:wght@400;500&display=swap">
+  <link rel="stylesheet" href="/static/shared/tokens.css">
+  <link rel="stylesheet" href="/static/login/login.css">
+</head>
+<body>
+  <!-- Served by web_access.AccessGate to devices other than the PC; it puts the
+       outcome of a wrong try where the note marker is. -->
+  <main class="lg">
+    <p class="lg-mark"><i aria-hidden="true"></i>QuantFlow</p>
+    <form class="lg-plate" method="post" action="/login">
+      <label class="lg-label" for="pw">Dashboard password</label>
+      <input class="lg-input" id="pw" name="password" type="password" autocomplete="current-password"
+             required autofocus>
+      <!--note-->
+      <button class="lg-btn" type="submit">Sign in</button>
+    </form>
+    <p class="lg-foot">Set or change the password on the PC running QuantFlow.</p>
+  </main>
+</body>
+</html>

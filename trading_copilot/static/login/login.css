@@ -1,0 +1,36 @@
+/* The sign-in page for devices on the Wi-Fi: the app's ink ground and one plate. */
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; min-height: 100vh; background: var(--ink); color: var(--paper);
+  font: 400 var(--t-body)/1.5 var(--f-body);
+  display: grid; place-items: center; padding: 24px var(--gutter);
+}
+.lg { width: 100%; max-width: 360px; }
+.lg-mark {
+  display: flex; align-items: center; gap: 10px; margin: 0 0 20px;
+  font: 600 20px/1 var(--f-head); letter-spacing: -.01em;
+}
+.lg-mark i { width: 10px; height: 10px; border-radius: 3px; background: var(--indigo); display: inline-block; }
+.lg-plate {
+  background: var(--slate); border: 1px solid var(--rule); border-radius: var(--r-plate);
+  padding: 24px; display: grid; gap: 12px;
+}
+.lg-label { font-size: var(--t-small); color: var(--mute); }
+.lg-input {
+  width: 100%; padding: 11px 12px; border-radius: var(--r-input);
+  background: var(--ink); color: var(--paper); border: 1px solid var(--rule-strong);
+  font: 400 var(--t-body)/1.2 var(--f-body);
+}
+.lg-input:focus { outline: 2px solid var(--indigo); outline-offset: 1px; border-color: var(--indigo); }
+.lg-note {
+  margin: 0; padding: 10px 12px; border-radius: var(--r-input); font-size: var(--t-small);
+  background: var(--coral-soft); border: 1px solid var(--coral-edge-soft); color: var(--paper);
+}
+.lg-btn {
+  margin-top: 4px; padding: 11px 16px; border: 0; border-radius: var(--r-input); cursor: pointer;
+  background: var(--indigo); color: #fff; font: 500 15px/1 var(--f-body);
+}
+.lg-btn:hover { filter: brightness(1.08); }
+.lg-btn:focus-visible { outline: 2px solid var(--paper); outline-offset: 2px; }
+.lg-foot { margin: 14px 2px 0; font-size: var(--t-small); color: var(--mute); }
