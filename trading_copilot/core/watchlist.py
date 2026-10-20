@@ -18,13 +18,14 @@ from __future__ import annotations
 import csv
 import os
 import threading
+from core.symbols import base_symbol
 
 _lock = threading.Lock()
 _cache: dict = {"mtime": None, "symbols": None}
 
 
 def _bare(s: str) -> str:
-    return str(s or "").split("|")[-1].split("-")[0].strip().upper()
+    return base_symbol(s)
 
 
 def _path():

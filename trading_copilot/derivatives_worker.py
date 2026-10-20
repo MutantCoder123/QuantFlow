@@ -17,6 +17,11 @@ logger = logging.getLogger(__name__)
 # get_historical_iv() always returned (999.0, 0.0) -- silently degrading IV Rank
 # onto its macro_baselines fallback.
 from paths import CACHE_DIR, DATA_DIR, MACRO_BASELINES_PATH, WATCHLIST_PATH, parquet_path
+from core.symbols import base_symbol
+
+# Fewest real IV days in the last 252 for an IV rank (scripts/macro_bootstrap MIN_OPTION_DAYS).
+IVR_MIN_DAYS = 60
+
 
 def get_historical_iv(symbol: str):
     """
@@ -41,7 +46,7 @@ def get_historical_iv(symbol: str):
         iv_series = df['EOD_IV'].dropna()
         iv_series = iv_series[iv_series > 0.0]
         
-        if iv_series.empty:
+        if len(iv_series) < IVR_MIN_DAYS:                       # 3 days (UJJIVANSFB) gave IV rank 100
             return 999.0, 0.0
             
         return float(iv_series.min()), float(iv_series.max())
@@ -105,6 +110,35 @@ def calc_bsm_iv(price, S, K, t, r=0.07, is_call=True):
             break
     return max(sigma, 0.0)
 
+ATM_CANDIDATES = 3      # nearest strikes tried on each side for a traded price
+
+
+def atm_iv_from_quotes(contracts, prices: dict, ltp: float, t: float) -> float:
+    """IV in % at the strike nearest the price that has a traded call or put
+    (mean of the two when both traded); 0.0 when none of `contracts` traded."""
+    by_strike: dict = {}
+    for c in contracts:
+        p = prices.get(c.instrument_key, 0.0)
+        if p > 0:
+            by_strike.setdefault(c.strike_price, {})[c.instrument_type] = p
+    for k in sorted(by_strike, key=lambda s: abs(s - ltp)):
+        ivs = [calc_bsm_iv(p, ltp, k, t, r=0.07, is_call=(kind == 'CE')) for kind, p in by_strike[k].items()]
+        ivs = [v for v in ivs if 0.01 < v < 5.0]                # a failed solve is not an IV
+        if ivs:
+            return round(float(sum(ivs) / len(ivs)) * 100, 2)
+    return 0.0
+
+
+def last_close(symbol: str) -> float:
+    """The stored previous close: the price used before the first live tick
+    (after a restart, before the open), so IV rank is never blank for want of a tick."""
+    try:
+        df = pd.read_parquet(parquet_path(symbol), columns=['Close'])
+        return float(df['Close'].iloc[-1]) if len(df) else 0.0
+    except Exception:
+        return 0.0
+
+
 async def fetch_chain_and_calculate(opt_api, market_api, mq_api, instrument_key: str, symbol: str, ltp: float):
     """
     Fetches the nearest option chain and calculates PCR, Max Pain, and ATM IV.
@@ -154,31 +188,26 @@ async def fetch_chain_and_calculate(opt_api, market_api, mq_api, instrument_key:
         except Exception as e:
             logger.error(f"Failed to fetch Max Pain for {symbol}: {e}")
             
-        # 3. Sniper Fetch ATM IV
+        # 3. ATM IV: the nearest strikes that actually traded. Only the single
+        # nearest call was tried before; an untraded half-strike (SAIL 177.5,
+        # last price 0) left IV -- and so IV rank -- empty.
         atm_iv = 0.0
         if ltp > 0.0:
             try:
-                # Find the ATM contract
-                calls = [c for c in contracts_res.data if c.expiry == nearest_expiry and c.instrument_type == 'CE']
-                if calls:
-                    atm_contract = min(calls, key=lambda x: abs(x.strike_price - ltp))
-                    
-                    # Fetch market quote for this exact option
-                    mq_res = await asyncio.to_thread(mq_api.get_full_market_quote, symbol=atm_contract.instrument_key, api_version='2.0')
-                    if mq_res.data and len(mq_res.data) > 0:
-                        mq_data = list(mq_res.data.values())[0]
-                    else:
-                        mq_data = None
-                        
-                    if mq_data:
-                        price = getattr(mq_data, 'last_price', 0.0)
-                        if price > 0:
-                            # Time to expiry in years
-                            now = datetime.now(nearest_expiry.tzinfo if nearest_expiry.tzinfo else None)
-                            t = max((nearest_expiry - now).total_seconds() / (365.25 * 24 * 3600), 0.001)
-                            
-                            atm_iv = calc_bsm_iv(price, ltp, atm_contract.strike_price, t, r=0.07, is_call=True)
-                            atm_iv = round(atm_iv * 100, 2)  # Convert to percentage
+                near = [c for c in contracts_res.data if c.expiry == nearest_expiry]
+                pick = []
+                for kind in ('CE', 'PE'):
+                    side = sorted((c for c in near if c.instrument_type == kind),
+                                  key=lambda x: abs(x.strike_price - ltp))
+                    pick += side[:ATM_CANDIDATES]
+                if pick:
+                    mq_res = await asyncio.to_thread(mq_api.get_full_market_quote,
+                                                     symbol=",".join(c.instrument_key for c in pick), api_version='2.0')
+                    prices = {getattr(v, 'instrument_token', None): float(getattr(v, 'last_price', 0.0) or 0.0)
+                              for v in (mq_res.data or {}).values()}
+                    now = datetime.now(nearest_expiry.tzinfo if nearest_expiry.tzinfo else None)
+                    t = max((nearest_expiry - now).total_seconds() / (365.25 * 24 * 3600), 0.001)
+                    atm_iv = atm_iv_from_quotes(pick, prices, ltp, t)
             except Exception as e:
                 logger.error(f"Error fetching/calculating ATM IV for {symbol}: {e}")
         
@@ -231,7 +260,8 @@ async def derivatives_poller_loop(api_client, watchlist_tokens: list, upstox_eq_
             # Queue indices
             for idx in index_keys:
                 state_key = idx["instrument_key"]
-                ltp = TerminalDashboard.active_states.get(state_key, {}).get("ltp", 0.0)
+                ltp = TerminalDashboard.active_states.get(state_key, {}).get("ltp") \
+                    or (last_close("NIFTY50") if idx["symbol"] == "NIFTY" else 0.0)
                 tasks.append((idx["instrument_key"], idx["symbol"], state_key, ltp))
                 
             import scrip_master_engine
@@ -241,12 +271,12 @@ async def derivatives_poller_loop(api_client, watchlist_tokens: list, upstox_eq_
                 exch = row.get('Exchange', row.get('exchange'))
                 sym = row.get('Symbol', row.get('symbol'))
                 if exch == 'NSE' and sym:
-                    clean_sym = sym.split('-')[0]
+                    clean_sym = base_symbol(sym)
                     ikey = upstox_eq_map.get(clean_sym)
                     if not ikey:
                         ikey = scrip_master_engine.get_instrument_key(clean_sym) or f"NSE_EQ|{clean_sym}"
                     state_key = f"NSE_EQ|{clean_sym}"
-                    ltp = TerminalDashboard.active_states.get(state_key, {}).get("ltp", 0.0)
+                    ltp = TerminalDashboard.active_states.get(state_key, {}).get("ltp") or last_close(clean_sym)
                     tasks.append((ikey, clean_sym, state_key, ltp))
                     
             for ikey, clean_sym, state_key, ltp in tasks:

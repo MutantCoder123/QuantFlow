@@ -9,6 +9,7 @@ from technical_engine import MathEngine
 from diagnostic_ui import TerminalDashboard
 from paths import CACHE_STATE_PATH, DATA_DIR, MACRO_BASELINES_PATH
 from derivatives_engine import OptionsAnalyzer
+from core.symbols import base_symbol
 try:
     from data_services.macro_worker import InstitutionalFlowTracker
 except ImportError:
@@ -21,6 +22,51 @@ logger = logging.getLogger(__name__)
 # data_age_s for a token with no tick since this process started: older than
 # any stale limit, so every freshness check refuses it.
 NEVER_TICKED_AGE_S = 86400.0
+
+ADV_DAYS = 20
+ADV_MIN_5M_BARS = 750          # 10 sessions of 5-minute bars: the fallback when daily candles are missing
+
+
+def adv_from_daily(daily) -> float:
+    """Mean volume of the last ADV_DAYS complete sessions from the daily candles
+    (today's partial candle left out); 0.0 when there are fewer than 10."""
+    try:
+        if daily is None or daily.empty or 'volume' not in daily:
+            return 0.0
+        d = daily
+        ts_col = next((c for c in ('timestamp', 'date', 'Date') if c in d.columns), None)
+        today = pd.Timestamp.now(tz='Asia/Kolkata').date()
+        if ts_col is not None:
+            last = pd.to_datetime(d[ts_col].iloc[-1])
+            last = last.tz_convert('Asia/Kolkata') if last.tzinfo else last
+            if last.date() >= today:
+                d = d.iloc[:-1]
+        elif isinstance(d.index, pd.DatetimeIndex) and len(d) and d.index[-1].date() >= today:
+            d = d.iloc[:-1]
+        vol = pd.to_numeric(d['volume'], errors='coerce').dropna().tail(ADV_DAYS)
+        vol = vol[vol > 0]
+        return float(vol.mean()) if len(vol) >= 10 else 0.0
+    except Exception:
+        return 0.0
+
+
+def prev_close_from_daily(daily) -> float:
+    """Close of the last daily row dated before today (IST); 0.0 if none."""
+    try:
+        if daily is None or daily.empty or 'close' not in daily:
+            return 0.0
+        ts_col = next((c for c in ('timestamp', 'date', 'Date') if c in daily.columns), None)
+        if ts_col is None:
+            return float(daily['close'].iloc[-1])
+        ts = pd.to_datetime(daily[ts_col])
+        if ts.dt.tz is not None:
+            ts = ts.dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+        today = pd.Timestamp.now(tz='Asia/Kolkata').tz_localize(None).normalize()
+        before = daily[ts.dt.normalize() < today]
+        return float(before['close'].iloc[-1]) if len(before) else 0.0
+    except Exception:
+        return 0.0
+
 
 class RollingStateEngine:
     live_options_state = {}
@@ -76,8 +122,67 @@ class RollingStateEngine:
                 
                 # Initialize empty phantom
                 self.phantom_candles[token] = None
-            
+
+        # A cache saved before Upstox published yesterday (2026-10-07: saved 08:5x,
+        # daily rows to 10-05) replaced the fresh warm-up: fill the missing
+        # completed sessions from the local store either way.
+        from historical_engine import fill_recent_days
+        for token, token_data in self.dfs.items():
+            if token_data.get('htf_df') is not None and str(token).startswith('NSE_EQ|'):
+                token_data['htf_df'] = fill_recent_days(token_data['htf_df'], base_symbol(token))
+
+        self._fill_from_store()
         self._load_parquet_metrics()
+
+    def _fill_from_store(self):
+        """Fill holes in earlier sessions' 5-minute bars from the local 1-minute
+        store (core.bar_gaps). The cache saved at 14:50 on 10-07 left that day's
+        14:50-15:25 bars missing. Today's holes are filled by the feed from
+        Upstox's intraday candles (fill_bars)."""
+        from core.bar_gaps import bars_from_minutes, fill
+        today = pd.Timestamp.now().normalize()
+        added = 0
+        for token, token_data in self.dfs.items():
+            df = token_data.get('ltf_df')
+            if df is None or df.empty or not str(token).startswith('NSE_EQ|'):
+                continue
+            path = DATA_DIR / 'intraday' / f"{base_symbol(token)}.parquet"
+            if not path.exists():
+                continue
+            try:
+                first = pd.to_datetime(df['timestamp']).min()
+                m = pd.read_parquet(path, columns=['ts', 'o', 'h', 'l', 'c', 'v'])
+                m = m[(m['ts'] >= first) & (m['ts'] < today)]
+                token_data['ltf_df'], n = fill(df, bars_from_minutes(m), before=today)
+                added += n
+            except Exception as e:
+                logger.warning(f"Could not fill {token}'s earlier bars from the store: {e}")
+        if added:
+            logger.info(f"Filled {added} missing 5-minute bars of earlier sessions from the local store")
+
+    def fill_bars(self, token, bars) -> int:
+        """Add the bars `token` lacks (never the live bar or later). Runs on the
+        event loop, like ingest_loop, so it never interleaves with process_tick."""
+        from core.bar_gaps import fill
+        token_data = self.dfs.get(token)
+        if not token_data or token_data.get('ltf_df') is None:
+            return 0
+        phantom = self.phantom_candles.get(token)
+        before = pd.Timestamp(phantom['timestamp']) if phantom else None
+        token_data['ltf_df'], n = fill(token_data['ltf_df'], bars, before=before)
+        return n
+
+    def bar_holes(self, token) -> list:
+        """Today's completed 5-minute slots with no bar (before the live bar)."""
+        from core.bar_gaps import missing_today
+        phantom = self.phantom_candles.get(token)
+        df = (self.dfs.get(token) or {}).get('ltf_df')
+        if not phantom or df is None:
+            return []
+        live = pd.Timestamp(phantom['timestamp']).to_pydatetime()
+        if live.date() != pd.Timestamp.now().date():
+            return []
+        return missing_today(df, live)
 
     def save_cache(self):
         try:
@@ -134,7 +239,7 @@ class RollingStateEngine:
             dropped = []
             for token, token_dfs in data.get('dfs', {}).items():
                 if on_list and str(token).startswith("NSE_EQ|") \
-                        and str(token).split('|')[-1].split('-')[0].upper() not in on_list:
+                        and base_symbol(token) not in on_list:
                     dropped.append(str(token).split('|')[-1])
                     continue
                 if token not in self.dfs:
@@ -173,7 +278,7 @@ class RollingStateEngine:
         raw = row.get("Symbol") or row.get("symbol") or ""
         if not raw:
             raw = str(token or "")
-        return raw.split('|')[-1].split('-')[0]
+        return base_symbol(raw)
 
     def _load_parquet_metrics(self):
         import os
@@ -458,10 +563,10 @@ class RollingStateEngine:
             # Preserve derivatives data from background workers
             existing_state = TerminalDashboard.active_states.get(token, {})
 
-            prev_close = phantom['close']
-            if htf_df is not None and not htf_df.empty:
-                idx = -2 if len(htf_df) > 1 else -1
-                prev_close = float(htf_df['close'].iloc[idx])
+            # the last completed session before today -- not "the row before the
+            # last", which assumed the last daily row was today and on 2026-10-07
+            # gave SAIL the 10-01 close (174.50) instead of 10-06's (178.10)
+            prev_close = prev_close_from_daily(htf_df) or phantom['close']
 
             final_payload = {
                 "token": token,
@@ -544,10 +649,20 @@ class RollingStateEngine:
         # which normalises an adverse move against ADV so the same absolute
         # share count means something comparable across a thinly-traded name
         # and a heavily-traded one. 1500 bars = 20 sessions x 75 5-min bars.
-        if target_df is not None and len(target_df) >= 1500:
-            final_payload['adv_shares'] = float(target_df['volume'].tail(1500).sum() / 20.0)
-        else:
-            final_payload['adv_shares'] = 0.0
+        # From the daily candles (100 loaded at start) first: the 5-minute window
+        # is 30 calendar days, which held only ~19 sessions on 2026-10-06 (a
+        # holiday, yesterday not yet in Upstox's history) -> ADV 0 for every
+        # stock -> data_readiness blocked every entry all morning.
+        final_payload['adv_shares'] = adv_from_daily(token_data.get('htf_df'))
+        if not final_payload['adv_shares'] and target_df is not None and len(target_df) >= ADV_MIN_5M_BARS:
+            bars = target_df['volume'].tail(1500)
+            final_payload['adv_shares'] = float(bars.sum() / (len(bars) / 75.0))
+
+        # Holes in today's bars (the feed was not running): entries wait until the
+        # feed has filled them from the exchange's candles (core.data_readiness).
+        if str(token).startswith('NSE_EQ|'):
+            from core.bar_gaps import longest_run
+            final_payload['bars_gap_run'] = longest_run(self.bar_holes(token))
 
         # 20d and 5d Advanced calculations
         vp_20d = MathEngine.calc_volume_profile_high_fidelity(temp_df, bins=100)

@@ -1,9 +1,47 @@
 import asyncio
 import pandas as pd
 import logging
+from core.symbols import base_symbol
 from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
+
+def fill_recent_days(htf_df, symbol: str):
+    """Append the completed sessions Upstox's daily history has not published yet
+    (on 2026-10-07 at 08:48 it stopped at 10-05) from the local store
+    (data/<SYM>_1D.parquet, filled after each close from the same-day endpoint).
+    Without them prev_close was two sessions old and ADV/EMAs a day behind."""
+    try:
+        from paths import parquet_path
+        p = parquet_path(symbol)
+        if htf_df is None or htf_df.empty or 'timestamp' not in htf_df or not p.exists():
+            return htf_df
+        local = pd.read_parquet(p)
+        dcol = 'Date' if 'Date' in local.columns else 'timestamp'
+        local = local.rename(columns={dcol: 'timestamp', 'Open': 'open', 'High': 'high', 'Low': 'low',
+                                      'Close': 'close', 'Volume': 'volume'})
+        local['timestamp'] = pd.to_datetime(local['timestamp']).dt.tz_localize(None).dt.normalize()
+        ts = pd.to_datetime(htf_df['timestamp'])
+        if ts.dt.tz is not None:
+            ts = ts.dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+        last = ts.max().normalize()
+        today = pd.Timestamp.now(tz='Asia/Kolkata').tz_localize(None).normalize()
+        add = local[(local['timestamp'] > last) & (local['timestamp'] < today)]
+        if add.empty:
+            return htf_df
+        cols = [c for c in ('timestamp', 'open', 'high', 'low', 'close', 'volume') if c in add.columns]
+        add = add[cols].copy()
+        if ts.dt.tz is None and pd.to_datetime(htf_df['timestamp']).dt.tz is not None:
+            add['timestamp'] = add['timestamp'].dt.tz_localize('Asia/Kolkata')
+        if 'oi' in htf_df.columns:
+            add['oi'] = 0
+        out = pd.concat([htf_df, add], ignore_index=True)
+        logger.info(f"{symbol}: daily history filled from the local store up to {add['timestamp'].max():%Y-%m-%d}")
+        return out
+    except Exception as e:
+        logger.warning(f"{symbol}: could not fill recent daily candles from the store: {e}")
+        return htf_df
+
 
 class HistoricalFetcher:
     nifty_baseline_df = None
@@ -116,14 +154,14 @@ class HistoricalFetcher:
         HistoricalFetcher.upstox_fo_map = {}
         for row in watchlist_dict.values():
             sym = row.get('Symbol', row.get('symbol', ''))
-            clean_sym = sym.split('-')[0]
+            clean_sym = base_symbol(sym)
             if clean_sym:
                 HistoricalFetcher.upstox_eq_map[clean_sym] = scrip_master_engine.get_instrument_key(clean_sym)
 
         results = []
         for token, metadata in watchlist_dict.items():
             sym = metadata.get('Symbol', metadata.get('symbol', ''))
-            clean_sym = sym.split('-')[0]
+            clean_sym = base_symbol(sym)
             exch = metadata.get('Exchange', metadata.get('exchange', ''))
             
             if exch == 'NFO':
@@ -143,6 +181,7 @@ class HistoricalFetcher:
             await asyncio.sleep(1.0)
             
             # Save results under ws_token so Mutator can look them up by ws_token!
+            htf_df = fill_recent_days(htf_df, clean_sym)
             results.append((ws_token, {"ltf_df": ltf_df, "htf_df": htf_df}))
         
         # Build multi-tenant cache map with nested structures
@@ -159,7 +198,7 @@ class HistoricalFetcher:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
 
         for token, metadata in watchlist_dict.items():
-            symbol = metadata.get('symbol', metadata.get('Symbol', '')).split('-')[0]
+            symbol = base_symbol(metadata.get('symbol', metadata.get('Symbol', '')))
             exch = metadata.get('exchange', metadata.get('Exchange', ''))
             if not symbol: continue
             

@@ -25,6 +25,7 @@ usage: python trading_copilot/scripts/history_sync.py            (daily + option
        python trading_copilot/scripts/history_sync.py --daily    (daily prices + options figures only)
        python trading_copilot/scripts/history_sync.py --intraday (1-minute candles only)
        add --watchlist (the watchlist only) or --symbols SAIL,INFY to limit the run
+       add --recompute-eod to redo every stored options figure (after a method fix)
 """
 from __future__ import annotations
 
@@ -52,6 +53,7 @@ for p in (BASE, BASE / "data_services"):
 
 import scrip_master_engine  # noqa: E402
 from derivatives_engine import implied_volatility  # noqa: E402
+from core.symbols import base_symbol  # noqa: E402
 
 IST = ZoneInfo("Asia/Kolkata")
 DATA = BASE / "data"
@@ -67,6 +69,7 @@ NSE_HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb
                              "(KHTML, like Gecko) Chrome/124 Safari/537.36",
                "Accept": "*/*", "Referer": "https://www.nseindia.com/"}
 NSE_READY_HM = (18, 30)         # today's bhavcopy is published in the evening
+SPLIT_TOL = 0.15                # NSE underlying vs stored close beyond this = a later split/bonus
 
 
 def say(msg: str) -> None:
@@ -147,17 +150,28 @@ def trading_days(up: Upstox, since: date) -> list[str]:
             days.add(c[0][:10])
         start = end + timedelta(days=1)
     now = datetime.now(IST)
+    today_s = f"{today:%Y-%m-%d}"
     if (now.hour, now.minute) < (15, 35):                     # today's session is not complete yet
-        days.discard(f"{today:%Y-%m-%d}")
+        days.discard(today_s)
+    elif today_s not in days and today.weekday() < 5:
+        # The history endpoint lists a day only after it ends; today's candle,
+        # once the session is over, comes from the intraday endpoint.
+        if any(c[0][:10] == today_s for c in up.candles(f"/v3/historical-candle/intraday/{enc}/days/1")):
+            days.add(today_s)
     return sorted(days)
 
 
 def watchlist() -> list[str]:
     try:
         with open(BASE / "watchlist.csv", newline="") as f:
-            return sorted({r["Symbol"].split("-")[0].strip().upper() for r in csv.DictReader(f) if r.get("Symbol")})
+            return sorted({base_symbol(r["Symbol"]) for r in csv.DictReader(f) if r.get("Symbol")})
     except OSError:
         return []
+
+
+def stored() -> list[str]:
+    """Every stock with a daily file in the store."""
+    return sorted(p.name[: -len("_1D.parquet")] for p in DATA.glob("*_1D.parquet") if "NIFTY" not in p.name.upper())
 
 
 def fo_universe() -> list[str]:
@@ -314,6 +328,8 @@ def sync_prices(up: Upstox, symbols: list[str], days: list[str]) -> None:
             e = min(s + timedelta(days=365 * 3), end_all)
             rows += up.candles(f"/v3/historical-candle/{enc}/days/1/{e:%Y-%m-%d}/{s:%Y-%m-%d}")
             s = e + timedelta(days=1)
+        if last_day == f"{datetime.now(IST):%Y-%m-%d}" and not any(c[0][:10] == last_day for c in rows):
+            rows += up.candles(f"/v3/historical-candle/intraday/{enc}/days/1")     # today, after the close
         fresh = [{"Date": pd.Timestamp(c[0][:10]), "Open": float(c[1]), "High": float(c[2]), "Low": float(c[3]),
                   "Close": float(c[4]), "Volume": float(c[5]), "EOD_PCR": 0.0, "EOD_MAX_PAIN": 0.0,
                   "EOD_IV": np.nan, "Total_OI": 0.0} for c in rows if c[0][:10] not in have]
@@ -325,9 +341,30 @@ def sync_prices(up: Upstox, symbols: list[str], days: list[str]) -> None:
     say(f"daily prices: {added:,} new rows ({new} stocks new to the store)")
 
 
-def fill_eod(symbols: list[str], days: list[str]) -> None:
+def adjusted_figures(opt: pd.DataFrame, day: str, close: float) -> dict | None:
+    """eod_figures in the stored (split-adjusted) units. NSE's file carries the
+    strikes and the underlying as they traded that day; the stored daily prices
+    are adjusted for later splits (KOTAKBANK 1:5: 2,147.6 in NSE's file, 429.5
+    stored). IV and PCR are computed against NSE's own underlying price (both
+    are scale-free); max pain is divided and open interest multiplied by the
+    split factor, so a series runs on across the split."""
+    und = opt["UndrlygPric"] if "UndrlygPric" in opt.columns else pd.Series(dtype=float)
+    und = und[und > 0]
+    spot = float(und.iloc[0]) if len(und) else close
+    factor = spot / close if close > 0 else 1.0
+    if abs(factor - 1.0) < SPLIT_TOL:                         # same units; the underlying is just a later print
+        factor, spot = 1.0, close
+    fig = eod_figures(opt, day, spot)
+    if fig and factor != 1.0:
+        fig["EOD_MAX_PAIN"] = round(fig["EOD_MAX_PAIN"] / factor, 2)
+        fig["Total_OI"] = round(fig["Total_OI"] * factor)
+    return fig
+
+
+def fill_eod(symbols: list[str], days: list[str], recompute: bool = False) -> None:
     """Options figures for every stored stock-day in the last EOD_DAYS sessions
-    that lacks them, from the stored NSE files. Each file is read once."""
+    that lacks them, from the stored NSE files. Each file is read once.
+    recompute=True redoes every stock-day in the window (after a method fix)."""
     window = days[-EOD_DAYS:]
     frames = {s: load_daily(s) for s in symbols if daily_path(s).exists()}
     # stock-days already looked up with no options in NSE's file (before a
@@ -339,7 +376,7 @@ def fill_eod(symbols: list[str], days: list[str]) -> None:
         if df.empty:
             continue
         ds = df["Date"].dt.strftime("%Y-%m-%d")
-        done = set(ds[eod_filled(df)])
+        done = set() if recompute else set(ds[eod_filled(df)])
         present = set(ds)
         for d in window:
             if d in present and d not in done and d not in no_opts.get(sym, ()):
@@ -358,7 +395,7 @@ def fill_eod(symbols: list[str], days: list[str]) -> None:
             opt = groups.get(sym)
             df = frames[sym]
             row = df["Date"] == pd.Timestamp(d)
-            fig = eod_figures(opt, d, float(df.loc[row, "Close"].iloc[0])) if opt is not None else None
+            fig = adjusted_figures(opt, d, float(df.loc[row, "Close"].iloc[0])) if opt is not None else None
             if fig and fig["Total_OI"] > 0:
                 for k, v in fig.items():
                     df.loc[row, k] = v
@@ -392,9 +429,13 @@ def sync_intraday(up: Upstox, symbols: list[str], days: list[str]) -> None:
         enc = urllib.parse.quote(key)
         rows = []
         months = sorted({d[:7] for d in want})
+        today_s = f"{datetime.now(IST):%Y-%m-%d}"
         for ym in months:                                     # Upstox: one calendar month per request
-            in_month = [d for d in want if d.startswith(ym)]
-            rows += up.candles(f"/v3/historical-candle/{enc}/minutes/1/{in_month[-1]}/{in_month[0]}")
+            in_month = [d for d in want if d.startswith(ym) and d != today_s]
+            if in_month:
+                rows += up.candles(f"/v3/historical-candle/{enc}/minutes/1/{in_month[-1]}/{in_month[0]}")
+        if today_s in want:                                   # today, after the close: the intraday endpoint
+            rows += up.candles(f"/v3/historical-candle/intraday/{enc}/minutes/1")
         if rows:
             new = pd.DataFrame([(pd.Timestamp(x[0]).tz_convert("Asia/Kolkata").tz_localize(None),
                                  x[1], x[2], x[3], x[4], x[5]) for x in rows], columns=["ts", "o", "h", "l", "c", "v"])
@@ -429,10 +470,13 @@ def main(argv: list[str]) -> int:
     if not symbols:
         say("no stocks to sync")
         return 1
-    say(f"stocks: {len(symbols)}")
+    # a stock already stored keeps its daily prices current even after it left
+    # F&O and the watchlist (TEJASNET, SCI, ... stopped on the day they left)
+    daily_syms = only or sorted(set(symbols) | set(stored()))
+    say(f"stocks: {len(symbols)} (daily prices: {len(daily_syms)})")
     if daily:
-        sync_prices(up, symbols + ["NIFTY50"], days)          # the index: beta/alpha in the baselines
-        fill_eod(symbols, days)
+        sync_prices(up, daily_syms + ["NIFTY50"], days)       # the index: beta/alpha in the baselines
+        fill_eod(daily_syms, days, recompute="--recompute-eod" in argv)
     if intraday:
         sync_intraday(up, symbols, days)
     say("history sync done")

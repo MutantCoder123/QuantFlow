@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Base directory for data
 from paths import BASE_DIR as _BASE_DIR_PATH, DATA_DIR as _DATA_DIR_PATH, ensure_dirs
+from core.symbols import base_symbol
 _BASE_DIR = str(_BASE_DIR_PATH)
 DATA_DIR = str(_DATA_DIR_PATH)
 ensure_dirs()
@@ -194,7 +195,7 @@ async def sync_eod_parquet(symbols: list):
         
     for sym in symbols:
         # Strip suffix if any (e.g. SAIL-EQ -> SAIL)
-        clean_sym = sym.split('-')[0]
+        clean_sym = base_symbol(sym)
         await asyncio.to_thread(_sync_symbol_sync, clean_sym, hist_api, opt_api)
         
     logger.info("EOD Parquet sync completed.")

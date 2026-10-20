@@ -16,6 +16,7 @@ if _BASE_DIR not in sys.path:
 
 import scrip_master_engine
 from derivatives_engine import implied_volatility
+from core.symbols import base_symbol
 
 NIFTY_IKEY = "NSE_INDEX|Nifty 50"
 # --prices-only runs at startup, often in market hours: on a 429 it gives up
@@ -509,7 +510,7 @@ async def main(dry_run=False, prices_only=False):
         sys.exit(1)
         
     raw_watchlist = pd.read_csv(watchlist_path)['Symbol'].str.strip().str.upper()
-    watchlist = raw_watchlist.apply(lambda x: x.split('-')[0]).tolist()
+    watchlist = raw_watchlist.apply(base_symbol).tolist()
     
     fno_items = []
     completed_symbols = []
@@ -526,7 +527,7 @@ async def main(dry_run=False, prices_only=False):
             print(f"[DRY RUN] Limited to {len(trading_days)} days: {trading_days}")
             
         for token, meta in fno_dict.items():
-            symbol = meta['symbol'].split('-')[0].upper()
+            symbol = base_symbol(meta['symbol'])
             if symbol in watchlist:
                 is_completed, eod_missing, needs_ohlcv = get_missing_trading_days_and_completion(symbol, trading_days)
                 if is_completed:
@@ -545,14 +546,14 @@ async def main(dry_run=False, prices_only=False):
         print(f"\n--- Pass 1: OHLCV Price Sync ---")
         for token, meta, eod_missing, needs_ohlcv in fno_items:
             if needs_ohlcv:
-                symbol = meta['symbol'].split('-')[0].upper()
+                symbol = base_symbol(meta['symbol'])
                 ikey = scrip_master_engine.get_instrument_key(symbol)
                 count = await sync_ohlcv_to_today(session, headers, rate_limiter, symbol, ikey, trading_days)
                 print(f"  [{symbol}] Synced {count} new OHLCV days")
 
         # Watchlist stocks outside F&O have no options history to backfill,
         # but their daily prices are still needed.
-        fno_symbols = {m['symbol'].split('-')[0].upper() for m in fno_dict.values()}
+        fno_symbols = {base_symbol(m['symbol']) for m in fno_dict.values()}
         for symbol in sorted(set(watchlist) - fno_symbols):
             ikey = scrip_master_engine.get_instrument_key(symbol)
             if ikey:
@@ -573,7 +574,7 @@ async def main(dry_run=False, prices_only=False):
         for token, meta, eod_missing, needs_ohlcv in tqdm(fno_items, desc="Symbols Processed"):
             if not eod_missing:
                 continue
-            symbol = meta['symbol'].split('-')[0].upper()
+            symbol = base_symbol(meta['symbol'])
             ikey = scrip_master_engine.get_instrument_key(symbol)
             
             print(f"\n[{symbol}] Processing {len(eod_missing)} missing days for derivatives...")

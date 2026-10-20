@@ -19,6 +19,13 @@ def _sanitize_for_json(obj):
         return None
     return obj
 
+# Fewest options days in the last 252 for a 52-week IV / PCR / OI ranking
+# (about three months); a stock newer to F&O waits as DATA_INCOMPLETE.
+MIN_OPTION_DAYS = 60
+# Missing options days in a row carried forward from the last real one.
+EOD_GAP_FILL = 5
+
+
 def get_tiered_step_size(median_price):
     if median_price <= 500:
         return 0.50
@@ -37,21 +44,29 @@ def process_file(filepath, nifty_df=None):
     if df.empty:
         return None
 
-    # Sanitize EOD metrics
-    for col in ['EOD_IV', 'EOD_PCR', 'EOD_MAX_PAIN']:
-        if col in df:
-            df[col] = df[col].replace(0.0, np.nan)
-            
-    df.ffill(inplace=True)
-    df.bfill(inplace=True)
-    
+    # Sanitize EOD metrics. A day with no options (before the stock entered
+    # F&O, or not yet filled) is stored as 0 / no open interest: that is
+    # missing, not a value. Short gaps are carried forward; nothing is carried
+    # backward -- bfill used to copy UJJIVANSFB's first 3 options days over the
+    # 249 before it had options, giving IV/PCR percentiles of 100/99.6.
+    eod_cols = [c for c in ('EOD_IV', 'EOD_PCR', 'EOD_MAX_PAIN', 'Total_OI') if c in df]
+    for col in eod_cols:
+        df[col] = df[col].replace(0.0, np.nan)
+    if 'Total_OI' in df:
+        df.loc[df['Total_OI'].isna(), eod_cols] = np.nan
+    other = [c for c in df.columns if c not in eod_cols]
+    df[other] = df[other].ffill().bfill()
+    if eod_cols:
+        df[eod_cols] = df[eod_cols].ffill(limit=EOD_GAP_FILL)
+
     metrics = {}
 
-    # 1. 52-Week Derivatives Matrix (Last 252 Days)
+    # 1. 52-Week Derivatives Matrix (Last 252 Days). Too few options days for a
+    # 52-week ranking -> left empty, so data_readiness holds entries back.
     df_252 = df.tail(252).copy()
     if not df_252.empty:
         # IV Percentile and Absolute Bounds
-        if 'EOD_IV' in df_252 and len(df_252['EOD_IV'].dropna()) > 0:
+        if 'EOD_IV' in df_252 and len(df_252['EOD_IV'].dropna()) >= MIN_OPTION_DAYS:
             iv_series = df_252['EOD_IV'].dropna()
             current_iv = iv_series.iloc[-1]
             iv_pct = percentileofscore(iv_series, current_iv, kind='weak')
@@ -61,16 +76,17 @@ def process_file(filepath, nifty_df=None):
             iv_pct = np.nan
             iv_high = np.nan
             iv_low = np.nan
-            
+
         # PCR Percentile
         current_pcr = df_252['EOD_PCR'].iloc[-1] if 'EOD_PCR' in df_252 else np.nan
-        if pd.notna(current_pcr) and len(df_252['EOD_PCR'].dropna()) > 0:
+        if pd.notna(current_pcr) and len(df_252['EOD_PCR'].dropna()) >= MIN_OPTION_DAYS:
             pcr_pct = percentileofscore(df_252['EOD_PCR'].dropna(), current_pcr, kind='weak')
         else:
             pcr_pct = np.nan
-            
+
         # OI Shock Z-Score
-        if 'Total_OI' in df_252 and len(df_252['Total_OI'].dropna()) > 1:
+        if 'Total_OI' in df_252 and len(df_252['Total_OI'].dropna()) >= MIN_OPTION_DAYS \
+                and pd.notna(df_252['Total_OI'].iloc[-1]):
             current_oi = df_252['Total_OI'].iloc[-1]
             oi_mean = df_252['Total_OI'].mean()
             oi_std = df_252['Total_OI'].std()

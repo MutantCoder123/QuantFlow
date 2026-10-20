@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
+from core.symbols import base_symbol
 
 _IST = ZoneInfo("Asia/Kolkata")
 
@@ -36,7 +37,7 @@ def change_pct(ltp, prev):
 
 def bare(key: str) -> str:
     """'NSE_EQ|SAIL-EQ' -> 'SAIL'."""
-    return str(key).split("|")[-1].split("-")[0]
+    return base_symbol(key)
 
 
 # ------------------------------------------------------------------ NIFTY

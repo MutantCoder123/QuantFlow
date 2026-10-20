@@ -1,7 +1,7 @@
 """The Market tab's shaping (views.market, views.signals) and its endpoints.
 Unknown stays None; the proxy breadth says it is a proxy; nothing is invented."""
 import json
-from datetime import date
+from datetime import date, timedelta
 
 import numpy as np
 from fastapi.testclient import TestClient
@@ -135,7 +135,9 @@ def test_the_summary_endpoint_assembles_it(monkeypatch):
 
 
 def test_index_history_endpoint(monkeypatch):
-    monkeypatch.setattr(api_server, "_nifty_daily", lambda: [{"date": "2026-09-28", "close": 23100.0}])
+    # a day inside the last week whenever the test runs (a fixed date fell out of "1W")
+    recent = (date.today() - timedelta(days=2)).isoformat()
+    monkeypatch.setattr(api_server, "_nifty_daily", lambda: [{"date": recent, "close": 23100.0}])
     c = TestClient(api_server.app)
     assert c.get("/api/market/index-history?range=1W").json()["last"] == 23100.0
     assert c.get("/api/market/index-history?range=9Y").json()["status"] == "error"

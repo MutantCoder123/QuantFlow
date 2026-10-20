@@ -63,6 +63,22 @@ def test_no_contract_of_a_live_expiry_means_no_figures():
     assert hs.eod_figures(c, DAY, spot=100.0) is None
 
 
+def test_a_later_split_is_bridged_with_nses_own_underlying_price():
+    """KOTAKBANK 2025-12-01: NSE's file at 2,147.6, the stored (1:5 adjusted)
+    close 429.5. Against the stored close no IV can be solved."""
+    c = chain()
+    c["UndrlygPric"] = 100.0
+    same = hs.adjusted_figures(c, DAY, close=100.4)                       # same units: unchanged
+    assert same == hs.eod_figures(c, DAY, spot=100.4)
+    f = hs.adjusted_figures(c, DAY, close=20.0)                           # stored price 1/5 of NSE's
+    plain = hs.eod_figures(c, DAY, spot=100.0)
+    assert f["EOD_IV"] == pytest.approx(plain["EOD_IV"]) and not np.isnan(f["EOD_IV"])
+    assert f["EOD_PCR"] == plain["EOD_PCR"]                               # a ratio: no scaling
+    assert f["EOD_MAX_PAIN"] == pytest.approx(20.0)                       # 100 / 5
+    assert f["Total_OI"] == pytest.approx(plain["Total_OI"] * 5)          # in today's share units
+    assert np.isnan(hs.eod_figures(c, DAY, spot=20.0)["EOD_IV"])          # the old way: no IV
+
+
 def test_a_row_is_complete_only_with_its_open_interest():
     """SAIL 2026-09-30 was written in part by the live system: PCR 0.5, IV 52.25,
     no OI. It is recomputed rather than kept."""
@@ -164,3 +180,37 @@ def test_the_ordinary_shares_are_chosen_when_nse_lists_two_series(monkeypatch):
                        "instrument_key": ["NSE_EQ|INE775A08105", "BSE_EQ|INE775A01035", "NSE_EQ|INE775A01035"]})
     monkeypatch.setattr(hs.scrip_master_engine, "_get_df", lambda: df)
     assert hs.key_of("MOTHERSON") == "NSE_EQ|INE775A01035"
+
+
+def _clock(monkeypatch, at):
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return at
+    monkeypatch.setattr(hs, "datetime", Clock)
+
+
+class FakeUpstox:
+    """History endpoint: up to yesterday. Intraday endpoint: today."""
+    def __init__(self, today):
+        self.today, self.asked = today, []
+
+    def candles(self, path):
+        self.asked.append(path)
+        if "/intraday/" in path:
+            return [[f"{self.today}T00:00:00+05:30", 1, 2, 0.5, 1.5, 100]]
+        return [["2026-10-02T00:00:00+05:30", 1, 2, 0.5, 1.5, 100]]
+
+
+def test_todays_session_counts_once_it_is_over_from_the_intraday_endpoint(monkeypatch):
+    up = FakeUpstox("2026-10-05")
+    _clock(monkeypatch, datetime(2026, 10, 5, 12, 0, tzinfo=hs.IST))
+    assert hs.trading_days(up, datetime(2026, 10, 1).date()) == ["2026-10-02"]     # still trading
+    _clock(monkeypatch, datetime(2026, 10, 5, 15, 40, tzinfo=hs.IST))
+    assert hs.trading_days(up, datetime(2026, 10, 1).date()) == ["2026-10-02", "2026-10-05"]
+
+
+def test_a_stored_stock_that_left_fo_keeps_its_daily_prices_current(store, monkeypatch):
+    hs.save_daily("TEJASNET", daily(["2026-09-30"]))
+    hs.save_daily("NIFTY50", daily(["2026-09-30"]))
+    assert hs.stored() == ["TEJASNET"]

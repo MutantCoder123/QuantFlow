@@ -31,6 +31,7 @@ load_dotenv(REPO_ROOT / '.env')
 import pyotp
 import requests
 from llm import DEFAULT_MODEL
+from core.symbols import base_symbol
 
 try:
     from playwright.async_api import async_playwright
@@ -641,9 +642,29 @@ def merge_gap(live: list, exchange: list, since: float) -> list:
 _candle_cache: dict = {}
 
 
+def upstox_key(token: str) -> str:
+    """The key Upstox's candle API accepts. The engine keys stocks by name
+    ("NSE_EQ|NBCC"); the API wants the ISIN ("NSE_EQ|INE095N01031") and answers
+    a name with no candles -- on 2026-10-12 the bar-hole repair filled nothing."""
+    seg, _, code = str(token).partition("|")
+    if seg != "NSE_EQ" or code.startswith("INE"):
+        return token
+    from historical_engine import HistoricalFetcher
+    sym = base_symbol(token)
+    key = HistoricalFetcher.upstox_eq_map.get(sym)
+    if not key:
+        try:
+            import scrip_master_engine
+            key = scrip_master_engine.get_instrument_key(sym)
+        except Exception:
+            key = None
+    return key or token
+
+
 async def _exchange_candles(state, instrument_key: str) -> list:
     """Today's 1-minute candles from Upstox, cached for a minute."""
     import aiohttp
+    instrument_key = upstox_key(instrument_key)
     hit = _candle_cache.get(instrument_key)
     if hit and time.time() - hit[0] < 60:
         return hit[1]
@@ -657,6 +678,8 @@ async def _exchange_candles(state, instrument_key: str) -> list:
                                    timeout=aiohttp.ClientTimeout(total=8)) as resp:
                 body = await resp.json()
         candles = (body.get("data") or {}).get("candles") or []
+        if not candles and body.get("status") != "success":
+            logger.warning(f"exchange candles for {instrument_key}: {str(body.get('errors') or body)[:160]}")
     except Exception as e:
         logger.warning(f"exchange candles for {instrument_key} unavailable: {e}")
         return []
@@ -686,12 +709,44 @@ async def get_bars(token: str, request: Request, n: int = 300, since: float = 0.
         out = {"bars": merge_gap(out["bars"], exchange_bars(candles, since), since)}
     return make_json_serializable(out)
 
+async def repair_bar_holes(state, engine) -> int:
+    """Fill every stock's holes in today's 5-minute bars from Upstox's 1-minute
+    candles (core.bar_gaps). The engine's bars come only from live ticks, so a
+    feed that was not running (a restart, a PC in standby: 2026-10-08 08:46-13:14)
+    left a hole that VWAP, ATR and the regime were then computed across."""
+    from core.bar_gaps import bars_from_minutes, minutes_from_upstox
+    added = 0
+    for token in [t for t in list(engine.dfs) if str(t).startswith("NSE_EQ|")]:
+        if not engine.bar_holes(token):
+            continue
+        candles = await _exchange_candles(state, token)
+        if candles:
+            n = engine.fill_bars(token, bars_from_minutes(minutes_from_upstox(candles)))
+            added += n
+        await asyncio.sleep(0.2)
+    if added:
+        logger.info(f"Filled {added} missing 5-minute bars of today from the exchange's candles")
+    return added
+
+
+async def bar_gap_worker(state, engine):
+    """Every minute in market hours: look for holes in today's bars and fill them."""
+    await asyncio.sleep(20)
+    while True:
+        try:
+            if is_market_open():
+                await repair_bar_holes(state, engine)
+        except Exception as e:
+            logger.error(f"Bar gap repair failed: {e}", exc_info=True)
+        await asyncio.sleep(60)
+
+
 def _clean_symbol(row: dict) -> str:
     """One identity for a stock, whatever token or suffix a row carries.
     watchlist.csv and the scrip master disagree on both (INFY was 4494 in
     the file, 1594 in the master; SAIL-EQ vs SAIL)."""
     raw = row.get("Symbol") or row.get("symbol") or ""
-    return str(raw).split("-")[0].strip().upper()
+    return base_symbol(raw)
 
 
 async def apply_watchlist_additions(state, items: list) -> list:
@@ -725,7 +780,7 @@ async def apply_watchlist_additions(state, items: list) -> list:
         new_watchlist_entries[token] = row
         watchlist[token] = row
 
-        clean_sym = item["symbol"].split("-")[0]
+        clean_sym = base_symbol(item["symbol"])
         if item["exchange"] == "NSE":
             ikey = scrip_master_engine.get_instrument_key(clean_sym)
             new_equities.append(ikey)
@@ -882,7 +937,7 @@ async def start_upstox_service():
     reverse_map = {}
     
     for row in WATCHLIST.values():
-        clean_sym = row['Symbol'].split('-')[0]
+        clean_sym = base_symbol(row['Symbol'])
         if row['Exchange'] == "NSE":
             ikey = HistoricalFetcher.upstox_eq_map.get(clean_sym, f"NSE_EQ|{clean_sym}")
             equities.append(ikey)
@@ -935,6 +990,7 @@ async def start_upstox_service():
                 logger.error(f"Tick flush failed: {e}", exc_info=True)
 
     asyncio.create_task(tick_flush_worker())
+    asyncio.create_task(bar_gap_worker(app.state, rolling_engine))
     
     config = uvicorn.Config(app, host="127.0.0.1", port=8001, log_level="warning")
     server = uvicorn.Server(config)

@@ -50,6 +50,16 @@ def missing(payload: dict | None) -> list[str]:
     for key, words in REQUIRED.items():
         if _absent(key, p.get(key)) and words not in out:
             out.append(words)
+    # A hole in today's 5-minute bars (the feed was not running -- 2026-10-08 the PC
+    # was in standby 08:46-13:14): VWAP, ATR and regime are wrong until the feed
+    # fills it from the exchange's candles (core.bar_gaps).
+    from core.bar_gaps import GAP_RUN
+    try:
+        gap = int(p.get("bars_gap_run") or 0)
+    except (TypeError, ValueError):
+        gap = 0
+    if gap >= GAP_RUN:
+        out.append(f"today's 5-minute bars ({gap * 5} min missing)")
     return out
 
 

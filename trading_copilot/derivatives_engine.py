@@ -4,6 +4,7 @@ import numpy as np
 import traceback
 from datetime import datetime
 import scrip_master_engine
+from core.symbols import base_symbol
 import scipy.stats as si
 
 logger = logging.getLogger(__name__)
@@ -277,7 +278,7 @@ class OptionsAnalyzer:
                         continue # Skip the NFO tokens injected into the watchlist
                         
                     raw_symbol = meta.get('symbol', '')
-                    clean_symbol = raw_symbol.split('-')[0].upper()
+                    clean_symbol = base_symbol(raw_symbol)
                     await self._fetch_and_process_token(smart_connect_instance, clean_symbol, token, is_index=False)
                     await asyncio.sleep(2.0)
                     
