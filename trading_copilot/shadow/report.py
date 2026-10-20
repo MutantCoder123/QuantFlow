@@ -17,6 +17,11 @@ answer is scored on its own: a position asked four times counts four times.
 Agreement = the AI chose what the engine did. When it disagreed, "right" =
 its choice would have made more.
 
+Two arms answer the same moments: the LLM judge model ("llm") and TypeSafe's
+Jev ("jev"). Each is scored on its own, then head to head. All three answers
+are replayed at every moment, so each record knows which answer was best;
+Jev's probabilities are checked against that (calibration).
+
 It recommends nothing by itself; a person reads it.
 
 usage: python trading_copilot/shadow/report.py          (all days; writes the report)
@@ -114,6 +119,68 @@ def score_record(rec: dict, o: dict, c: dict, candles: list, costs_cfg: dict) ->
                 agreed=dec == engine, actual_reason=c.get("reason"))
 
 
+def option_outcomes(rec: dict, o: dict, c: dict, candles: list, costs_cfg: dict) -> dict:
+    """Net rupees had each of the three answers been followed at this moment."""
+    from shadow.reanalysis import DECISIONS
+    out = {}
+    for d in DECISIONS:
+        s = score_record(dict(rec, decision=d), o, c, candles, costs_cfg)
+        if s:
+            out[d] = s["cf_net"]
+    return out
+
+
+def best_options(outcomes: dict, tol: float = 1.0) -> set:
+    """The answers that would have made the most (ties within `tol` rupees all count)."""
+    if not outcomes:
+        return set()
+    top = max(outcomes.values())
+    return {d for d, v in outcomes.items() if v >= top - tol}
+
+
+def arm_of(r: dict) -> str:
+    return r.get("arm") or "llm"
+
+
+def head_to_head(scored: list[dict]) -> dict | None:
+    """The moments both arms answered: how often they agreed and what each would have made."""
+    by = {}
+    for r in scored:
+        by.setdefault(r.get("review_id"), {})[arm_of(r)] = r
+    pairs = [(v["llm"], v["jev"]) for v in by.values() if "llm" in v and "jev" in v]
+    if not pairs:
+        return None
+    return {"n": len(pairs), "same_answer": sum(a["decision"] == b["decision"] for a, b in pairs),
+            "llm_delta": sum(a["delta"] for a, _ in pairs), "jev_delta": sum(b["delta"] for _, b in pairs),
+            "llm_best": sum(a["decision"] in a.get("best", ()) for a, _ in pairs),
+            "jev_best": sum(b["decision"] in b.get("best", ()) for _, b in pairs)}
+
+
+CAL_BUCKETS = ((0.0, 0.5), (0.5, 0.7), (0.7, 0.9), (0.9, 1.01))
+
+
+def calibration(rows: list[dict]) -> dict | None:
+    """For answers carrying probabilities: per band of the chosen answer's
+    probability, how often it was (one of) the best answers, plus the Brier
+    score of the whole distribution against the best answers (0 = perfect;
+    with one best answer a flat 1/3 guess scores 0.67, sure and wrong 2.0)."""
+    rows = [r for r in rows if r.get("probabilities") and r.get("best")]
+    if not rows:
+        return None
+    bands = []
+    for lo, hi in CAL_BUCKETS:
+        b = [r for r in rows if lo <= (r.get("p_chosen") or 0) < hi]
+        if b:
+            bands.append({"band": f"{lo:.1f}-{min(hi, 1.0):.1f}", "n": len(b),
+                          "mean_p": sum(r["p_chosen"] for r in b) / len(b),
+                          "best_rate": sum(r["decision"] in r["best"] for r in b) / len(b)})
+    brier = 0.0
+    for r in rows:
+        y = {d: 1.0 / len(r["best"]) if d in r["best"] else 0.0 for d in r["outcomes"]}
+        brier += sum((float(r["probabilities"].get(d, 0.0)) - y[d]) ** 2 for d in y)
+    return {"n": len(rows), "brier": brier / len(rows), "bands": bands}
+
+
 def summarize(scored: list[dict]) -> dict:
     def block(rows):
         dis = [r for r in rows if not r["agreed"]]
@@ -178,41 +245,72 @@ def load_scored(shadow: Path | None = None) -> list[dict]:
             s = score_record(rec, o, c, candles, costs)
             if s:
                 s["day"] = day
+                s["outcomes"] = option_outcomes(rec, o, c, candles, costs)
+                s["best"] = sorted(best_options(s["outcomes"]))
                 scored.append(s)
     return scored
 
 
-def to_markdown(scored: list[dict], now: float | None = None) -> str:
-    s = summarize(scored)
+ARM_NAMES = {"llm": "LLM judge model", "jev": "Jev (TypeSafe)"}
+
+
+def _arm_section(rows: list[dict], title: str) -> list[str]:
+    s = summarize(rows)
     a = s["all"]
+    verdict = "would have added" if a["delta"] > 0 else "would have cost"
+    best = sum(r["decision"] in r.get("best", ()) for r in rows)
+    lines = [
+        f"## {title}", "",
+        f"**Following it at every moment {verdict} ₹{abs(a['delta']):,.0f}** in total "
+        f"({a['agreed']} of {a['n']} answers agreed with the engine; of {a['disagreed']} disagreements, "
+        f"{a['right']} would have made more and {a['wrong']} less). "
+        f"It picked the best of the three answers {best} of {a['n']} times.", "",
+        "### By answer", "", "| Answer | n | Agreed | Disagreed: right / wrong | Δ net |", "|---|---|---|---|---|",
+    ]
+    for k, b in s["by_decision"].items():
+        lines.append(f"| {k} | {b['n']} | {b['agreed']} | {b['right']} / {b['wrong']} | ₹{b['delta']:+,.0f} |")
+    lines += ["", "### By moment", "", "| Moment | n | Agreed | Disagreed: right / wrong | Δ net |", "|---|---|---|---|---|"]
+    for k, b in s["by_moment"].items():
+        lines.append(f"| {k} | {b['n']} | {b['agreed']} | {b['right']} / {b['wrong']} | ₹{b['delta']:+,.0f} |")
+    cal = calibration(rows)
+    if cal:
+        lines += ["", "### Are its probabilities honest?", "",
+                  f"Brier score {cal['brier']:.2f} over {cal['n']} answers (0 is perfect; a flat one-in-three "
+                  "guess scores 0.67). In each band, the share of answers that were the best should be close "
+                  "to the probability it gave.", "",
+                  "| Probability of its answer | n | Mean probability | Was the best |", "|---|---|---|---|"]
+        for b in cal["bands"]:
+            lines.append(f"| {b['band']} | {b['n']} | {b['mean_p']:.2f} | {b['best_rate']:.0%} |")
+    return lines + [""]
+
+
+def to_markdown(scored: list[dict], now: float | None = None) -> str:
     days = sorted({r["day"] for r in scored})
     when = datetime.fromtimestamp(now, IST).strftime("%Y-%m-%d %H:%M") if now else ""
     lines = [
         "# Shadow AI re-analysis: would following the AI have helped?", "",
-        f"Generated {when} IST · {len(days)} session(s) · {a['n']} scored answers", "",
+        f"Generated {when} IST · {len(days)} session(s) · {len(scored)} scored answers", "",
         "> Shadow only: the AI was asked at each key moment of a paper position and never acted. "
         "Each answer is scored on its own against what the engine actually did.", "",
     ]
     if not scored:
         return "\n".join(lines + ["_No scored answers yet (needs closed positions with recorded answers)._", ""])
-    verdict = "would have added" if a["delta"] > 0 else "would have cost"
-    lines += [
-        f"**Following the AI at every moment {verdict} ₹{abs(a['delta']):,.0f}** in total "
-        f"({a['agreed']} of {a['n']} answers agreed with the engine; of {a['disagreed']} disagreements, "
-        f"{a['right']} would have made more and {a['wrong']} less).", "",
-        "## By answer", "", "| Answer | n | Agreed | Disagreed: right / wrong | Δ net |", "|---|---|---|---|---|",
-    ]
-    for k, b in s["by_decision"].items():
-        lines.append(f"| {k} | {b['n']} | {b['agreed']} | {b['right']} / {b['wrong']} | ₹{b['delta']:+,.0f} |")
-    lines += ["", "## By moment", "", "| Moment | n | Agreed | Disagreed: right / wrong | Δ net |", "|---|---|---|---|---|"]
-    for k, b in s["by_moment"].items():
-        lines.append(f"| {k} | {b['n']} | {b['agreed']} | {b['right']} / {b['wrong']} | ₹{b['delta']:+,.0f} |")
-    lines += ["", "## Every disagreement", "", "| Day | Stock | Moment | Engine | AI | AI's reason | Outcome | Δ net |",
-              "|---|---|---|---|---|---|---|---|"]
-    for r in sorted((r for r in scored if not r["agreed"]), key=lambda r: (r["day"], r["moment_ts"])):
+    arms = sorted({arm_of(r) for r in scored})
+    for arm in arms:
+        lines += _arm_section([r for r in scored if arm_of(r) == arm], ARM_NAMES.get(arm, arm))
+    h = head_to_head(scored)
+    if h:
+        lines += ["## Head to head", "",
+                  f"On the {h['n']} moments both answered, they gave the same answer {h['same_answer']} times. "
+                  f"Following the LLM: ₹{h['llm_delta']:+,.0f}; following Jev: ₹{h['jev_delta']:+,.0f}. "
+                  f"Best of the three answers: LLM {h['llm_best']}, Jev {h['jev_best']}.", ""]
+    lines += ["## Every disagreement with the engine", "",
+              "| Day | Stock | Moment | Engine | Arm | Answer | Reason / probabilities | Outcome | Δ net |",
+              "|---|---|---|---|---|---|---|---|---|"]
+    for r in sorted((r for r in scored if not r["agreed"]), key=lambda r: (r["day"], r["moment_ts"], arm_of(r))):
         reason = (r.get("reason") or "").replace("|", "/")[:120]
         lines.append(f"| {r['day'][5:]} {_hm(r['moment_ts'])} | {r['symbol']} | {r['moment']} | {r['engine_did']} | "
-                     f"{r['decision']} | {reason} | {r['how']} | ₹{r['delta']:+,.0f} |")
+                     f"{arm_of(r)} | {r['decision']} | {reason} | {r['how']} | ₹{r['delta']:+,.0f} |")
     lines += ["", "Read this after 10+ sessions: a few answers prove nothing either way.", ""]
     return "\n".join(lines)
 
@@ -227,7 +325,11 @@ def write_report(now: float | None = None) -> Path:
     day = datetime.fromtimestamp(now, IST).strftime("%Y-%m-%d")
     md = out / f"reanalysis_{day}.md"
     md.write_text(to_markdown(scored, now), encoding="utf-8")
-    (out / f"reanalysis_{day}.json").write_text(json.dumps({"summary": summarize(scored), "scored": scored},
+    arms = sorted({arm_of(r) for r in scored})
+    summary = {arm: dict(summarize([r for r in scored if arm_of(r) == arm]),
+                         calibration=calibration([r for r in scored if arm_of(r) == arm])) for arm in arms}
+    (out / f"reanalysis_{day}.json").write_text(json.dumps({"summary": summary, "head_to_head": head_to_head(scored),
+                                                            "scored": scored},
                                                            default=float, indent=1), encoding="utf-8")
     return md
 

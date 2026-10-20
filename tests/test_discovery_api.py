@@ -81,7 +81,7 @@ def test_discovery_routes_proxy_to_the_feed_process(wl):
     client.post("/api/discovery/run")
     client.post("/api/discovery/run", json={"model": "gemini-2.5-pro"})
     client.get("/api/discovery/status")
-    assert (8001, "/api/discovery/run", {"model": "ollama:qwen2.5:7b"}) in proxied   # the local default
+    assert (8001, "/api/discovery/run", {"model": "groq:openai/gpt-oss-120b"}) in proxied   # the default (local when Groq cannot)
     assert (8001, "/api/discovery/run", {"model": "gemini-2.5-pro"}) in proxied
     assert (8001, "/api/discovery/status", None) in proxied
 
@@ -97,19 +97,31 @@ def test_no_persisted_playbook_is_carried_into_the_dashboard():
     assert not hasattr(reasoning_engine.ReasoningEngine, "generate_intraday_playbook")
 
 
+def _no_groq_keys(monkeypatch):
+    """Independent of the real .env: no GROQ_API_KEY and no GROQ_API_KEY_2.._9."""
+    monkeypatch.setenv("GROQ_API_KEY", "")
+    for i in range(2, 10):
+        monkeypatch.delenv(f"GROQ_API_KEY_{i}", raising=False)
+
+
 def test_model_list_offers_installed_ollama_models_then_gemini(monkeypatch):
     async def tags():
         return ["qwen2.5:7b", "llama3.2:1b"]
     monkeypatch.setattr(api_server, "_ollama_models", tags)
+    _no_groq_keys(monkeypatch)
     body = client.get("/api/ai/models").json()
     assert [m["id"] for m in body["models"]] == ["ollama:qwen2.5:7b", "ollama:llama3.2:1b", "gemini-2.5-flash"]
     assert {"id": "ollama:qwen2.5:7b", "label": "Local: qwen2.5:7b"} in body["models"]
-    assert body["default"] == "ollama:qwen2.5:7b"
+    assert body["default"] == "groq:openai/gpt-oss-120b"
+    monkeypatch.setenv("GROQ_API_KEY", "k")                      # with a key the Groq models come first
+    ids = [m["id"] for m in client.get("/api/ai/models").json()["models"]]
+    assert ids[:2] == ["groq:openai/gpt-oss-120b", "groq:openai/gpt-oss-20b"]
 
 
 def test_model_list_still_works_when_ollama_is_down(monkeypatch):
     async def tags():
         raise OSError("connection refused")
     monkeypatch.setattr(api_server, "_ollama_models", tags)
+    _no_groq_keys(monkeypatch)
     models = client.get("/api/ai/models").json()["models"]
     assert [m["id"] for m in models] == ["gemini-2.5-flash"]

@@ -7,8 +7,10 @@ from datetime import datetime, timedelta
 
 import upstox_client
 from llm import DEFAULT_MODEL, generate_text
+from core.symbols import base_symbol
 
 logger = logging.getLogger(__name__)
+NEWS_KEYS_PER_CALL = 30     # Upstox news: "a maximum of 30 instrument keys per request"
 
 class NewsEngine:
     catalyst_cache = {}
@@ -83,6 +85,25 @@ class NewsEngine:
         }
 
     @classmethod
+    async def _news_batches(cls, news_api, keys: list) -> dict:
+        """instrument key -> news list, asked NEWS_KEYS_PER_CALL keys at a time.
+        A refused batch is logged with Upstox's own reason and the rest go on."""
+        out: dict = {}
+        for i in range(0, len(keys), NEWS_KEYS_PER_CALL):
+            chunk = keys[i:i + NEWS_KEYS_PER_CALL]
+            try:
+                r = await asyncio.to_thread(news_api.get_news, category="instrument_keys",
+                                            instrument_keys=",".join(chunk))
+            except Exception as e:
+                body = getattr(e, "body", None)
+                logger.error(f"Upstox news refused keys {i + 1}-{i + len(chunk)}: "
+                             f"{getattr(e, 'status', '')} {body.decode() if isinstance(body, bytes) else body or e}")
+                continue
+            if isinstance(getattr(r, "data", None), dict):
+                out.update(r.data)
+        return out
+
+    @classmethod
     async def fetch_live_feeds(cls, watchlist: dict, model_name: str = DEFAULT_MODEL):
         news_api = cls._get_upstox_api()
         if not news_api:
@@ -93,7 +114,7 @@ class NewsEngine:
             # Build instrument keys string
             active_symbols = set()
             for meta in watchlist.values():
-                sym = meta.get("symbol", "").split('-')[0]
+                sym = base_symbol(meta.get("symbol", ""))
                 if sym:
                     active_symbols.add(sym)
                     
@@ -101,23 +122,18 @@ class NewsEngine:
                 return
 
             import scrip_master_engine
-            keys = ",".join([scrip_master_engine.get_instrument_key(sym) for sym in active_symbols])
-            
-            # Fetch from Upstox
-            response = await asyncio.to_thread(
-                news_api.get_news,
-                category="instrument_keys",
-                instrument_keys=keys
-            )
-            
+            reverse_map = {scrip_master_engine.get_instrument_key(sym): sym for sym in sorted(active_symbols)}
+
+            # Fetch from Upstox: at most NEWS_KEYS_PER_CALL keys a request (UDAPI1193).
+            # With 42 stocks on the watchlist every single request was refused (400).
+            data = await cls._news_batches(news_api, list(reverse_map))
+
             # Group by symbol
             recent_news = {}
-            import scrip_master_engine
-            reverse_map = {scrip_master_engine.get_instrument_key(sym): sym for sym in active_symbols}
-            
+
             count = 0
-            if hasattr(response, 'data') and isinstance(response.data, dict):
-                for ik, news_list in response.data.items():
+            if data:
+                for ik, news_list in data.items():
                     if not isinstance(news_list, list) or not news_list:
                         continue
                         

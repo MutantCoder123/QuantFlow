@@ -266,6 +266,12 @@ async def _ollama_placement(tag: str, http_get=None) -> str | None:
 
 def _generator(model: str, client, http_post):
     """prompt -> JSON text, for whichever provider `model` names."""
+    if model.startswith("groq:"):
+        from llm import generate_text
+
+        async def gen(prompt):                       # the local model answers when Groq cannot
+            return await generate_text(model, prompt, json_mode=True)
+        return gen
     if model.startswith(OLLAMA_PREFIX):
         tag = model[len(OLLAMA_PREFIX):]
 

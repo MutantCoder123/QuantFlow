@@ -7,6 +7,9 @@ position's whole journal (what the engine thought at entry, every check since)
 and asks: exit now, hold, or tighten the stop to breakeven? The answer goes to
 data/shadow/reanalysis_<day>.jsonl. It never touches a position.
 
+A second arm asks TypeSafe's Jev the same question at the same moment
+(shadow/jev.py; on when TYPESAFE_API_KEY is set). Records carry `arm`.
+
 After the close, shadow/report.py scores every answer against what really
 happened (exchange 1-minute candles): would following the AI have made or
 lost money compared with the engine? That decides, on evidence, whether the
@@ -93,6 +96,16 @@ def pending_moments(events: list[dict], done: set, last_check: dict) -> list[tup
     return out
 
 
+def merge_pending(by_arm: dict[str, list]) -> list[tuple[dict, dict, list, list]]:
+    """(moment, OPEN, journal, arms still to ask) per moment, oldest first; arms
+    keep the order of `by_arm` (the fast one first)."""
+    merged: dict = {}
+    for arm, items in by_arm.items():
+        for m, o, j in items:
+            merged.setdefault(m.get("id"), (m, o, j, []))[3].append(arm)
+    return sorted(merged.values(), key=lambda x: x[0].get("ts", 0))
+
+
 def build_prompt(moment: dict, o: dict, journal: list[dict], bars: list[dict] | None = None) -> str:
     ctx = o.get("context") or {}
     side = "LONG" if o["side"] == "LONG" else "SHORT"
@@ -149,13 +162,16 @@ def parse_decision(text: str | None) -> dict | None:
 
 
 # ----------------------------------------------------------------- the process
-def _load_done(path: Path) -> set:
+def _load_done(path: Path) -> dict[str, set]:
+    """arm -> review ids already asked. Records from before the Jev arm have no
+    `arm`: they are the LLM's."""
+    out: dict[str, set] = {}
     if not path.exists():
-        return set()
-    out = set()
+        return out
     for line in path.read_text(encoding="utf-8").splitlines():
         try:
-            out.add(json.loads(line)["review_id"])
+            r = json.loads(line)
+            out.setdefault(r.get("arm") or "llm", set()).add(r["review_id"])
         except (ValueError, KeyError):
             continue
     return out
@@ -174,39 +190,45 @@ async def _bars(token: str | None) -> list | None:
         return None
 
 
-async def ask(moment, o, journal, model: str) -> dict:
-    from llm import generate_text
-    prompt = build_prompt(moment, o, journal, await _bars(o.get("token")))
-    t0 = time.time()
-    try:
-        text = await generate_text(model, prompt, temperature=0.1)
-        ans = parse_decision(text) or {"decision": None, "confidence": None, "reason": "", "error": "no decision"}
-    except Exception as e:                                   # a failed call is recorded, never retried in a loop
-        ans = {"decision": None, "confidence": None, "reason": "", "error": f"{type(e).__name__}: {e}"}
+def record(moment, o, journal, ans: dict, model: str, arm: str) -> dict:
     return {
         "ts": time.time(), "review_id": moment.get("id"), "pos_id": o["pos_id"], "symbol": o["symbol"],
         "side": o["side"], "moment": moment["kind"], "moment_ts": moment["ts"], "price": moment.get("last"),
         "r_now": moment.get("r_now"), "best_r": moment.get("best_r"), "stop_in_force": moment.get("stop"),
         # the stop before this entry (a FADE_TIGHTEN moves it): the report replays "hold" with it
         "stop_before": journal[-2].get("stop") if len(journal) >= 2 else o["stop"],
-        "engine_did": ENGINE_DID.get(moment["kind"]), "model": model, "latency_s": round(time.time() - t0, 1),
+        "engine_did": ENGINE_DID.get(moment["kind"]), "model": model, "arm": arm,
         **ans,
     }
 
 
-async def run_forever():
-    from llm import DEFAULT_MODEL
-    from paper.store import EventStore
+async def ask(moment, o, journal, model: str, bars=None) -> dict:
+    from llm import generate
+    prompt = build_prompt(moment, o, journal, bars)
+    t0 = time.time()
     try:
-        from paper.settings import PaperSettings
-        model = PaperSettings().options().get("judge_model") or DEFAULT_MODEL
-    except Exception:
-        model = DEFAULT_MODEL
+        text, model = await generate(model, prompt, temperature=0.1)   # the model that answered (fallback)
+        ans = parse_decision(text) or {"decision": None, "confidence": None, "reason": "", "error": "no decision"}
+    except Exception as e:                                   # a failed call is recorded, never retried in a loop
+        ans = {"decision": None, "confidence": None, "reason": "", "error": f"{type(e).__name__}: {e}"}
+    ans["latency_s"] = round(time.time() - t0, 1)
+    return record(moment, o, journal, ans, model, "llm")
+
+
+async def run_forever():
+    from llm import SHADOW_MODEL
+    from paper.store import EventStore
+    from shadow import jev
+    # Groq's light model, not the judge's: each Groq model has its own free-tier limits
+    # (local model when Groq is out of key or limits -- llm.generate)
+    model = SHADOW_MODEL
+    jev_key = jev.api_key()
     out_dir = shadow_dir()
     out_dir.mkdir(parents=True, exist_ok=True)
     store_dir = EventStore().dir
-    logger.info(f"shadow re-analysis watching {store_dir} with {model}; writing {out_dir}")
-    last_check: dict = {}
+    logger.info(f"shadow re-analysis watching {store_dir} with {model}"
+                f"{' and ' + jev.MODEL if jev_key else ' (Jev arm off: no TYPESAFE_API_KEY)'}; writing {out_dir}")
+    last_check: dict = {"llm": {}, "jev": {}}
     reported = None
     while True:
         try:
@@ -216,11 +238,26 @@ async def run_forever():
             out = out_dir / f"reanalysis_{day}.jsonl"
             if path.exists():
                 events = [json.loads(l) for l in path.read_text(encoding="utf-8").splitlines() if l.strip()]
-                for moment, o, journal in pending_moments(events, _load_done(out), last_check):
-                    rec = await ask(moment, o, journal, model)
-                    with open(out, "a", encoding="utf-8") as f:
-                        f.write(json.dumps(rec) + "\n")
-                    logger.info(f"shadow: {o['symbol']} {moment['kind']} -> {rec.get('decision') or rec.get('error')}")
+                done = _load_done(out)
+                jev_left = jev.JEV_DAILY_CAP - len(done.get("jev", ()))
+                # both arms answer a moment back to back with the same bars, so neither sees later prices
+                for moment, o, journal, arms in merge_pending(
+                        {arm: pending_moments(events, done.get(arm, set()), last_check[arm])
+                         for arm in (("jev", "llm") if jev_key else ("llm",))}):
+                    bars = await _bars(o.get("token"))
+                    for arm in arms:
+                        if arm == "jev":
+                            if jev_left <= 0:
+                                continue
+                            jev_left -= 1
+                            rec = record(moment, o, journal, await jev.ask_jev(moment, o, journal, bars, jev_key),
+                                         jev.MODEL, "jev")
+                        else:
+                            rec = await ask(moment, o, journal, model, bars)
+                        with open(out, "a", encoding="utf-8") as f:
+                            f.write(json.dumps(rec) + "\n")
+                        logger.info(f"shadow[{arm}]: {o['symbol']} {moment['kind']} -> "
+                                    f"{rec.get('decision') or rec.get('error')}")
             # once a day after the close: the scored report
             if hm(now) >= "15:35" and reported != day and out.exists():
                 from shadow.report import write_report

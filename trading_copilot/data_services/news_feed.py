@@ -20,7 +20,7 @@ from config import load_watchlist_from_csv
 app = FastAPI(title="News Scraper Daemon")
 
 from paths import WATCHLIST_PATH
-from llm import DEFAULT_MODEL
+from llm import DEFAULT_MODEL, NEWS_MODEL
 csv_path = str(WATCHLIST_PATH)
 WATCHLIST = load_watchlist_from_csv(csv_path)
 
@@ -76,7 +76,7 @@ async def stop_news_loop_api():
 async def start_service():
     logger.info("Starting News Feed (Port 8003)...")
     await NewsEngine.start_macro_news_loop()
-    await NewsEngine.start_news_loop(WATCHLIST, interval=120, model_name=DEFAULT_MODEL)
+    await NewsEngine.start_news_loop(WATCHLIST, interval=120, model_name=NEWS_MODEL)   # Groq's light model: its own limits
     config = uvicorn.Config(app, host="127.0.0.1", port=8003, log_level="warning")
     server = uvicorn.Server(config)
     try:
