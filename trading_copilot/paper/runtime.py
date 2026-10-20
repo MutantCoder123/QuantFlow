@@ -49,6 +49,11 @@ def init(mirror: dict) -> PaperBroker | None:
                               reach_every_min=(horizon.get("reach_target") or {}).get("every_min", 5),
                               fade_frac=(horizon.get("memory") or {}).get("fade_frac"),
                               fade_minutes=(horizon.get("memory") or {}).get("minutes", 10),
+                              max_per_side=(horizon.get("concentration") or {}).get("max_per_side"),
+                              side_spacing_min=(horizon.get("concentration") or {}).get("spacing_min", 0),
+                              reject_value_capped=bool(policy.gates.get("reject_value_capped", False)),
+                              stop_floor=horizon.get("stop_floor"),
+                              entries_shadow=((policy.books or {}).get("intraday") or {}).get("entries") == "shadow",
                               fade_min_open_r=(horizon.get("memory") or {}).get("min_open_r", 0.5))
         stale = _broker.recover()
         logger.info(f"Paper engine ready: {len(_broker.open)} open, {len(_broker.closed)} closed"
@@ -121,8 +126,10 @@ def on_ticket(symbol: str, ticket: dict, risk_params: dict, math_setup: dict,
             "verdict": ticket.get("verdict"), "ltp": ltp,
             "stop": risk_params.get("final_stop"), "target": risk_params.get("final_target"),
             "data_age_s": raw.get("data_age_s", 0.0), "adv_shares": raw.get("adv_shares"),
+            "atr15": raw.get("atr_15m"),
             "whale_cvd": raw.get("whale_cvd_ema_1h"),
             "composite": math_setup.get("composite_score"),
+            "scorer": math_setup.get("scorer"), "v5_composite": math_setup.get("v5_composite"),
             "regime": regime.get("current_regime"), "session_phase": regime.get("session_phase"),
             "signal_id": signal_id, "rationale": ticket.get("institutional_rationale"),
             "manual_position": manual_position,

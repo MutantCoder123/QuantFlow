@@ -10,10 +10,17 @@ enabled: true
 # pipeline only reaches the judge for symbols switched on by hand.
 autonomous: true
 
-# Model for the LLM judge in the autonomous loop. "ollama:<tag>" runs locally
-# on this machine (no API credits); a Gemini id such as gemini-2.5-flash uses
-# GEMINI_API_KEY.
-judge_model: ollama:qwen2.5:7b
+# Model for the LLM judge in the autonomous loop. "groq:<id>" uses Groq's free tier
+# (GROQ_API_KEY in .env) and falls back to the local model (llm.FALLBACK_MODEL) when the
+# key is blank or a free-tier limit is hit; "ollama:<tag>" runs locally only; a Gemini
+# id such as gemini-2.5-flash uses GEMINI_API_KEY.
+judge_model: groq:openai/gpt-oss-120b
+
+# A/B test of the judge (2026-10-15): each FRESH entry decision goes to one of these, 50/50 at
+# random, so both see the same market at the same times. The model is recorded on every arm
+# record (extra.judge_model). Reused verdicts keep the model that made them; open positions
+# and manual checks use judge_model. Empty list = judge_model only.
+judge_ab: [groq:openai/gpt-oss-120b, ollama:qwen2.5:7b]
 
 fill:
   slippage_pct: 0.03        # per leg, always against us

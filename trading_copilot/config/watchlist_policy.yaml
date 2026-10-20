@@ -9,3 +9,14 @@ refresh: "08:45"                     # intended pre-open cadence -- schema only;
 cluster_cap: 2                       # max symbols per cluster (reuses config/clusters.yaml, Task 3.2) among the dynamic slots
 min_adv_crore: 50                    # tradability floor: 20d average daily traded value, in rupees crore
 churn_cap: 4                         # max symbols swapped in/out per run vs. the previous watchlist
+
+# Policy v7 (2026-10-15): before the open, run.py fills the streamed watchlist with the stocks the
+# alpha score is most likely to select (trading_copilot/alpha/select_watchlist.py). Upstox's
+# 30-level feed takes at most 50. Pinned stocks are always kept; so is any open paper position.
+# The previous list is saved in data/watchlist_history/. enabled: false = the watchlist is left
+# as it is (Discovery / manual edits).
+alpha_select:
+  enabled: true
+  size: 50
+  pinned: []
+  min_adv_crore: 50

@@ -28,8 +28,9 @@ def kinds(b):
     return [e["kind"] for e in b.store.load() if e["type"] == "REVIEW"]
 
 
-def test_v5_is_the_policy_in_force():
-    p = load_policy()
+def test_v5_policy_file():
+    from paths import CONFIG_DIR
+    p = load_policy(CONFIG_DIR / "policy_v5.yaml")          # v5.1 (v5 + stop floor) is live
     assert p.version == 5
     assert p.horizon["reach_target"] == {"atr_mult": 3.0, "floor_r": 1.0, "every_min": 5}
     assert p.horizon["memory"] == {"fade_frac": 0.5, "minutes": 10, "min_open_r": 0.5}

@@ -149,7 +149,7 @@ def test_endpoint_reports_config_version_and_staleness(monkeypatch):
     res = client.get("/api/session/review?date=2026-09-11")
     d = res.json()["data"]
     assert d["measurement_state"] == "NONE_RESOLVED"
-    assert isinstance(d["config_version"], int)
+    assert isinstance(d["config_version"], (int, float))            # 5.1 is a point release
     assert "staleness" in d and "incidents" in d["staleness"]
 
 

@@ -3,6 +3,7 @@ import json
 import time
 import logging
 from signal_ledger import SignalLedger
+from core.symbols import base_symbol
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +130,7 @@ class PerformanceAnalyzer:
         return PerformanceAnalyzer._group_accuracy(
             signals,
             lambda s: cluster_of(
-                str(s.get("symbol", "UNKNOWN")).split("-")[0].strip().upper(), clusters))
+                base_symbol(s.get("symbol", "UNKNOWN")), clusters))
 
     @staticmethod
     def _best_worst(grouped: dict) -> tuple:

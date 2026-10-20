@@ -61,13 +61,12 @@ def test_a_failed_backfill_is_not_stamped(tmp_path, monkeypatch):
     assert not run.backfill(full=True) and not run.eod_done_today()
 
 
-def test_the_local_qwen_is_the_default_model_and_the_judge():
+def test_groq_is_the_default_and_the_judge_with_the_local_qwen_kept_as_fallback():
     import llm
-    assert llm.DEFAULT_MODEL == "ollama:qwen2.5:7b"
+    assert llm.DEFAULT_MODEL == "groq:openai/gpt-oss-120b" and llm.FALLBACK_MODEL == "ollama:qwen2.5:7b"
     paper = yaml.safe_load((ROOT / "trading_copilot" / "config" / "paper.yaml").read_text(encoding="utf-8"))
-    assert paper["judge_model"] == "ollama:qwen2.5:7b"
-    from paper import runtime
-    assert runtime.judge_model.__defaults__ == ("ollama:qwen2.5:7b",)
+    assert paper["judge_model"] == "groq:openai/gpt-oss-120b"
+    assert "ollama:qwen2.5:7b" in run.configured_models()      # the launcher keeps Ollama up for the fallback
 
 
 def test_the_web_ui_starts_after_the_feed():

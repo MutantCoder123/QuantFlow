@@ -49,11 +49,14 @@ def wired(tmp_path, monkeypatch):
     monkeypatch.setattr(ReasoningEngine, "_write_arm_record", classmethod(lambda cls, *a, **k: None))
     reply = {"text": _ticket("EXECUTE_LONG")}
 
-    def fake_generator(model, client, http_post):
-        async def gen(prompt):
-            return reply["text"]
-        return gen
-    monkeypatch.setattr(discovery_analysis, "_generator", fake_generator)
+    from core.verdict_cache import VERDICTS
+    VERDICTS._d.clear()
+    reply["calls"] = 0
+
+    async def fake_generate(model, prompt, temperature=0.2, json_mode=False):   # the judge calls llm.generate
+        reply["calls"] += 1
+        return reply["text"], model
+    monkeypatch.setattr("llm.generate", fake_generate)
     return b, positions, reply
 
 
@@ -119,3 +122,21 @@ async def test_a_position_directive_with_no_position_is_not_a_signal(wired, monk
                                         precomputed_payload=dict(PAYLOAD))
     assert recorded == [] and not b.store.load()
     assert len(ReasoningEngine.global_alerts) == alerts_before
+
+
+async def test_a_repeat_entry_question_reuses_the_verdict_but_an_open_position_is_asked_fresh(wired):
+    b, _, reply = wired
+    reply["text"] = _ticket("EXECUTE_LONG", verdict="DEFER")
+    for _ in range(3):                                            # the loop asks again minutes later
+        await ReasoningEngine.analyze_stock("SAIL", "ollama:stub", "", is_autonomous=True,
+                                            precomputed_payload=dict(PAYLOAD))
+    assert reply["calls"] == 1 and b.position_for("SAIL") is None
+    from core.verdict_cache import VERDICTS
+    VERDICTS._d.clear()
+    reply["text"] = _ticket("EXECUTE_LONG")
+    await ReasoningEngine.analyze_stock("SAIL", "ollama:stub", "", is_autonomous=True,
+                                        precomputed_payload=dict(PAYLOAD))
+    assert b.position_for("SAIL") is not None and reply["calls"] == 2
+    await ReasoningEngine.analyze_stock("SAIL", "ollama:stub", "", is_autonomous=True,
+                                        precomputed_payload=dict(PAYLOAD))
+    assert reply["calls"] == 3                                    # position open: always a fresh call

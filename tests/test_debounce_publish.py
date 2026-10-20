@@ -104,3 +104,40 @@ def test_attention_top_n_constant_matches_ui_grid_size():
     # No config file -- a plain constant, but it must stay in sync with the
     # "collapse below top 5" grid behavior described in the plan (§4.6).
     assert ATTENTION_TOP_N == 5
+
+
+def _cand(sym, advice):
+    return {"norm_sym": sym, "advice": advice, "rank": 0.0, "current_pos": None, "structured": {},
+            "gatekeeper_res": {"llm_authorized": True}, "payload": {"current_time": "10:00:00"}}
+
+
+def test_a_candidate_outside_the_top_n_is_retried_next_tick_not_dropped():
+    """10-15: a rank-gated candidate was recorded as seen and never asked again while it
+    stayed selected (HINDALCO, SUNPHARMA, WIPRO, WAAREEENER: selected 45 of 45 bars, never judged)."""
+    syms = [f"RQ{i}" for i in range(8)]
+    for s in syms:
+        _clear(s)
+        ReasoningEngine.active_loops.pop(s, None)
+    adv = {"action": "Long", "auth": True, "has_pos": False}
+    ranks = [(1.0 - i / 10, s) for i, s in enumerate(syms)]
+    launched = []
+    sent = ReasoningEngine._dispatch_candidates([_cand(s, adv) for s in syms], ranks, launched.append)
+    assert sent == syms[:ATTENTION_TOP_N]
+    assert all(ReasoningEngine.last_math_advice.get(s) == adv for s in syms[:ATTENTION_TOP_N])
+    assert all(s not in ReasoningEngine.last_math_advice for s in syms[ATTENTION_TOP_N:])   # still a candidate
+    assert json.loads(ReasoningEngine.latest_reports[syms[-1]])["Status_Tag"] == "RANK_GATED"
+    # next tick: the first five are asked already (in flight), the rest now rank top
+    rest = syms[ATTENTION_TOP_N:]
+    sent2 = ReasoningEngine._dispatch_candidates([_cand(s, adv) for s in rest],
+                                                 [(1.0, s) for s in rest], launched.append)
+    assert sent2 == rest and len(launched) == len(syms)
+    for s in syms:
+        ReasoningEngine.active_loops.pop(s, None)
+
+
+def test_alpha_setups_are_ranked_by_strength_not_their_identical_reward_risk():
+    from reasoning_engine import attention_rank
+    def sp(strength):
+        return {"math_setup": {"setup_rejected": False, "scorer": "ALPHA", "composite_score": strength,
+                               "expectancy_matrix": {"reward_risk": 1.5}}, "data_age_s": 0.0}
+    assert attention_rank(sp(-0.98)) > attention_rank(sp(0.85)) > attention_rank(sp(0.81))

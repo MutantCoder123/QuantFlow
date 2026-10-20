@@ -210,6 +210,19 @@ class IntradayGatekeeper:
             res["data_missing"] = _missing(raw_payload)
             return res
 
+        # REGIME GATE (policy v6): new trades only in the listed regimes. The
+        # score's 60-min edge over the market was +0.10% in TREND_EXPANSION (5 of
+        # 5 days) and ~0 in chop/drift, below the 0.072% friction (FUTURE_UPDATES 2.5).
+        try:
+            from core.policy_config import load_policy
+            entry_regimes = load_policy().gates.get("entry_regimes")
+        except Exception:
+            entry_regimes = None
+        if entry_regimes and current_regime not in entry_regimes:
+            res = cls._create_response("Wait", priority=0, confidence=0, llm_auth=False)
+            res["math_rejection"] = f"REGIME_NOT_TRADED_{current_regime}"
+            return res
+
         # Read ConvictionScorer output directly
         setup_rejected = math_setup.get("setup_rejected", True)
         composite_score = abs(math_setup.get("composite_score", 0.0))
@@ -259,7 +272,10 @@ class IntradayGatekeeper:
         # ENTRY GATE: Authorize LLM only if effective score survives regime
         # dampening AND the edge test passes -- measured edge when calibrated,
         # reward:risk while not (§4.2).
-        edge_ok = (stat_edge >= 0.05) if stat_edge is not None else (reward_risk >= 1.5)
+        if expectancy.get("expected_r") is not None:
+            edge_ok = True          # v6: the scorer already required a measured expected value
+        else:
+            edge_ok = (stat_edge >= 0.05) if stat_edge is not None else (reward_risk >= 1.5)
         if effective_score >= 0.15 and edge_ok:
             action = "Long" if bias == "LONG" else "Short"
             return cls._create_response(action, priority=dyn_priority, confidence=dyn_confidence, llm_auth=True, entry=entry, sl=sl, tp=tp, risk=risk_pct)

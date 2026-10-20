@@ -17,6 +17,7 @@ from diagnostic_ui import TerminalDashboard
 from config import load_watchlist_from_csv
 from reasoning_engine import ReasoningEngine, attention_rank
 from core.watchlist import on_watchlist
+from core.symbols import base_symbol
 from history_manager import HistoryManager
 from paths import INSTITUTIONAL_FLOW_PATH, TRADE_HISTORY_PATH, WATCHLIST_PATH, ensure_dirs
 from llm import DEFAULT_MODEL
@@ -35,6 +36,16 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+# Open to the Wi-Fi only with QF_LAN=1 and a password set (scripts/set_password.py):
+# every request from another device then passes the sign-in gate (web_access).
+# Added last, so it is the outermost layer: nothing runs before it.
+from core.access import Access  # noqa: E402
+from paths import DATA_DIR  # noqa: E402
+from web_access import AccessGate, lan_mode  # noqa: E402
+ACCESS = Access(DATA_DIR)
+if lan_mode():
+    app.add_middleware(AccessGate, access=ACCESS)
 
 # The Performance tab's ES modules and styles (no build step). Only this
 # directory is served; it holds no data. "no-cache" makes the browser
@@ -115,8 +126,18 @@ async def poll_news():
             except: pass
             await asyncio.sleep(0.5)
 
+_STARTED = False
+
+
 @app.on_event("startup")
 async def startup_event():
+    # Once per process: with Wi-Fi access the app is served by two servers
+    # (127.0.0.1:8000 and :8443), each running startup -- that started two
+    # gatekeeper loops on 2026-10-06.
+    global _STARTED
+    if _STARTED:
+        return
+    _STARTED = True
     print("[SYSTEM] Upstox Tri-Stream separated. Macro Polling ENGAGED.")
     asyncio.create_task(poll_upstox())
     asyncio.create_task(poll_nse())
@@ -180,6 +201,10 @@ async def list_ai_models():
         models += [{"id": f"ollama:{tag}", "label": f"Local: {tag}"} for tag in await _ollama_models()]
     except Exception as e:
         logger.info(f"Ollama not reachable for model list: {e}")
+    from llm import JUDGE_MODEL, LIGHT_MODEL, groq_key
+    if groq_key():
+        models = [{"id": JUDGE_MODEL, "label": "Groq: GPT-OSS 120B (free tier)"},
+                  {"id": LIGHT_MODEL, "label": "Groq: GPT-OSS 20B (free tier)"}] + models
     models.append({"id": "gemini-2.5-flash", "label": "Gemini 2.5 Flash"})
     return {"status": "success", "models": models, "default": DEFAULT_MODEL}
 
@@ -196,7 +221,7 @@ async def discovery_view():
     if not isinstance(body, dict) or "job" not in body:
         return {"status": "error", "feed_down": True,
                 "message": (body or {}).get("message") or "The feed process is not reachable."}
-    syms = {str(v.get("symbol", "")).split("-")[0].upper() for v in _reload_watchlist().values()}
+    syms = {base_symbol(v.get("symbol", "")) for v in _reload_watchlist().values()}
     return {"status": "success", **view(body["job"], syms)}
 
 # /api/map-option-tokens was removed (A-11): it proxied to a route that only
@@ -233,22 +258,57 @@ async def save_position_api(req: SavePositionRequest):
     # position saved without one doesn't silently compare against 0.0 forever.
     if pos and "whale_cvd_at_entry" not in pos:
         for key, state in local_active_states.items():
-            if key.split('|')[-1].split('-')[0] == norm:
+            if base_symbol(key) == norm:
                 pos["whale_cvd_at_entry"] = state.get("whale_cvd_ema_1h", 0.0)
                 break
 
     ReasoningEngine.user_positions[norm] = pos
+    if pos:                                      # saved again on purpose: no longer removed
+        _set_removed(_removed_positions() - {norm})
     return {"status": "success"}
 
 class SyncPositionsRequest(BaseModel):
     positions: dict
 
+
+# Manual positions removed by the operator (data/manual_removed.json). Browsers
+# keep their own copy (localStorage) and resend it on every load; a removed one
+# is ignored here and named in the reply, so the page deletes its copy too.
+REMOVED_POSITIONS_PATH = DATA_DIR / "manual_removed.json"
+
+
+def _removed_positions() -> set:
+    try:
+        return set(json.loads(REMOVED_POSITIONS_PATH.read_text(encoding="utf-8")))
+    except (OSError, ValueError):
+        return set()
+
+
+def _set_removed(names: set) -> None:
+    from core.fileio import write_json_atomic
+    write_json_atomic(str(REMOVED_POSITIONS_PATH), sorted(names))
+
+
+def remove_manual_positions(symbols) -> list:
+    """Forget these manual positions here and in every browser that syncs."""
+    names = {ReasoningEngine._normalize_symbol(s) for s in symbols}
+    for n in names:
+        ReasoningEngine.user_positions.pop(n, None)
+    _set_removed(_removed_positions() | names)
+    return sorted(names)
+
+
 @app.post("/api/reasoning/position/sync_all")
 async def sync_all_positions_api(req: SyncPositionsRequest):
+    removed = _removed_positions()
+    drop = []
     for sym, pos in req.positions.items():
         norm = ReasoningEngine._normalize_symbol(sym)
+        if norm in removed:
+            drop.append(norm)
+            continue
         ReasoningEngine.user_positions[norm] = pos
-    return {"status": "success"}
+    return {"status": "success", "drop": drop}
 
 @app.get("/api/performance/dashboard")
 async def get_performance_dashboard():
@@ -408,6 +468,15 @@ async def disable_paper():
     return {"status": "success", "enabled": b.enabled}
 
 
+@app.get("/api/auction")
+async def auction_book():
+    """Policy v8: today's pre-open auction book (data/auction/live.json, written by auction/service.py)."""
+    try:
+        return {"status": "success", **json.loads((DATA_DIR / "auction" / "live.json").read_text(encoding="utf-8"))}
+    except (OSError, ValueError):
+        return {"status": "success", "status_book": "no book yet"}
+
+
 @app.get("/api/paper/positions")
 async def paper_positions():
     b, err = _paper_or_error()
@@ -438,7 +507,7 @@ async def paper_journal(symbol: str | None = None, pos_id: str | None = None):
     b = paper_rt.broker()
     events = (b.store if b else EventStore()).load()
     if not pos_id and symbol:
-        want = symbol.upper().split("-")[0]
+        want = base_symbol(symbol)
         opens = [e for e in events if e.get("type") == "OPEN" and str(e.get("symbol", "")).upper() == want]
         open_ids = set(b.open) if b else set()
         live = [e for e in opens if e["pos_id"] in open_ids]
@@ -1009,7 +1078,7 @@ async def update_watchlist(req: WatchlistUpdateRequest):
         new_symbols = []
         for item in req.items:
             if item["token"] not in watchlist:
-                new_symbols.append(item["symbol"].split('-')[0])
+                new_symbols.append(base_symbol(item["symbol"]))
                 
         watchlist.clear()
         for item in req.items:
@@ -1110,7 +1179,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 if symbol == "Nifty 50": continue
                 # Removed from the watchlist: off the board at once (the feed streams it
                 # until a restart). Kept while a position on it is still open.
-                if not on_watchlist(symbol) and not ReasoningEngine.user_positions.get(symbol.split('-')[0]):
+                if not on_watchlist(symbol) and not ReasoningEngine.user_positions.get(base_symbol(symbol)):
                     continue
 
                 payload_copy = dict(payload)
@@ -1228,10 +1297,28 @@ def close_ledger_trade(req: LedgerCloseRequest):
     success = manager.add_exit(req.symbol, req.exit_price, req.exit_qty, req.reason, req.charges)
     return {"status": "success", "updated": success}
 
+LAN_HTTPS_PORT = 8443
+
+
 async def start_api_server():
     logger.info("Starting Web API Server (Port 8000)...")
-    # 0.0.0.0 exposed this unauthenticated API to the whole LAN (E-1). If LAN
-    # access is genuinely wanted, keep 0.0.0.0 but add a shared-secret header
-    # dependency first — do not leave it open.
-    config = uvicorn.Config(app, host="127.0.0.1", port=8000, log_level="warning", ws_ping_interval=None)
-    await uvicorn.Server(config).serve()
+    # This PC: plain HTTP on 127.0.0.1:8000, as always (the browser here, the
+    # shadow service). Other devices on the Wi-Fi: HTTPS on 0.0.0.0:8443 behind
+    # the sign-in gate -- only with QF_LAN=1 and a password set. 0.0.0.0 once
+    # exposed this API to the whole LAN with no password (E-1); plain HTTP is
+    # never opened to the network, so the password is not sent in the clear.
+    servers = [uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=8000, log_level="warning",
+                                             ws_ping_interval=None))]
+    if lan_mode():
+        if ACCESS.has_password():
+            from core.tls import ensure_cert, lan_ip
+            ip = lan_ip()
+            cert, key = ensure_cert(DATA_DIR / "tls", ip)
+            servers.append(uvicorn.Server(uvicorn.Config(app, host="0.0.0.0", port=LAN_HTTPS_PORT,
+                                                         log_level="warning", ws_ping_interval=None,
+                                                         ssl_certfile=str(cert), ssl_keyfile=str(key))))
+            logger.info(f"Wi-Fi access on: https://{ip}:{LAN_HTTPS_PORT}/ (dashboard password).")
+        else:
+            logger.warning("QF_LAN=1 but no dashboard password is set "
+                           "(python trading_copilot/scripts/set_password.py): staying on this PC only.")
+    await asyncio.gather(*(srv.serve() for srv in servers))

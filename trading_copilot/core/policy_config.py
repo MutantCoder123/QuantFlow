@@ -8,7 +8,7 @@ refactor, not a retune.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -20,24 +20,26 @@ _REQUIRED = ("semantic", "regime", "conviction", "gates", "horizon")
 
 @dataclass(frozen=True)
 class PolicyConfig:
-    version: int
+    version: int | float          # 5, 6 ... or a point release such as 5.1
     semantic: dict[str, Any]
     regime: dict[str, Any]
     conviction: dict[str, Any]
     gates: dict[str, Any]
     horizon: dict[str, Any]
+    books: dict[str, Any] = field(default_factory=dict)   # v8: books.intraday / books.auction
 
     @classmethod
     def from_dict(cls, d: dict) -> "PolicyConfig":
         missing = [k for k in _REQUIRED if not d.get(k)]
         if missing:
             raise ValueError(f"policy config missing required section(s): {missing}")
-        return cls(version=int(d["version"]), semantic=d["semantic"],
+        v = float(d["version"])
+        return cls(version=int(v) if v.is_integer() else v, semantic=d["semantic"],
                    regime=d["regime"], conviction=d["conviction"],
-                   gates=d["gates"], horizon=d["horizon"])
+                   gates=d["gates"], horizon=d["horizon"], books=d.get("books") or {})
 
 
-DEFAULT_POLICY = "policy_v5.yaml"
+DEFAULT_POLICY = "policy_v8_1.yaml"   # v8.1: alpha intraday trades; auction book as research (V8_CHANGES.md)
 
 
 @lru_cache(maxsize=4)

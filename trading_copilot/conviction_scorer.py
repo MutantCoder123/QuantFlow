@@ -1,3 +1,6 @@
+from core.geometry import widen_geometry  # noqa: F401  (moved; v6 and v5.1 share it)
+
+
 class ConvictionScorer:
     def __init__(self):
         self.previous_bias = "NEUTRAL"
@@ -332,6 +335,16 @@ class ConvictionScorer:
             calculated_entry = ltp + (0.2 * atr_5m)
             padded_stop = nearest_ceiling + (atr_mult * atr_15m)
 
+        # Policy v6: the stop at least stop_floor_atr15 x ATR15 from the entry
+        # (ATR15 widened to this time slot's usual range), and the target at
+        # least target_min_r R away. v5's median stop was 0.73 ATR15 -- inside
+        # the noise (FUTURE_UPDATES 2.5). Both keys absent/0 = v5 geometry.
+        floor_k = float(self._cfg_conviction("stop_floor_atr15", 0) or 0)
+        padded_stop, target = widen_geometry(
+            calculated_entry, padded_stop, target, bias,
+            atr_15m * (self._tod_factor(flat_telemetry) if floor_k > 0 else 1.0),
+            floor_k, float(self._cfg_conviction("target_min_r", 0) or 0))
+
         risk = abs(calculated_entry - padded_stop)
         reward = abs(target - calculated_entry)
 
@@ -374,9 +387,27 @@ class ConvictionScorer:
             "effective_reward": round(effective_reward, 2),
         }
 
+        # Policy v6: a measured expected value (R after friction) for this
+        # regime and score band replaces reward:risk, which favoured tight stops.
+        ev_cfg = self._cfg_conviction("ev_gate", None)
+        if ev_cfg:
+            from core.ev_calibration import expected_r
+            e_r, n_ev = expected_r(regime, composite, ev_cfg)
+            expectancy["expected_r"] = round(e_r, 3) if e_r is not None else None
+            expectancy["expected_r_n"] = n_ev
+            if e_r is None:
+                return self._create_rejected_output(
+                    composite, bias, "UNCALIBRATED_REGIME_BAND",
+                    geometry=geometry, expectancy_matrix=expectancy,
+                    contributions=contributions)
+            if e_r < float(ev_cfg.get("min_ev_r", 0.05)):
+                return self._create_rejected_output(
+                    composite, bias, "INSUFFICIENT_EXPECTED_VALUE",
+                    geometry=geometry, expectancy_matrix=expectancy,
+                    contributions=contributions)
         # Gate on measured edge when calibrated; on reward:risk alone while
         # uncalibrated -- never on an invented probability.
-        if stat_edge is not None:
+        elif stat_edge is not None:
             if stat_edge < self._cfg_gate("min_stat_edge", 0.05):
                 return self._create_rejected_output(
                     composite, bias, "INSUFFICIENT_STATISTICAL_EDGE",
@@ -399,6 +430,21 @@ class ConvictionScorer:
             "expectancy_matrix": expectancy,
             "contributions": contributions,
         }
+
+    @staticmethod
+    def _tod_factor(flat: dict) -> float:
+        """core.tod_vol factor for this stock now (1.0 when off or unknown)."""
+        if not ConvictionScorer._cfg_conviction("tod_vol", False):
+            return 1.0
+        try:
+            from datetime import datetime
+            from zoneinfo import ZoneInfo
+            from core.symbols import base_symbol
+            from core.tod_vol import factor
+            sym = base_symbol(flat.get("symbol") or flat.get("token") or "")
+            return factor(sym, datetime.now(ZoneInfo("Asia/Kolkata")))
+        except Exception:
+            return 1.0
 
     @staticmethod
     def _cfg_gate(key: str, default):

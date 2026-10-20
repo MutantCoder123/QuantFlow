@@ -43,6 +43,20 @@ REVIEW_DECISION = {"CHECK": "hold", "TRAIL": "tighten", "RUN_ON": "run on",
 THESIS_GAP_S = 180.0
 
 
+def _alpha_entry(p: dict) -> bool:
+    """Opened by the alpha score (policy v7). Such a trade keeps only the exits its edge was
+    measured with (stop, target / run on, square-off): the thesis exit and the fade read the
+    v5 composite, which runs in shadow. Positions opened under v7 before the context carried
+    `scorer` (10-15 morning) are alpha entries too."""
+    ctx = p.get("context") or {}
+    if ctx.get("scorer"):
+        return ctx["scorer"] == "ALPHA"
+    try:
+        return float(p.get("config_version") or 0) >= 7
+    except (TypeError, ValueError):
+        return False
+
+
 def _hm(s: str) -> tuple[int, int]:
     h, m = s.split(":")
     return int(h), int(m)
@@ -57,8 +71,31 @@ class PaperBroker:
                  thesis_against: float | None = None, thesis_minutes: float = 10.0,
                  review_every_min: float | None = None, reach_atr: float | None = None,
                  reach_floor_r: float = 1.0, reach_every_min: float = 5.0,
-                 fade_frac: float | None = None, fade_minutes: float = 10.0, fade_min_open_r: float = 0.5):
+                 fade_frac: float | None = None, fade_minutes: float = 10.0, fade_min_open_r: float = 0.5,
+                 max_per_side: int | None = None, side_spacing_min: float = 0.0,
+                 reject_value_capped: bool = False, stop_floor: dict | None = None,
+                 entries_shadow: bool = False):
         self.store = store
+        # v5.1 (policy horizon.stop_floor): the stop that arrives is moved out to
+        # at least atr15 x ATR15 (x the time-of-day factor when tod) from the fill,
+        # and the target to at least target_min_r of the new risk. Sizing follows
+        # the new stop. v5's median stop was 0.79 ATR15: 32 of 63 trades stopped,
+        # costs 737/trade. Same trades at 1.5 + tod: 19 stopped, 512/trade,
+        # -55.8k -> -11.0k (replays/stop_floor_check.py, V5_1_CHANGES.md).
+        sf = stop_floor or {}
+        self.stop_floor_k = float(sf.get("atr15") or 0.0)
+        # v8: intraday entries are recorded as REJECT SHADOW_ENTRY (with their geometry), not opened
+        self.entries_shadow = bool(entries_shadow)
+        self.stop_floor_tod = bool(sf.get("tod", False))
+        self.stop_floor_target_r = float(sf.get("target_min_r") or 0.0)
+        # v6 (policy horizon.concentration): at most max_per_side open positions on
+        # one side, and side_spacing_min minutes between entries on the same side
+        # (2026-10-07: 11 longs in 47 minutes -- one leveraged bet on NIFTY).
+        self.max_per_side = int(max_per_side) if max_per_side else None
+        self.side_spacing_s = float(side_spacing_min or 0.0) * 60.0
+        # v6 (policy gates.reject_value_capped): a size cut by the value cap means
+        # the stop is too tight to be real (v5: median position 9.99 L, the cap).
+        self.reject_value_capped = bool(reject_value_capped)
         # v5 (policy horizon.reach_target): a target more than reach_atr x ATR15
         # from the price is pulled in to that distance (never out, never inside
         # entry + reach_floor_r R), checked every reach_every_min.
@@ -204,15 +241,24 @@ class PaperBroker:
                            "signal_id": s.get("signal_id"), "action": s.get("action"),
                            "context": self._context(s)})
 
+    def _shadow(self, s: dict, side: str) -> dict | None:
+        """Policy v8: the entry the engine would take, recorded with what is needed to score it later."""
+        return self._emit({"type": "REJECT", "symbol": s.get("symbol"), "reason": "SHADOW_ENTRY",
+                           "signal_id": s.get("signal_id"), "action": s.get("action"),
+                           "context": self._context(s), "side": side, "ltp": s.get("ltp"),
+                           "stop": s.get("stop"), "target": s.get("target"), "token": s.get("token"),
+                           "atr15": s.get("atr15")})
+
     @staticmethod
     def _context(s: dict) -> dict:
         keys = ("verdict", "composite", "regime", "session_phase", "rationale",
-                "attention_rank", "whale_cvd", "action")
+                "attention_rank", "whale_cvd", "action", "scorer", "v5_composite")
         out = {}
         for k in keys:
             v = s.get(k)
             try:
-                out[k] = float(v) if k in ("composite", "attention_rank", "whale_cvd") and v is not None else v
+                out[k] = (float(v) if k in ("composite", "attention_rank", "whale_cvd", "v5_composite")
+                          and v is not None else v)
             except (TypeError, ValueError):
                 out[k] = None
         return out
@@ -224,6 +270,8 @@ class PaperBroker:
             return self._reject(s, "NOT_AN_ENTRY")
         if not self.engine_ok:
             return None
+        if self.entries_shadow:
+            return self._shadow(s, side)
         if not self.enabled:
             return self._reject(s, "ENGINE_PAUSED")
         if self._past(self.entry_cutoff):
@@ -240,6 +288,9 @@ class PaperBroker:
             return self._reject(s, "DATA_INCOMPLETE")    # core.data_readiness: never trade on partial data
         if self._flipping(s["symbol"], side):
             return self._reject(s, "REVERSAL_COOLDOWN")
+        crowd = self._crowding(side)
+        if crowd:
+            return self._reject(s, crowd)
 
         opts = self.settings.options()
         try:
@@ -261,6 +312,9 @@ class PaperBroker:
             return self._reject(s, "PRICE_BEYOND_GEOMETRY")
         if adv <= 0:
             return self._reject(s, "NO_ADV")
+        floored = self._stop_floor(s, side, fill, stop, target)
+        if floored:
+            stop, target = floored["stop"], floored["target"]
 
         book = Portfolio(realized_loss_today=self.realized_loss_today())
         for p in self.open.values():
@@ -272,6 +326,11 @@ class PaperBroker:
         sized = size(prop, book, self.settings.risk_limits(), adv)
         if getattr(sized, "reason", None):
             return self._reject(s, sized.reason)
+        if self.reject_value_capped:
+            lim = self.settings.risk_limits()
+            by_risk = (lim.capital * lim.risk_per_trade_pct / 100.0) / abs(fill - stop)
+            if sized.qty < by_risk and sized.qty * fill >= lim.capital * lim.max_position_value_x * 0.98:
+                return self._reject(s, "STOP_TOO_TIGHT_FOR_SIZE")
 
         cluster = cluster_of(s["symbol"], self.clusters)
         ev = self._emit({
@@ -280,7 +339,7 @@ class PaperBroker:
             "entry_price": fill, "ltp_at_entry": ltp, "stop": stop, "target": target,
             "risk_amount": float(sized.risk_amount), "cluster": cluster,
             "signal_id": s.get("signal_id"), "config_version": self.config_version,
-            "settings": eff, "context": self._context(s),
+            "settings": eff, "context": dict(self._context(s), **({"stop_floor": floored} if floored else {})),
         })
         if ev is None:
             return None
@@ -288,6 +347,44 @@ class PaperBroker:
         self.open[pos["pos_id"]] = pos
         self._mirror_set(pos)
         return ev
+
+    def _stop_floor(self, s: dict, side: str, fill: float, stop: float, target: float) -> dict | None:
+        """v5.1: the widened (stop, target) and what they were, or None when off,
+        when the ATR is unknown or when the stop was already wide enough."""
+        if self.stop_floor_k <= 0:
+            return None
+        try:
+            atr = float(s.get("atr15") or 0.0)
+        except (TypeError, ValueError):
+            atr = 0.0
+        if not atr > 0:
+            return None
+        k = 1.0
+        if self.stop_floor_tod:
+            try:
+                from core.symbols import base_symbol
+                from core.tod_vol import factor
+                k = factor(base_symbol(s["symbol"]), self._ist())
+            except Exception:
+                k = 1.0
+        from core.geometry import widen_geometry
+        new_stop, new_target = widen_geometry(fill, stop, target, side, atr * k,
+                                              self.stop_floor_k, self.stop_floor_target_r)
+        if (new_stop, new_target) == (stop, target):
+            return None
+        return {"stop": new_stop, "target": new_target, "stop_was": stop, "target_was": target,
+                "atr15": round(atr, 4), "tod": round(k, 3), "stop_atr_was": round(abs(fill - stop) / atr, 2)}
+
+    def _crowding(self, side: str) -> str | None:
+        """v6 concentration: too many open on this side, or one opened too recently."""
+        same = [p for p in self.open.values() if p["side"] == side]
+        if self.max_per_side and len(same) >= self.max_per_side:
+            return "SIDE_LIMIT"
+        if self.side_spacing_s > 0:
+            recent = [p["ts"] for p in same] + [t.get("opened_ts", 0) for t in self.closed if t.get("side") == side]
+            if recent and self._now() - max(recent) < self.side_spacing_s:
+                return "SIDE_SPACING"
+        return None
 
     def _flipping(self, symbol: str, side: str) -> bool:
         """A losing close on `symbol` the other way, within the cooldown.
@@ -339,7 +436,8 @@ class PaperBroker:
         return self._emit({
             "type": "REVIEW", "pos_id": p["pos_id"], "symbol": p["symbol"], "kind": kind,
             "decision": REVIEW_DECISION.get(kind, "hold"), "note": note,
-            "score": p.get("score_now"), "score_at_entry": ctx.get("composite"),
+            "score": p.get("score_now"),
+            "score_at_entry": ctx.get("v5_composite") if _alpha_entry(p) else ctx.get("composite"),
             "regime": p.get("regime_now"), "regime_at_entry": ctx.get("regime"),
             "r_now": self._r(p, last), "best_r": p.get("mfe_r", 0.0), "last": last,
             "stop": self._stop_now(p), "target": p["target"], "past_target": bool(p.get("past_target")),
@@ -387,7 +485,8 @@ class PaperBroker:
         p["score_now"], p["score_ts"] = s, now
         if regime:
             p["regime_now"] = regime
-        if self.thesis_against is not None and self.thesis_s > 0:
+        alpha = _alpha_entry(p)
+        if self.thesis_against is not None and self.thesis_s > 0 and not alpha:
             side = 1.0 if p["side"] == "LONG" else -1.0
             if side * s <= -self.thesis_against:
                 if p.get("against_since") is None or gap > THESIS_GAP_S:
@@ -401,10 +500,11 @@ class PaperBroker:
             elif p.get("against_since") is not None:
                 p["against_since"] = None
                 self._review(p, "THESIS_OK", "the score no longer opposes the position")
-        ev = self._retarget(p, atr15, now)
+        ev = None if alpha else self._retarget(p, atr15, now)     # v7.1: alpha keeps its target
         if ev is not None:
             return ev
-        self._fade(p, s, now, gap)
+        if not alpha:
+            self._fade(p, s, now, gap)
         if self.review_every_s and now - p.get("last_review_ts", p["ts"]) >= self.review_every_s:
             self._review(p, "CHECK", "periodic check")
         return None

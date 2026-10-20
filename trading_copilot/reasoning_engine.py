@@ -10,6 +10,7 @@ from google import genai
 from diagnostic_ui import TerminalDashboard
 from llm import DEFAULT_MODEL
 from core.watchlist import on_watchlist
+from core.symbols import base_symbol
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +91,32 @@ def _classify_decision(math_setup: dict, gatekeeper_res: dict) -> str:
         return f"MANAGING_{str(gatekeeper_res.get('Action') or 'UNKNOWN').upper()}"
 
 
+def _alpha_features(math_setup: dict) -> dict:
+    """Policy v7: the alpha rank and strength the entry was judged on (f_alpha_rank, f_alpha_strength)."""
+    a = (math_setup or {}).get("alpha") or {}
+    out = {}
+    for k in ("rank", "strength"):
+        try:
+            out[f"alpha_{k}"] = float(a[k])
+        except (KeyError, TypeError, ValueError):
+            pass
+    return out
+
+
+def _component_features(math_setup: dict) -> dict:
+    """The score's parts (normalised, before regime weights) for the feature log:
+    comp_micro / comp_struct / comp_deriv / comp_cat. Logged from policy v6 on so
+    the weights can later be fitted on what each part predicted (FUTURE_UPDATES
+    2.5 G) -- until 2026-10-07 only the weighted sum was kept."""
+    out = {}
+    for k, v in ((math_setup or {}).get("contributions") or {}).items():
+        try:
+            out[f"comp_{k}"] = float(v.get("normalized"))
+        except (TypeError, ValueError, AttributeError):
+            continue
+    return out
+
+
 def _numeric_features(payload: dict) -> dict:
     """Flatten a payload to its numeric fields only, for FeatureLog (1.4).
 
@@ -126,6 +153,9 @@ def attention_rank(sp: dict) -> float:
     reward_risk = expectancy.get("reward_risk") or 0.0
     stat_edge = expectancy.get("statistical_edge")
     ev_r = stat_edge if stat_edge is not None else (reward_risk - 1.0)
+    if math_setup.get("scorer") == "ALPHA":
+        # every alpha setup has the same reward:risk; the strongest rank goes first
+        ev_r = abs(float(math_setup.get("composite_score") or 0.0))
     age_s = float(sp.get("data_age_s", 0.0) or 0.0)
     freshness = 1.0 / (1.0 + age_s / 60.0)  # 1.0 at age 0, 0.5 at 60s, ~0.17 at 300s
     return ev_r * freshness
@@ -160,9 +190,7 @@ class ReasoningEngine:
     def _normalize_symbol(raw: str) -> str:
         """Extract the bare stock name from any key format.
         'NSE_EQ|SAIL-EQ' → 'SAIL', 'NSE_EQ|SAIL' → 'SAIL', 'SAIL' → 'SAIL'"""
-        s = raw.split('|')[-1]    # strip exchange prefix
-        s = s.split('-')[0]        # strip -EQ suffix
-        return s
+        return base_symbol(raw)    # exchange prefix and -EQ off; BAJAJ-AUTO kept whole
 
     @classmethod
     def _advance_debounce(cls, norm_sym: str, current_advice: dict) -> bool:
@@ -219,7 +247,7 @@ class ReasoningEngine:
         for token in TerminalDashboard.active_states.keys():
             # Match token like 'NSE_EQ|SAIL' or 'NSE_EQ|SAIL-EQ'
             stock_name = token.split('|')[-1]
-            if stock_name == symbol or stock_name.split('-')[0] == symbol:
+            if stock_name == symbol or base_symbol(stock_name) == symbol:
                 return token
         return None
 
@@ -279,6 +307,12 @@ class ReasoningEngine:
         from conviction_scorer import ConvictionScorerRegistry
         scorer = ConvictionScorerRegistry.get_or_create(registry_key)
         math_setup = scorer.score_setup(tactical_payload, payload, advance_state=advance_state)
+        # Policy v7: the alpha score picks entries; the composite above runs beside it and is
+        # kept as v5_composite (alpha.gate). A held position keeps the composite's setup.
+        from alpha.gate import apply as _alpha_apply, config as _alpha_cfg
+        _acfg = _alpha_cfg()
+        if _acfg and not user_position:
+            math_setup = _alpha_apply(math_setup, payload, clean_sym, _acfg)
         tactical_payload["math_setup"] = math_setup
             
         if user_position:
@@ -356,8 +390,9 @@ class ReasoningEngine:
             cls.latest_reports[cls._normalize_symbol(symbol)] = rejection_msg
             return rejection_msg
 
+        from llm import is_groq, is_local as _is_local
         api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key and not str(model_name).startswith("ollama:"):
+        if not api_key and not (_is_local(model_name) or is_groq(model_name)):
             error_msg = "Error: GEMINI_API_KEY is missing from the environment."
             cls.latest_reports[cls._normalize_symbol(symbol)] = error_msg
             return error_msg
@@ -367,7 +402,8 @@ class ReasoningEngine:
             try:
                 cls.llm_trigger_count += 1
                 logger.info(f"Triggering LLM Reasoning for {symbol} using {model_name}...")
-                is_local = str(model_name).startswith("ollama:")
+                # Groq (falls back to the local model on a limit) and Ollama go through llm.generate
+                is_local = _is_local(model_name) or is_groq(model_name)
                 client = None if is_local else genai.Client(api_key=api_key)
                 
                 # Format payload for the prompt without indentation to save tokens
@@ -501,11 +537,44 @@ class ReasoningEngine:
                 
                 full_prompt = f"SYSTEM INSTRUCTION:\n{strict_prompt}\n\nDATA PAYLOAD:\n{user_payload}"
                 
-                if is_local:
-                    # Paper mode can run the judge on a local model
-                    # (config/paper.yaml judge_model: "ollama:<tag>").
-                    from discovery_analysis import _generator
-                    response = type("R", (), {"text": await _generator(model_name, None, None)(full_prompt)})()
+                # Verdict reuse (core.verdict_cache): the autonomous loop asks again only when
+                # 30 min passed, the score moved >= 0.15, the regime changed or a position closed.
+                from core.symbols import base_symbol as _bs
+                from core.verdict_cache import VERDICTS, closed_count, has_open
+                _ms = payload_copy.get("math_setup") or {}
+                _vk = (_bs(symbol), str(_ms.get("directional_bias", "")),
+                       float(_ms.get("composite_score") or 0.0),
+                       str((payload_copy.get("market_regime") or {}).get("current_regime", "")))
+                _reuse_ok = is_autonomous and not user_position and not has_open(_vk[0])   # entries only
+                _closed = closed_count(_vk[0]) if _reuse_ok else 0
+                _reused = VERDICTS.get(_vk[0], _vk[1], _vk[2], _vk[3], _closed) if _reuse_ok else None
+                _judge_used = model_name
+                if _reused is None and _reuse_ok:
+                    # A/B test (config/paper.yaml judge_ab): a fresh entry call goes to one arm at random
+                    try:
+                        import random
+                        from paper.settings import PaperSettings
+                        _arms = PaperSettings().options().get("judge_ab") or []
+                    except Exception:
+                        _arms = []
+                    if len(_arms) >= 2:
+                        model_name = random.choice(_arms)
+                        _judge_used = model_name
+                        is_local = _is_local(model_name) or is_groq(model_name)
+                if _reused is not None:
+                    cls.llm_trigger_count -= 1                     # no model was called
+                    _judge_used = VERDICTS.models.get((_vk[0], _vk[1]), model_name)
+                    logger.info(f"LLM judge for {symbol}: verdict reused (no new call)")
+                    response = type("R", (), {"text": _reused})()
+                elif is_local:
+                    # config/paper.yaml judge_model: "groq:<id>" (local model when Groq is
+                    # out of key or limits) or "ollama:<tag>".
+                    from llm import generate
+                    text, used = await generate(model_name, full_prompt, json_mode=True)
+                    _judge_used = used
+                    if used != model_name:
+                        logger.info(f"LLM judge for {symbol} answered by {used} (fallback)")
+                    response = type("R", (), {"text": text})()
                 else:
                     response = await client.aio.models.generate_content(
                         model=model_name,
@@ -547,7 +616,9 @@ class ReasoningEngine:
                         raise jde
                 except Exception as e:
                     raise e
-                    
+                if _reuse_ok and _reused is None:                  # a fresh entry answer that parsed
+                    VERDICTS.put(_vk[0], _vk[1], _vk[2], _vk[3], _closed, report_text, model=_judge_used)
+
                 try:
                     ticket = data.get("execution_ticket", {})
                     verdict = ticket.get("verdict", "UNKNOWN")
@@ -578,8 +649,12 @@ class ReasoningEngine:
                     if geo_src:
                         atr15 = float(payload_copy.get("atr_15m")
                                       or payload_copy.get("ltp", 100.0) * 0.005)
+                        # v7.1: an alpha entry trades the geometry its edge was measured with;
+                        # the judge's stop/target nudges are not applied
+                        nudges = ({} if math_setup.get("scorer") == "ALPHA"
+                                  else ticket.get("risk_parameters") or {})
                         risk_params, geo_err = clamp_risk_parameters(
-                            ticket.get("risk_parameters") or {}, geo_src, atr15,
+                            nudges, geo_src, atr15,
                             math_setup.get("directional_bias", "LONG"))
                     else:
                         # No deterministic geometry to clamp against (e.g. a
@@ -619,7 +694,13 @@ class ReasoningEngine:
                     # unconditionally on verdict (improved §4.5). Previously only
                     # CONFIRM/ADJUST reached the ledger, so every ABORT/DEFER
                     # vanished and "does the LLM actually help?" was unanswerable.
-                    cls._write_arm_record(symbol, math_setup, ticket, risk_params)
+                    cls._write_arm_record(symbol, math_setup, ticket, risk_params,
+                                          extra={"judge_model": _judge_used, "reused": _reused is not None,
+                                                 "judge_arm": model_name,
+                                                 "rationale": str(ticket.get("institutional_rationale") or "")[:600],
+                                                 "scorer": (math_setup or {}).get("scorer", "V5"),
+                                                 "v5_composite": (math_setup or {}).get("v5_composite"),
+                                                 "alpha_rank": ((math_setup or {}).get("alpha") or {}).get("rank")})
 
                     actionable_directives = ["EXECUTE_LONG", "EXECUTE_SHORT", "CLOSE_EXISTING", "REVERSE_POSITION"]
                     # CLOSE_EXISTING / REVERSE_POSITION manage a position; with
@@ -701,7 +782,7 @@ class ReasoningEngine:
         return cls._arm_journal
 
     @classmethod
-    def _write_arm_record(cls, symbol, math_setup, ticket, risk_params):
+    def _write_arm_record(cls, symbol, math_setup, ticket, risk_params, extra: dict | None = None):
         """One ArmRecord per escalation, whatever the LLM said (§4.5)."""
         try:
             from journal.arms import ArmRecord
@@ -730,6 +811,7 @@ class ReasoningEngine:
                     "target": risk_params.get("final_target"),
                 },
                 escalated=True,
+                extra=extra or {},
             ))
         except Exception as e:
             logger.error(f"Failed to journal arm record for {symbol}: {e}")
@@ -943,9 +1025,11 @@ class ReasoningEngine:
                         user_context={"position": current_pos} if current_pos else {},
                         ltp=ltp
                     )
+                    _ms = structured.get("math_setup") or {}
                     paper_rt.on_gatekeeper(
                         norm_sym, gatekeeper_res, ltp,
-                        score=(structured.get("math_setup") or {}).get("composite_score"),
+                        # the exit rules (thesis, fade) were tested on the composite: keep it there
+                        score=_ms["v5_composite"] if "v5_composite" in _ms else _ms.get("composite_score"),
                         regime=(structured.get("market_regime") or {}).get("current_regime"),
                         data_age_s=payload.get("data_age_s"), atr15=payload.get("atr_15m"))
                     
@@ -959,11 +1043,14 @@ class ReasoningEngine:
                         ts=int(time.time()),
                         symbol=norm_sym,
                         config_version=getattr(cls, "_config_version", 0),
-                        features=_numeric_features(payload),
+                        features={**_numeric_features(payload), **_component_features(math_setup_fl),
+                                  **_alpha_features(math_setup_fl)},
                         staleness={"microstructure": float(payload.get("data_age_s", 0.0))},
                         regime=regime_meta_fl.get("current_regime", "UNKNOWN"),
                         session_phase=regime_meta_fl.get("session_phase", "UNKNOWN"),
-                        composite=math_setup_fl.get("composite_score"),
+                        # always the v5 composite (beside the alpha score under policy v7)
+                        composite=math_setup_fl["v5_composite"] if "v5_composite" in math_setup_fl
+                        else math_setup_fl.get("composite_score"),
                         decision=_classify_decision(math_setup_fl, gatekeeper_res),
                     ))
 
@@ -1000,10 +1087,15 @@ class ReasoningEngine:
                     last_advice = cls.last_math_advice.get(norm_sym)
 
                     if current_advice != last_advice:
-                        cls.last_math_advice[norm_sym] = current_advice
+                        escalatable = bool(gatekeeper_res["llm_authorized"]) and bool(
+                            cls.llm_enabled.get(norm_sym) or paper_rt.autonomous())
+                        if not escalatable:
+                            cls.last_math_advice[norm_sym] = current_advice
+                        # an escalation candidate is recorded as seen only once it is
+                        # escalated (_dispatch_candidates): outside the top N it retries
 
                         if gatekeeper_res["llm_authorized"]:
-                            if cls.llm_enabled.get(norm_sym) or paper_rt.autonomous():
+                            if escalatable:
                                 # Authorized, toggled ON, and stable -- an
                                 # escalation candidate. Defer the actual
                                 # LLM trigger until every symbol's rank for
@@ -1011,6 +1103,7 @@ class ReasoningEngine:
                                 # escalated (§4.6, Task 5.1 Step 5).
                                 escalation_candidates.append({
                                     "norm_sym": norm_sym,
+                                    "advice": current_advice,
                                     "rank": rank,
                                     "current_pos": current_pos,
                                     "structured": structured,
@@ -1040,40 +1133,54 @@ class ReasoningEngine:
             # authorized+toggled-on+stable but outside the top N still get
             # their local-gatekeeper card published -- they're just never
             # escalated. ----
-            top_n_syms = cls._top_n_symbols(all_ranks)
-            for cand in escalation_candidates:
-                norm_sym = cand["norm_sym"]
-                gatekeeper_res = cand["gatekeeper_res"]
-                gen_time = cand["payload"].get("current_time", "UNKNOWN")
-                if norm_sym in top_n_syms:
-                    gatekeeper_res["Status_Tag"] = "PENDING_LLM"
-                    gatekeeper_res["Generated_Time"] = gen_time
-                    cls.latest_reports[norm_sym] = json.dumps(gatekeeper_res, indent=2)
+            def launch(cand):
+                # ---- FIX: Capture by value ----
+                async def run_and_unlock(s=cand["norm_sym"], p=cand["current_pos"], sp=cand["structured"]):
+                    try:
+                        await cls.analyze_stock(
+                            s, paper_rt.judge_model(), "",
+                            user_position=p,
+                            is_autonomous=True,
+                            precomputed_payload=sp
+                        )
+                    finally:
+                        cls.active_loops.pop(s, None)
 
-                    # Avoid parallel duplicate tasks for the same symbol
-                    if norm_sym not in cls.active_loops:
-                        cls.active_loops[norm_sym] = True
+                asyncio.create_task(run_and_unlock())
 
-                        # ---- FIX: Capture by value ----
-                        async def run_and_unlock(s=norm_sym, p=cand["current_pos"], sp=cand["structured"]):
-                            try:
-                                await cls.analyze_stock(
-                                    s, paper_rt.judge_model(), "",
-                                    user_position=p,
-                                    is_autonomous=True,
-                                    precomputed_payload=sp
-                                )
-                            finally:
-                                cls.active_loops.pop(s, None)
-
-                        asyncio.create_task(run_and_unlock())
-                else:
-                    gatekeeper_res["Status_Tag"] = "RANK_GATED"
-                    gatekeeper_res["Reason"] = f"Authorized but outside top {ATTENTION_TOP_N} attention rank this tick."
-                    gatekeeper_res["Generated_Time"] = gen_time
-                    cls.latest_reports[norm_sym] = json.dumps(gatekeeper_res, indent=2)
-
+            cls._dispatch_candidates(escalation_candidates, all_ranks, launch)
             await asyncio.sleep(10)
+
+    @classmethod
+    def _dispatch_candidates(cls, escalation_candidates, all_ranks, launch) -> list:
+        """Escalate the top-N candidates of this tick; publish the rest as RANK_GATED.
+        Only an escalated candidate's advice is recorded as seen, so one outside the
+        top N is a candidate again next tick (10-15: about 25 alpha picks were
+        authorised at 10:00, 5 escalated, and the others, HINDALCO, SUNPHARMA, WIPRO
+        and WAAREEENER among them, were never asked all day). Returns the escalated symbols."""
+        top_n_syms = cls._top_n_symbols(all_ranks)
+        sent = []
+        for cand in escalation_candidates:
+            norm_sym = cand["norm_sym"]
+            gatekeeper_res = cand["gatekeeper_res"]
+            gen_time = cand["payload"].get("current_time", "UNKNOWN")
+            if norm_sym in top_n_syms:
+                cls.last_math_advice[norm_sym] = cand.get("advice")
+                gatekeeper_res["Status_Tag"] = "PENDING_LLM"
+                gatekeeper_res["Generated_Time"] = gen_time
+                cls.latest_reports[norm_sym] = json.dumps(gatekeeper_res, indent=2)
+
+                # Avoid parallel duplicate tasks for the same symbol
+                if norm_sym not in cls.active_loops:
+                    cls.active_loops[norm_sym] = True
+                    launch(cand)
+                    sent.append(norm_sym)
+            else:
+                gatekeeper_res["Status_Tag"] = "RANK_GATED"
+                gatekeeper_res["Reason"] = f"Authorized but outside top {ATTENTION_TOP_N} attention rank this tick."
+                gatekeeper_res["Generated_Time"] = gen_time
+                cls.latest_reports[norm_sym] = json.dumps(gatekeeper_res, indent=2)
+        return sent
 
     @classmethod
     def set_llm_toggle(cls, symbol: str, enabled: bool, user_position: dict = None):

@@ -51,10 +51,14 @@ SERVICES = [
     ("feed", "trading_copilot/data_services/upstox_feed.py", 8001, None),
     ("news", "trading_copilot/data_services/news_feed.py", 8003, None),
     ("macro", "trading_copilot/data_services/macro_worker.py", None, None),
+    # policy v8: the pre-open auction book (paper). Plans 08:45-09:07:30, so it starts early.
+    ("auction", "trading_copilot/auction/service.py", None, None),
     ("web", "trading_copilot/main.py", 8000, 8001),
     # shadow only: asks the AI at each key moment of a paper position and
     # records the answer; never acts (trading_copilot/shadow/). QF_SHADOW=0 idles it.
     ("shadow", "trading_copilot/shadow/reanalysis.py", None, 8000),
+    # policy v7: ranks every F&O stock after each 5-minute bar -> data/alpha/live.json (alpha/gate.py)
+    ("alpha", "trading_copilot/alpha/service.py", None, None),
 ]
 MAX_RESTARTS = 5            # per service, within RESTART_WINDOW_S
 RESTART_WINDOW_S = 600
@@ -128,16 +132,33 @@ def check_token() -> bool:
 
 
 def configured_models() -> set[str]:
+    """Every model the services may call. A Groq model brings its local fallback with
+    it: Groq's free tier runs out in a busy session (llm.py)."""
     sys.path.insert(0, str(APP))
-    from llm import DEFAULT_MODEL
-    models = {DEFAULT_MODEL}
+    from llm import DEFAULT_MODEL, FALLBACK_MODEL, NEWS_MODEL, SHADOW_MODEL
+    models = {DEFAULT_MODEL, NEWS_MODEL, SHADOW_MODEL}
     try:
         import yaml
         p = yaml.safe_load((APP / "config" / "paper.yaml").read_text(encoding="utf-8")) or {}
         models.add(str(p.get("judge_model") or DEFAULT_MODEL))
     except Exception:
         pass
+    if any(m.startswith("groq:") for m in models):
+        models.add(FALLBACK_MODEL)
     return models
+
+
+def groq_status() -> None:
+    groq = sorted(m for m in configured_models() if m.startswith("groq:"))   # puts APP on sys.path
+    from llm import groq_key, groq_keys
+    if not groq:
+        return
+    if groq_key():
+        n = len(groq_keys())
+        say("llm", f"Groq: {', '.join(m[5:] for m in groq)}, {n} key{'s' if n > 1 else ''} "
+                   "(local model when every key is at its free-tier limit)")
+    else:
+        say("llm", "Groq key is blank in .env (GROQ_API_KEY): every AI call runs on the local model")
 
 
 def ollama_tags() -> list[str] | None:
@@ -150,6 +171,7 @@ def ollama_tags() -> list[str] | None:
 
 
 def check_llm() -> bool:
+    groq_status()
     local = sorted(m.split(":", 1)[1] for m in configured_models() if m.startswith("ollama:"))
     if not local:
         say("llm", f"using {', '.join(sorted(configured_models()))} (not local)")
@@ -306,6 +328,12 @@ def backfill(full: bool) -> bool:
         say("history", "catching up the watchlist's daily prices and options figures...")
         ok = run_step("history", [HISTORY, "--daily", "--watchlist"], timeout=1800)
     ok = run_step("baselines", ["trading_copilot/scripts/macro_bootstrap.py"], timeout=1800) and ok
+    if full:   # policy v6's time-of-day volatility table, from the refreshed 1-minute store
+        run_step("tod_vol", ["trading_copilot/scripts/build_tod_vol.py"], timeout=600)
+        # policy v7: refit the alpha score on the last 60 sessions (data/alpha/weights.json)
+        run_step("alpha_fit", ["trading_copilot/alpha/fit.py"], timeout=1800)
+        # policy v8: refit the auction book's day/night score (data/auction/weights.json)
+        run_step("auction_fit", ["trading_copilot/auction/fit.py"], timeout=600)
     today_file = NSE_FO_DIR / f"{t:%Y%m%d}.csv.zip"
     if ok and full and after_close and (today_file.exists() or t.time() >= dt.time(23, 0)):
         EOD_STAMP.write_text(now_ist().date().isoformat(), encoding="utf-8")
@@ -392,9 +420,52 @@ def start_services(verbose: bool) -> list[Service]:
     return services
 
 
+ES_CONTINUOUS, ES_SYSTEM_REQUIRED, ES_DISPLAY_REQUIRED = 0x80000000, 0x00000001, 0x00000002
+
+
+def keep_awake() -> bool:
+    """While the launcher runs, tell Windows the system and the screen are in use.
+    The screen must stay on too: this laptop has only Modern Standby (S0), which
+    starts whenever the screen turns off and pauses every process -- on 10-08
+    the screen timed out at 08:46 and nothing ran until 13:14 although
+    ES_SYSTEM_REQUIRED was held. Windows drops the request by itself when this
+    process ends. Closing the lid or pressing the power button still sleeps."""
+    if sys.platform != "win32":
+        return False
+    import ctypes
+    ok = bool(ctypes.windll.kernel32.SetThreadExecutionState(
+        ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED))
+    say("power", "the PC will not sleep while QuantFlow runs" if ok else "could not stop the PC sleeping")
+    return ok
+
+
+def lan_url() -> str | None:
+    """The address other devices on the Wi-Fi open, when sharing is on (QF_LAN=1
+    in .env or the environment, and a dashboard password set); else None."""
+    on = os.getenv("QF_LAN")
+    if on is None:
+        try:
+            for line in (ROOT / ".env").read_text(encoding="utf-8").splitlines():
+                if line.strip().startswith("QF_LAN="):
+                    on = line.split("=", 1)[1].strip().strip("\"'")
+        except OSError:
+            pass
+    if on != "1" or not (APP / "data" / "access.json").exists():
+        return None
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("10.255.255.255", 1))                 # picks the Wi-Fi interface; sends nothing
+            return f"https://{s.getsockname()[0]}:8443/"     # api_server LAN_HTTPS_PORT
+    except OSError:
+        return None
+
+
 def supervise(services: list[Service], history: bool, full_now: bool = False):
     if wait_port(8000, 90):
         say("web", f"dashboard ready: {DASHBOARD}")
+        lan = lan_url()
+        if lan:
+            say("web", f"on the Wi-Fi: {lan}  (other devices sign in with the dashboard password)")
         webbrowser.open(DASHBOARD)
     say("run", "all services started. Ctrl+C stops everything. Logs: logs/run/")
     eod: threading.Thread | None = None
@@ -452,6 +523,11 @@ def main() -> int:
         return 1
 
     history = not a.no_backfill
+    # policy v7: before the open, the alpha score picks the 50 streamed stocks
+    # (alpha/select_watchlist.py; watchlist_policy.yaml alpha_select). A launch during the
+    # session keeps the current watchlist.
+    if now_ist().weekday() < 5 and now_ist().time() < dt.time(9, 15):
+        run_step("watchlist", ["trading_copilot/alpha/select_watchlist.py"], timeout=900)
     if history:
         # Only the watchlist's catch-up holds up the start (every missed day,
         # from the local store and NSE's daily files: about a minute). The
@@ -460,6 +536,7 @@ def main() -> int:
         if market_hours():
             say("history", "the full history store is updated after 15:45 IST")
 
+    keep_awake()
     services = start_services(a.verbose)
     try:
         supervise(services, history, full_now=history and not market_hours())

@@ -5,8 +5,14 @@ and rely on ``trading_copilot/`` being on sys.path. New packages under
 ``trading_copilot/core`` and ``trading_copilot/journal`` are imported as
 ``core.x`` / ``journal.x``. Both work once trading_copilot/ is on the path.
 """
+import os
 import sys
 from pathlib import Path
+
+# The operator's .env may open the dashboard to the Wi-Fi (QF_LAN=1); tests never
+# run behind the sign-in gate (tests/test_web_access.py tests it directly).
+# load_dotenv does not override a variable that is already set.
+os.environ["QF_LAN"] = "0"
 
 ROOT = Path(__file__).resolve().parents[1]
 COPILOT = ROOT / "trading_copilot"

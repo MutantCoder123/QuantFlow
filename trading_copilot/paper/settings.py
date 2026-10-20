@@ -69,6 +69,8 @@ class PaperSettings:
             "enabled": bool(p.get("enabled", True)),
             "autonomous": bool(p.get("autonomous", True)),
             "judge_model": str(p.get("judge_model", DEFAULT_MODEL)),
+            # A/B test of the judge: each fresh entry call goes to one of these at random
+            "judge_ab": [str(m) for m in (p.get("judge_ab") or [])],
             "stale_price_seconds": float(p.get("stale_price_seconds", 15)),
             "equity_snapshot_seconds": float(p.get("equity_snapshot_seconds", 60)),
             "metrics_min_n": dict(p.get("metrics_min_n") or {}),
