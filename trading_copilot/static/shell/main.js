@@ -16,6 +16,7 @@ import { DEFAULT_TAB, TABS, hashForInspect, hashForSettings, hashForTab, parseHa
 import * as appBar from './app-bar.js';
 import * as prompt from '../shared/prompt.js';
 import { syncAll } from '../shared/positions.js';
+import { bareSymbol } from '../shared/format.js';
 import { bootAuto } from '../shared/auto-analyze.js';
 
 const SECTIONS = Object.fromEntries(TABS.map((t) => [t.id, `tab-${t.id}`]));
@@ -50,7 +51,7 @@ const actions = {
   /** Open a stock in the Inspector; opts {tab: 'now'|'ai'|'news'|'raw', log: true} pick where it opens. */
   inspect(symbol, opts = null) {
     if (!symbol) return;
-    const sym = String(symbol).split('|').pop().split('-')[0].toUpperCase();
+    const sym = bareSymbol(symbol);
     store.set({ inspectOpts: opts ? { ...opts, at: Date.now() } : null });
     if (store.get().inspect === sym) return;        // already open: the options above re-aim it
     location.hash = hashForInspect(sym);

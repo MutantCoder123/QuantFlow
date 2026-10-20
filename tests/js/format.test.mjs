@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DASH, MINUS, duration, group, hm, hms, inr, isoDay, notYet, pct, r, tone } from '../../trading_copilot/static/shared/format.js';
+import { DASH, MINUS, bareSymbol, duration, group, hm, hms, inr, isoDay, notYet, pct, r, tone } from '../../trading_copilot/static/shared/format.js';
 
 const at = (h, m, s = 0) => Date.UTC(2026, 8, 28, h, m, s) / 1000 - 5.5 * 3600; // IST wall time
 
@@ -58,4 +58,13 @@ test('tone', () => {
   assert.equal(tone(-5), 'loss');
   assert.equal(tone(0), 'flat');
   assert.equal(tone(null), 'flat');
+});
+
+test('bareSymbol: the series suffix goes, a hyphenated name stays whole', () => {
+  assert.equal(bareSymbol('NSE_EQ|SAIL-EQ'), 'SAIL');
+  assert.equal(bareSymbol(' sail '), 'SAIL');
+  assert.equal(bareSymbol('BAJAJ-AUTO'), 'BAJAJ-AUTO');
+  assert.equal(bareSymbol('NSE_EQ|NAM-INDIA-EQ'), 'NAM-INDIA');
+  assert.equal(bareSymbol('M&M'), 'M&M');
+  assert.equal(bareSymbol(null), '');
 });

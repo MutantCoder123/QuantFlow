@@ -2,7 +2,7 @@
 // data-open and are handled in index.js.
 
 import { bool, html, raw } from '../shared/dom.js';
-import { DASH, group, hm, inr, num } from '../shared/format.js';
+import { DASH, bareSymbol, group, hm, inr, num } from '../shared/format.js';
 import { directiveLabel, rejectionLabel, sentenceCase, verdictLabel } from '../shared/labels.js';
 import { inFilter, laneGeometry, pipelineWord, rail, sectorBars, stageStrip } from './model.js';
 
@@ -150,9 +150,9 @@ export function decisions(alerts) {
     <section class="qf-section" aria-label="Decisions today">
       <div class="qf-between"><h3 class="qf-h3">Decisions today</h3><span class="qf-cap">acted on</span></div>
       ${list.length ? html`<div class="sg-log">${list.map((a) => html`
-        <button type="button" class="sg-log-row" data-open="${String(a.symbol).split('|').pop().split('-')[0]}">
+        <button type="button" class="sg-log-row" data-open="${bareSymbol(a.symbol)}">
           <span class="qf-mute">${hm(Number(a.timestamp))}</span>
-          <span class="qf-sym">${String(a.symbol).split('|').pop().split('-')[0]}</span>
+          <span class="qf-sym">${bareSymbol(a.symbol)}</span>
           <span>${verdictLabel(a.verdict)} · ${directiveLabel(a.action)}</span>
           <span class="qf-mute sg-log-why">${a.rationale || ''}</span>
         </button>`)}</div>` : html`<p class="qf-note">No decisions yet today.</p>`}

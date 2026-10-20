@@ -44,3 +44,31 @@ test('api calls resolve to ok/error, never throw', async () => {
   const junk = await request('/x', { fetchImpl: async () => ({ ok: true, json: async () => { throw new SyntaxError(); } }) });
   assert.equal(junk.ok, false);
 });
+
+test('request: a 401 (signed out on another device) sends the page to /login', async () => {
+  const { request } = await import('../../trading_copilot/static/shared/api.js');
+  const went = [];
+  globalThis.location = { assign: (u) => went.push(u) };
+  try {
+    const r = await request('/api/x', { fetchImpl: async () => ({ ok: false, status: 401 }) });
+    assert.equal(r.ok, false);
+    assert.deepEqual(went, ['/login']);
+  } finally {
+    delete globalThis.location;
+  }
+});
+
+test('syncAll: positions the server names as removed are deleted from this browser', async () => {
+  const { syncAll, loadPositions } = await import('../../trading_copilot/static/shared/positions.js');
+  const mem = { user_positions: JSON.stringify({ NBCC: { quantity: 1 }, SAIL: { quantity: 2 } }) };
+  globalThis.localStorage = { getItem: (k) => mem[k] ?? null, setItem: (k, v) => { mem[k] = v; } };
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({ status: 'success', drop: ['NBCC'] }) });
+  try {
+    await syncAll();
+    assert.deepEqual(Object.keys(loadPositions()), ['SAIL']);
+  } finally {
+    globalThis.fetch = realFetch;
+    delete globalThis.localStorage;
+  }
+});

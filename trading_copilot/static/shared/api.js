@@ -12,6 +12,11 @@ export async function request(url, { method = 'GET', body, fetchImpl = globalThi
   } catch {
     return { ok: false, error: 'The web process could not be reached.' };
   }
+  if (res.status === 401) {
+    // Opened from another device and the sign-in has run out (web_access.py): back to the sign-in page.
+    if (globalThis.location && typeof globalThis.location.assign === 'function') globalThis.location.assign('/login');
+    return { ok: false, error: 'Signed out. Sign in again to continue.' };
+  }
   if (!res.ok) return { ok: false, error: `The web process answered ${res.status}.` };
   let data;
   try {

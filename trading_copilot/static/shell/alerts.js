@@ -2,7 +2,7 @@
 // engine acted on; opening one marks it read and opens that stock.
 
 import { html, render } from '../shared/dom.js';
-import { hm } from '../shared/format.js';
+import { bareSymbol, hm } from '../shared/format.js';
 import { icons } from '../shared/icons.js';
 import { directiveLabel, verdictLabel } from '../shared/labels.js';
 import { request } from '../shared/api.js';
@@ -13,7 +13,7 @@ const POLL_MS = 10_000;
 export function alertLine(a) {
   return {
     id: a.id,
-    symbol: String(a.symbol || '').split('|').pop().split('-')[0],
+    symbol: bareSymbol(a.symbol),
     time: hm(Number(a.timestamp)),
     words: `${verdictLabel(a.verdict)} · ${directiveLabel(a.action)}`,
     rationale: a.rationale || '',

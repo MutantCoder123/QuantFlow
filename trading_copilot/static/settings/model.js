@@ -1,5 +1,7 @@
 // Settings' pure parts: watchlist edits and the news form.
 
+import { bareSymbol } from '../shared/format.js';
+
 export const SECTIONS = [
   { id: 'watchlist', label: 'Watchlist' },
   { id: 'ai', label: 'AI analysis' },
@@ -9,7 +11,7 @@ export const SECTIONS = [
 ];
 export const sectionOf = (id) => (SECTIONS.some((s) => s.id === id) ? id : 'watchlist');
 
-export const bare = (s) => String(s || '').split('|').pop().split('-')[0].toUpperCase();
+export const bare = bareSymbol;
 
 /** Add a search result to the working list, once (by token, then by symbol). */
 export function addItem(list, item) {

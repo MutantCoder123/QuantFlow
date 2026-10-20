@@ -3,6 +3,16 @@
 
 export const MINUS = '−';
 export const DASH = '—';
+
+// NSE series codes that can trail a trading symbol ('SAIL-EQ').
+const SERIES = new Set(['EQ', 'BE', 'BZ', 'BL', 'SM', 'ST', 'GB', 'GS', 'IL', 'RL', 'N1', 'N2', 'N3']);
+
+/** 'NSE_EQ|SAIL-EQ' -> 'SAIL'; 'BAJAJ-AUTO' stays whole (core/symbols.py base_symbol). */
+export function bareSymbol(s) {
+  const t = String(s || '').split('|').pop().trim().toUpperCase();
+  const i = t.lastIndexOf('-');
+  return i > 0 && SERIES.has(t.slice(i + 1)) ? t.slice(0, i) : t;
+}
 const IST = 'Asia/Kolkata';
 
 const known = (n) => typeof n === 'number' && Number.isFinite(n);

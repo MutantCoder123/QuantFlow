@@ -4,11 +4,12 @@
 // Paper positions are not here: they live in the paper engine.
 
 import { request } from './api.js';
+import { bareSymbol } from './format.js';
 
 const KEY = 'user_positions';
 
-/** 'NSE_EQ|SAIL-EQ' -> 'SAIL' (matches the backend's _normalize_symbol). */
-export const normalizeSymbol = (s) => String(s || '').split('|').pop().split('-')[0];
+/** 'NSE_EQ|SAIL-EQ' -> 'SAIL', BAJAJ-AUTO kept whole (matches the backend's base_symbol). */
+export const normalizeSymbol = bareSymbol;
 
 function read() {
   try {
@@ -70,5 +71,12 @@ export async function syncAll() {
   for (const [k, v] of Object.entries(read())) all[normalizeSymbol(k)] = v;
   write(all);
   if (!Object.keys(all).length) return { ok: true };
-  return request('/api/reasoning/position/sync_all', { method: 'POST', body: { positions: all } });
+  const r = await request('/api/reasoning/position/sync_all', { method: 'POST', body: { positions: all } });
+  // Positions removed on the server (api_server.remove_manual_positions): delete our copy too.
+  const drop = (r.ok && r.data && Array.isArray(r.data.drop)) ? r.data.drop : [];
+  if (drop.length) {
+    for (const s of drop) delete all[normalizeSymbol(s)];
+    write(all);
+  }
+  return r;
 }
