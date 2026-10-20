@@ -83,6 +83,22 @@ def test_a_new_password_signs_everyone_out(access):
     assert not access.session_ok(sid)
 
 
+def test_a_password_changed_by_another_process_signs_the_servers_sessions_out(access, tmp_path):
+    """scripts/set_password.py runs in its own process: the server's in-memory sessions must still
+    end, because each session is tied to the password hash it was issued under."""
+    sid = access.sign_in("10.0.0.1", PW)["session"]
+    Access(tmp_path, clock=Clock()).set_password("changed elsewhere")     # the script, not the server
+    assert not access.session_ok(sid)
+    assert access.sign_in("10.0.0.1", PW)["why"] == "wrong"
+    assert access.session_ok(access.sign_in("10.0.0.1", "changed elsewhere")["session"])
+
+
+def test_removing_the_password_file_ends_every_session(access, tmp_path):
+    sid = access.sign_in("10.0.0.1", PW)["session"]
+    (tmp_path / "access.json").unlink()
+    assert not access.session_ok(sid)
+
+
 # ------------------------------------------------------------------ the gate
 async def ws_echo(ws):
     await ws.accept()

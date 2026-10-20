@@ -58,7 +58,10 @@ class Access:
         self.state_path = Path(data_dir) / "access_state.json"
         self.clock = clock
         self._lock = threading.Lock()
-        self._sessions: dict[str, float] = {}           # session id -> expiry
+        # session id -> (expiry, the password hash it was issued under). session_ok compares that
+        # hash with the one on disk, so a password changed by ANY process (scripts/set_password.py
+        # runs outside the server) signs every device out at once.
+        self._sessions: dict[str, tuple[float, str]] = {}
         self._device: dict[str, dict] = {}              # ip -> {"fails", "until"}
 
     # ------------------------------------------------------------ the password
@@ -73,6 +76,9 @@ class Access:
         self.unlock()
         with self._lock:
             self._sessions.clear()                      # a new password signs everyone out
+
+    def _current_hash(self) -> str:
+        return str(_read_json(self.secret_path).get("hash") or "")
 
     def _check(self, password: str) -> bool:
         d = _read_json(self.secret_path)
@@ -110,7 +116,7 @@ class Access:
                 self._device.pop(ip, None)
                 _write_json(self.state_path, {"fails": 0})
                 sid = secrets.token_urlsafe(32)
-                self._sessions[sid] = self.clock() + SESSION_HOURS * 3600
+                self._sessions[sid] = (self.clock() + SESSION_HOURS * 3600, self._current_hash())
                 return {"ok": True, "session": sid}
             d = self._device.setdefault(ip, {"fails": 0, "until": 0.0})
             d["fails"] += 1
@@ -127,11 +133,13 @@ class Access:
         if not sid:
             return False
         with self._lock:
-            exp = self._sessions.get(sid)
-            if exp is None:
+            entry = self._sessions.get(sid)
+            if entry is None:
                 return False
-            if exp < self.clock():
-                self._sessions.pop(sid, None)
+            exp, issued_under = entry
+            current = self._current_hash()
+            if exp < self.clock() or not current or not hmac.compare_digest(issued_under, current):
+                self._sessions.pop(sid, None)          # expired, or the password changed / was removed
                 return False
             return True
 
